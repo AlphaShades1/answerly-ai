@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — Answerly AI</title>
+  <meta name="description" content="Privacy Policy for Answerly AI Chrome Extension." />
+  <link rel="icon" href="assets/icon.png" />
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    .privacy-wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 140px 24px 80px;
+    }
+    .privacy-wrap h1 {
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 900;
+      letter-spacing: -1.5px;
+      margin-bottom: 8px;
+    }
+    .privacy-wrap .updated {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 48px;
+    }
+    .privacy-wrap h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 36px 0 12px;
+      color: #fff;
+    }
+    .privacy-wrap p, .privacy-wrap li {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.8;
+      margin-bottom: 12px;
+    }
+    .privacy-wrap ul {
+      padding-left: 20px;
+    }
+    .privacy-wrap a {
+      color: var(--purple);
+      text-decoration: none;
+    }
+    .privacy-wrap a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/icon.png" alt="Answerly AI" class="nav-icon" />
+        <span>Answerly AI</span>
+      </a>
+      <a href="index.html#pricing" class="nav-cta">Get Started →</a>
+    </div>
+  </nav>
+
+  <div class="privacy-wrap">
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: April 5, 2025</p>
+
+    <p>Answerly AI ("we", "our", or "us") operates the Answerly AI Chrome Extension and associated website. This Privacy Policy explains what information we collect, how we use it, and your rights regarding that information.</p>
+
+    <h2>1. Information We Collect</h2>
+    <p>We collect the minimum information necessary to provide our service:</p>
+    <ul>
+      <li><strong>Activation code:</strong> Your unique subscription code is stored locally in your browser's extension storage to verify your access. It is never transmitted to third parties.</li>
+      <li><strong>Quiz question text and screenshots:</strong> When you use the Quiz Solver or Screenshot Tool, the question text or image is sent to our backend server and then to Google's Gemini AI API to generate an answer. This data is not stored on our servers after processing.</li>
+      <li><strong>Usage counters:</strong> We track how many Quiz Solver and Screenshot Tool requests you've made per day to enforce daily limits. These counters are tied to your activation code, not to any personal identity.</li>
+      <li><strong>Email address:</strong> Collected by Stripe at the time of subscription for billing purposes. We do not store your email address on our own servers.</li>
+    </ul>
+
+    <h2>2. Information We Do NOT Collect</h2>
+    <ul>
+      <li>We do not collect your name, IP address, or location.</li>
+      <li>We do not store quiz questions, answers, or screenshots after your request is processed.</li>
+      <li>We do not track your browsing history or activity outside of Canvas quiz pages.</li>
+      <li>We do not sell or share your data with advertisers.</li>
+    </ul>
+
+    <h2>3. Third-Party Services</h2>
+    <p>Answerly AI uses the following third-party services:</p>
+    <ul>
+      <li><strong>Google Gemini AI:</strong> Quiz questions and screenshots are sent to Google's Gemini AI API for processing. Google's privacy policy applies to this data. See <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">policies.google.com/privacy</a>.</li>
+      <li><strong>Stripe:</strong> Payments and subscription management are handled by Stripe. Stripe may collect billing information as described in their privacy policy at <a href="https://stripe.com/privacy" target="_blank" rel="noopener">stripe.com/privacy</a>.</li>
+      <li><strong>Render:</strong> Our backend API is hosted on Render. Network requests pass through Render's infrastructure.</li>
+    </ul>
+
+    <h2>4. Data Storage</h2>
+    <p>Your extension preferences (theme, stealth mode settings, activation code) are stored locally in your browser using Chrome's <code>storage.local</code> API. This data never leaves your device except as described above.</p>
+
+    <h2>5. Data Retention</h2>
+    <p>We do not retain quiz question data or screenshot data after your request is fulfilled. Usage counters reset daily and are permanently deleted when your subscription ends.</p>
+
+    <h2>6. Children's Privacy</h2>
+    <p>Answerly AI is not directed at children under 13. We do not knowingly collect personal information from children under 13. If you believe a child has provided us with personal information, please contact us and we will delete it.</p>
+
+    <h2>7. Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time. We will notify you of significant changes by updating the "Last updated" date at the top of this page. Continued use of the extension after changes constitutes acceptance of the updated policy.</p>
+
+    <h2>8. Contact</h2>
+    <p>If you have any questions about this Privacy Policy, please contact us at:<br />
+    <a href="mailto:AnswerlyAISupport@gmail.com">AnswerlyAISupport@gmail.com</a></p>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-logo">
+        <img src="assets/icon.png" alt="Answerly AI" class="nav-icon" />
+        <span>Answerly AI</span>
+      </div>
+      <div class="footer-links">
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="mailto:AnswerlyAISupport@gmail.com">Support</a>
+      </div>
+      <p class="footer-copy">© 2025 Answerly AI. All rights reserved.</p>
+    </div>
+  </footer>
+
+</body>
+</html>
