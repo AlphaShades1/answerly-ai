@@ -146,12 +146,12 @@ body {
 .btn-ghost:hover { color: #fff; border-color: #444; }
 
 .hero-video-wrap {
-  width: min(900px, calc(100vw - 48px));
+  width: min(1100px, calc(100vw - 48px));
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px var(--border);
   aspect-ratio: 16 / 9;
-  margin-bottom: 32px;
+  margin-top: 16px;
 }
 .hero-video-wrap iframe {
   width: 100%;
