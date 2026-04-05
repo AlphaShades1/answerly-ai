@@ -145,6 +145,21 @@ body {
 }
 .btn-ghost:hover { color: #fff; border-color: #444; }
 
+.hero-video-wrap {
+  width: 100%;
+  max-width: 900px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px var(--border);
+  aspect-ratio: 16 / 9;
+}
+.hero-video-wrap iframe {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: none;
+}
+
 .hero-img-wrap {
   width: 100%;
   max-width: 900px;
