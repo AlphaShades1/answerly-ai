@@ -287,10 +287,10 @@ section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
 /* ── Screenshots ── */
 .screenshots { text-align: center; }
 .screenshots-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
   gap: 28px;
-  max-width: 1000px;
+  width: 100%;
   margin: 0 auto;
 }
 .screenshot-item {
@@ -456,6 +456,9 @@ section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
   transition: color 0.2s;
 }
 .footer-links a:hover { color: #fff; }
+.footer-email { font-size: 14px; color: var(--text-muted); }
+.footer-email a { color: var(--purple); text-decoration: none; }
+.footer-email a:hover { text-decoration: underline; }
 .footer-copy { color: #444; font-size: 13px; }
 
 /* ── Responsive ── */
