@@ -7,15 +7,3 @@ document.querySelectorAll('.faq-q').forEach(btn => {
     if (!isOpen) item.classList.add('open');
   });
 });
-
-// CTA button — update href once Chrome Web Store link is ready
-const ctaBtn = document.getElementById('cta-btn');
-if (ctaBtn) {
-  ctaBtn.addEventListener('click', (e) => {
-    // placeholder: scroll to pricing until store link is added
-    if (ctaBtn.getAttribute('href') === '#') {
-      e.preventDefault();
-      document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' });
-    }
-  });
-}
