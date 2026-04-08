@@ -467,6 +467,156 @@ section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
 .footer-email a:hover { text-decoration: underline; }
 .footer-copy { color: #444; font-size: 13px; }
 
+/* ── Creator Program Card ── */
+.cp-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 24px 60px;
+  background: radial-gradient(ellipse 70% 50% at 50% 20%, rgba(124,92,252,0.12) 0%, transparent 70%);
+}
+.cp-card {
+  background: #0f0f17;
+  border: 1px solid #1e1e30;
+  border-radius: 24px;
+  padding: 52px 48px;
+  max-width: 700px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.cp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(124,92,252,0.12);
+  border: 1px solid rgba(124,92,252,0.35);
+  color: #a88fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 50px;
+  width: fit-content;
+}
+.cp-title {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 900;
+  line-height: 1.12;
+  letter-spacing: -1px;
+}
+.cp-sub {
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.7;
+  margin-top: -16px;
+}
+.cp-sub strong { color: #fff; }
+
+/* Pricing row */
+.cp-pricing-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #16161f;
+  border: 1px solid #1e1e30;
+  border-radius: 16px;
+  padding: 28px 32px;
+}
+.cp-pricing-box { flex: 1; text-align: center; }
+.cp-pricing-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.cp-pricing-amount {
+  font-size: 48px;
+  font-weight: 900;
+  color: var(--purple);
+  letter-spacing: -2px;
+  line-height: 1;
+}
+.cp-pricing-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+.cp-pricing-arrow {
+  font-size: 22px;
+  color: #333;
+  flex-shrink: 0;
+}
+
+/* Bullets */
+.cp-bullets { display: flex; flex-direction: column; gap: 18px; }
+.cp-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.cp-bullet-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.cp-bullet-green  { background: rgba(52,211,153,0.15); color: #34d399; }
+.cp-bullet-purple { background: rgba(124,92,252,0.15); color: var(--purple); }
+.cp-bullet-orange { background: rgba(251,146,60,0.15); color: #fb923c; }
+.cp-bullet strong { display: block; font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+.cp-bullet p { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+/* Earnings box */
+.cp-earnings {
+  background: #16161f;
+  border: 1px solid #1e1e30;
+  border-radius: 14px;
+  padding: 24px 28px;
+}
+.cp-earnings-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--purple);
+  margin-bottom: 20px;
+}
+.cp-earnings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  text-align: center;
+}
+.cp-earn-users { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.cp-earn-amount { font-size: 14px; color: var(--text-muted); }
+.cp-earn-purple { color: var(--purple) !important; }
+.cp-earn-highlight .cp-earn-users { color: var(--purple); }
+
+/* Pay note & CTA */
+.cp-pay-note { font-size: 13px; color: #555; text-align: center; margin-top: -8px; }
+.cp-cta-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  background: linear-gradient(135deg, var(--purple), #9b72ff);
+  color: #fff;
+  padding: 18px;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 0 40px rgba(124,92,252,0.3);
+}
+.cp-cta-btn:hover { opacity: 0.92; transform: translateY(-2px); }
+
 /* ── Affiliates Page ── */
 .aff-hero {
   min-height: 60vh;
@@ -618,4 +768,8 @@ section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
   .aff-earnings-grid { grid-template-columns: 1fr; }
   .aff-form-row { grid-template-columns: 1fr; }
   .aff-form { padding: 32px 20px; }
+  .cp-card { padding: 36px 24px; }
+  .cp-pricing-row { flex-direction: column; gap: 12px; }
+  .cp-pricing-arrow { transform: rotate(90deg); }
+  .cp-earnings-grid { grid-template-columns: 1fr; gap: 16px; }
 }
