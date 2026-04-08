@@ -68,18 +68,18 @@ body {
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 .nav-links a {
-  color: var(--text-muted);
-  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+  font-size: 14px;
   font-weight: 500;
   text-decoration: none;
-  padding: 6px 12px;
+  padding: 7px 13px;
   border-radius: 8px;
   transition: color 0.2s, background 0.2s;
 }
-.nav-links a:hover { color: #fff; background: rgba(255,255,255,0.06); }
+.nav-links a:hover { color: #fff; background: rgba(255,255,255,0.08); }
 .nav-affiliate {
   color: var(--text-muted);
   font-size: 14px;
