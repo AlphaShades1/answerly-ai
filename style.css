@@ -65,6 +65,19 @@ body {
   transition: background 0.2s, transform 0.2s;
 }
 .nav-cta:hover { background: var(--purple-dark); transform: translateY(-1px); }
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.nav-links a {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: #fff; }
 .nav-affiliate {
   color: var(--text-muted);
   font-size: 14px;
@@ -793,6 +806,7 @@ section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
 
 /* ── Responsive ── */
 @media (max-width: 700px) {
+  .nav-links { display: none; }
   .hero-title { letter-spacing: -1px; }
   .step-line { display: none; }
   .steps { flex-direction: column; align-items: center; }
