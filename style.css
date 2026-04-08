@@ -65,6 +65,14 @@ body {
   transition: background 0.2s, transform 0.2s;
 }
 .nav-cta:hover { background: var(--purple-dark); transform: translateY(-1px); }
+.nav-affiliate {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.nav-affiliate:hover { color: #fff; }
 
 /* ── Hero ── */
 .hero {
@@ -459,6 +467,145 @@ section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
 .footer-email a:hover { text-decoration: underline; }
 .footer-copy { color: #444; font-size: 13px; }
 
+/* ── Affiliates Page ── */
+.aff-hero {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 140px 24px 80px;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,92,252,0.18) 0%, transparent 70%);
+}
+
+.aff-how, .aff-perks, .aff-earnings, .aff-form-section {
+  text-align: center;
+  padding: 100px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Steps */
+.aff-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.aff-step {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 36px 28px;
+  max-width: 260px;
+  flex: 1;
+  min-width: 200px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.aff-step:hover { border-color: rgba(124,92,252,0.5); transform: translateY(-3px); }
+.aff-step-icon { font-size: 36px; margin-bottom: 16px; }
+.aff-step h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+.aff-step p { color: var(--text-muted); font-size: 14px; line-height: 1.65; }
+.aff-step-arrow { font-size: 24px; color: var(--purple); margin-bottom: 20px; flex-shrink: 0; }
+
+/* Perks grid */
+.aff-perks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  text-align: left;
+}
+.aff-perk-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.aff-perk-card:hover { border-color: rgba(124,92,252,0.5); transform: translateY(-3px); }
+.aff-perk-icon { font-size: 28px; margin-bottom: 14px; }
+.aff-perk-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+.aff-perk-card p { color: var(--text-muted); font-size: 14px; line-height: 1.65; }
+
+/* Earnings */
+.aff-earnings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+.aff-earn-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 36px 24px;
+  position: relative;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.aff-earn-card:hover { border-color: rgba(124,92,252,0.4); transform: translateY(-3px); }
+.aff-earn-featured {
+  border-color: rgba(124,92,252,0.6) !important;
+  box-shadow: 0 0 40px rgba(124,92,252,0.15);
+}
+.aff-earn-badge {
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--purple);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 50px;
+}
+.aff-earn-num { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 10px; }
+.aff-earn-amount { font-size: 48px; font-weight: 900; color: #fff; letter-spacing: -2px; margin-bottom: 8px; }
+.aff-earn-amount span { font-size: 18px; font-weight: 500; color: var(--text-muted); letter-spacing: 0; }
+.aff-earn-card p { color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+
+/* Form */
+.aff-form-sub { color: var(--text-muted); font-size: 16px; margin-top: -40px; margin-bottom: 50px; }
+.aff-form {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 48px 40px;
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.aff-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.aff-form-group { display: flex; flex-direction: column; gap: 8px; }
+.aff-form-group label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+.aff-form-group input,
+.aff-form-group select,
+.aff-form-group textarea {
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  resize: vertical;
+}
+.aff-form-group input:focus,
+.aff-form-group select:focus,
+.aff-form-group textarea:focus { border-color: var(--purple); }
+.aff-form-group select option { background: var(--bg-card2); }
+.aff-submit { width: 100%; text-align: center; padding: 16px; font-size: 16px; border-radius: 12px; border: none; cursor: pointer; }
+.aff-form-note { font-size: 12px; color: #555; text-align: center; margin-top: -8px; }
+
 /* ── Responsive ── */
 @media (max-width: 700px) {
   .hero-title { letter-spacing: -1px; }
@@ -466,4 +613,9 @@ section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
   .steps { flex-direction: column; align-items: center; }
   .pricing-card { padding: 36px 24px; }
   .screenshots-grid { grid-template-columns: 1fr; }
+  .aff-steps { flex-direction: column; align-items: center; }
+  .aff-step-arrow { transform: rotate(90deg); }
+  .aff-earnings-grid { grid-template-columns: 1fr; }
+  .aff-form-row { grid-template-columns: 1fr; }
+  .aff-form { padding: 32px 20px; }
 }
