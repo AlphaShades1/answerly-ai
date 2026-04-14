@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Answerly AI — Canvas Homework Helper",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "browser_specific_settings": {
     "gecko": {
       "id": "answerly-ai@getanswerlyai.com",
