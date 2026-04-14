@@ -172,8 +172,8 @@ function renderStealthBtn() {
 function updateUsageBars(remaining) {
   const qRem   = remaining?.quiz       ?? 150;
   const sRem   = remaining?.screenshot ?? 150;
-  const qLimit = remaining?.quizLimit       || 150;
-  const sLimit = remaining?.screenshotLimit || 150;
+  const qLimit = 150;
+  const sLimit = 150;
 
   const qPct = Math.max(0, Math.min(100, (qRem / qLimit) * 100));
   const sPct = Math.max(0, Math.min(100, (sRem / sLimit) * 100));
