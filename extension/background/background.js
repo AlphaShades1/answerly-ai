@@ -16,8 +16,8 @@ function incrementLocalUsage(code, type, remaining) {
   if (!code) return;
   const today   = new Date().toISOString().slice(0, 10);
   const usageKey = `answerlyUsage_${code}`;
-  const qLimit  = remaining?.quizLimit       || 100;
-  const sLimit  = remaining?.screenshotLimit || 100;
+  const qLimit  = 150;
+  const sLimit  = 150;
 
   chrome.storage.local.get(usageKey, (stored) => {
     const cur      = stored[usageKey];
