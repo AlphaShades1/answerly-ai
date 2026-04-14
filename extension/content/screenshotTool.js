@@ -44,7 +44,9 @@ window.__answerlyScreenshotLoaded = true;
         margin:10px 12px; height:160px; background:#0a0a0e;
         border:1px solid #2e2e3e; border-radius:8px;
         display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;
+        cursor:pointer;
       }
+      .answerly-ss-preview:hover { border-color:#4a4a60; }
       .answerly-ss-preview img { width:100%; height:100%; object-fit:contain; border-radius:7px; }
       .answerly-ss-placeholder { display:flex; flex-direction:column; align-items:center; gap:6px; color:#555570; font-size:11px; }
       .answerly-ss-placeholder svg { opacity:.4; }
@@ -166,6 +168,7 @@ window.__answerlyScreenshotLoaded = true;
     });
     document.getElementById('answerly-ss-topbar').addEventListener('mousedown', startWidgetDrag);
     document.getElementById('answerly-ss-capture').addEventListener('click', startCapture);
+    document.getElementById('answerly-ss-preview').addEventListener('click', startCapture);
     document.getElementById('answerly-ss-send').addEventListener('click', doSend);
   }
 
