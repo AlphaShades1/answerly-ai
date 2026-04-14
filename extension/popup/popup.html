@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Answerly AI</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- ── LOADING VIEW ── -->
+  <div id="view-loading" class="view" style="align-items:center;justify-content:center;min-height:160px;gap:10px;">
+    <div style="width:28px;height:28px;border:3px solid #2e2e3e;border-top-color:#7c5cfc;border-radius:50%;animation:spin .7s linear infinite;"></div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  </div>
+
+  <!-- ── ACTIVATION VIEW ── -->
+  <div id="view-activate" class="view hidden">
+    <div class="header">
+      <div class="logo-group">
+        <img src="../assets/icon48.png" alt="Answerly AI" class="logo-img" />
+        <span class="logo-text">Answerly AI</span>
+      </div>
+    </div>
+    <div class="activate-body">
+      <p class="activate-tagline">Enter your activation code to get started.</p>
+
+      <div class="code-input-wrap">
+        <input
+          id="code-input"
+          type="text"
+          placeholder="ANS-XXXX-XXXX-XXXX"
+          maxlength="18"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+
+      <p id="activate-error" class="activate-error hidden"></p>
+
+      <button id="btn-activate" class="btn-activate">Activate</button>
+
+      <p class="activate-buy-hint">
+        Don't have a code?
+        <button id="btn-buy" class="link-btn">Buy a subscription →</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- ── MAIN VIEW ── -->
+  <div id="view-main" class="view hidden">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-group">
+        <img src="../assets/icon48.png" alt="Answerly AI" class="logo-img" />
+        <span class="logo-text">Answerly AI</span>
+      </div>
+      <div class="header-actions">
+        <!-- Profile / code info -->
+        <div class="profile-wrap">
+          <button id="btn-profile" class="icon-btn" title="Account">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </button>
+          <div id="profile-dropdown" class="dropdown hidden">
+            <span id="profile-code" class="dropdown-email"></span>
+            <span id="profile-expiry" class="dropdown-plan"></span>
+            <button id="btn-deactivate" class="dropdown-logout">Log out</button>
+          </div>
+        </div>
+
+        <!-- Menu -->
+        <div class="menu-wrap">
+          <button id="btn-menu" class="icon-btn" title="Menu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <div id="menu-dropdown" class="dropdown hidden">
+            <button class="dropdown-item" id="menu-subscription">Buy / Renew Subscription</button>
+            <button class="dropdown-item" id="menu-manage">Manage Subscription</button>
+            <button class="dropdown-item" id="menu-help">Help: AnswerlyAISupport@gmail.com</button>
+          </div>
+        </div>
+
+        <!-- Close -->
+        <button id="btn-close" class="icon-btn" title="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Not on Canvas notice -->
+    <div id="not-canvas-notice" class="notice hidden">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Navigate to a Canvas quiz or assignment to use these tools.
+    </div>
+
+    <!-- Tool toggles -->
+    <div class="tools-body">
+      <button id="btn-quiz-solver" class="tool-btn" data-active="false">
+        <span class="tool-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </span>
+        <span class="tool-label" id="quiz-label">ACTIVATE QUIZ SOLVER</span>
+      </button>
+
+      <button id="btn-solve-all" class="tool-btn" data-active="false" style="background:#4a3899;border-color:#4a3899;">
+        <span class="tool-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></polyline></svg>
+        </span>
+        <span class="tool-label" id="solve-all-label">SOLVE ALL QUESTIONS</span>
+      </button>
+
+      <button id="btn-screenshot" class="tool-btn" data-active="false">
+        <span class="tool-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </span>
+        <span class="tool-label" id="screenshot-label">ACTIVATE SCREENSHOT TOOL</span>
+      </button>
+    </div>
+
+    <!-- Usage bars -->
+    <div id="usage-bars" class="usage-bars">
+      <div class="usage-row">
+        <span class="usage-label">Quiz Solver</span>
+        <div class="usage-bar-wrap">
+          <div id="usage-quiz-bar" class="usage-bar-fill"></div>
+        </div>
+        <span id="usage-quiz-text" class="usage-count">150/150</span>
+      </div>
+      <div class="usage-row">
+        <span class="usage-label">Screenshot</span>
+        <div class="usage-bar-wrap">
+          <div id="usage-screenshot-bar" class="usage-bar-fill"></div>
+        </div>
+        <span id="usage-screenshot-text" class="usage-count">150/150</span>
+      </div>
+      <p class="usage-reset">Resets at midnight UTC</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="stealth-row" id="stealth-row">
+        <span class="stealth-label">Stealth</span>
+        <div class="stealth-tip">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div class="stealth-tooltip">Hides the <b>?</b> button on each question. Click where it normally appears (next to the question title) to silently fetch &amp; auto-select the answer — nothing visible on screen.</div>
+        </div>
+        <button id="btn-stealth" class="toggle-pill" title="Toggle stealth mode">
+          <span class="toggle-pill-knob"></span>
+        </button>
+      </div>
+      <button id="btn-review" class="footer-icon-btn review-btn" title="Leave a review">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+      </button>
+      <button id="btn-customize" class="link-btn footer-link">Customize</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

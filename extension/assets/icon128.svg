@@ -1,0 +1,24 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'>
+  <defs>
+    <linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'>
+      <stop offset='0%' stop-color='#9b7ffe'/>
+      <stop offset='100%' stop-color='#6a3fc8'/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width='128' height='128' rx='28' fill='url(#g)'/>
+  <!-- Stylized C / arrow shape matching the logo -->
+  <path d='M82 30 C82 30 36 30 36 64 C36 98 82 98 82 98'
+    fill='none'
+    stroke='white'
+    stroke-width='16'
+    stroke-linecap='round'
+    stroke-linejoin='round'/>
+  <!-- Arrow tip pointing inward -->
+  <polyline points='70,84 82,98 70,112'
+    fill='none'
+    stroke='white'
+    stroke-width='16'
+    stroke-linecap='round'
+    stroke-linejoin='round'/>
+</svg>

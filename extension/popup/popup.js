@@ -38,9 +38,8 @@ const usageQuizText     = document.getElementById('usage-quiz-text');
 const usageScreenBar    = document.getElementById('usage-screenshot-bar');
 const usageScreenText   = document.getElementById('usage-screenshot-text');
 
-const btnStealth          = document.getElementById('btn-stealth');
-const stealthEyeIcon      = document.getElementById('stealth-eye-icon');
-const stealthEyeSlashIcon = document.getElementById('stealth-eye-slash-icon');
+const btnStealth = document.getElementById('btn-stealth');
+const stealthRow = document.getElementById('stealth-row');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showView(id) {
@@ -165,11 +164,16 @@ function renderToolBtn(btn, label, active, name) {
   label.textContent  = active ? `DEACTIVATE ${name}` : `ACTIVATE ${name}`;
 }
 
+function renderStealthBtn() {
+  btnStealth.classList.toggle('active', stealthActive);
+  stealthRow.classList.toggle('stealth-disabled', !quizActive);
+}
+
 function updateUsageBars(remaining) {
-  const qRem   = remaining?.quiz       ?? 100;
-  const sRem   = remaining?.screenshot ?? 100;
-  const qLimit = remaining?.quizLimit       || 100;
-  const sLimit = remaining?.screenshotLimit || 100;
+  const qRem   = remaining?.quiz       ?? 150;
+  const sRem   = remaining?.screenshot ?? 150;
+  const qLimit = remaining?.quizLimit       || 150;
+  const sLimit = remaining?.screenshotLimit || 150;
 
   const qPct = Math.max(0, Math.min(100, (qRem / qLimit) * 100));
   const sPct = Math.max(0, Math.min(100, (sRem / sLimit) * 100));
@@ -184,11 +188,6 @@ function updateUsageBars(remaining) {
   usageScreenBar.style.background = sRem <= 10 ? '#f05454' : sRem <= 30 ? '#f0a054' : '#7c5cfc';
 }
 
-function renderStealthBtn() {
-  btnStealth.classList.toggle('stealth-active', stealthActive);
-  stealthEyeIcon.classList.toggle('hidden', stealthActive);
-  stealthEyeSlashIcon.classList.toggle('hidden', !stealthActive);
-}
 
 // ── Activation ────────────────────────────────────────────────────────────────
 // Auto-format code input as user types
@@ -327,8 +326,15 @@ btnQuizSolver.addEventListener('click', async () => {
     await injectScript('content/quizSolver.js');
     await sendToActiveTab({ type: 'QUIZ_SOLVER_ON' });
   } else {
+    // Turn off stealth when quiz solver is deactivated
+    if (stealthActive) {
+      stealthActive = false;
+      await chrome.storage.local.set({ answerlyStealthActive: false });
+      await sendToActiveTab({ type: 'STEALTH_OFF' });
+    }
     await sendToActiveTab({ type: 'QUIZ_SOLVER_OFF' });
   }
+  renderStealthBtn();
 });
 
 document.getElementById('btn-solve-all').addEventListener('click', async () => {
@@ -351,12 +357,18 @@ btnScreenshot.addEventListener('click', async () => {
   }
 });
 
-// ── Stealth ───────────────────────────────────────────────────────────────────
+
+// ── Stealth toggle ────────────────────────────────────────────────────────────
 btnStealth.addEventListener('click', async () => {
   stealthActive = !stealthActive;
   renderStealthBtn();
   await chrome.storage.local.set({ answerlyStealthActive: stealthActive });
   await sendToActiveTab({ type: stealthActive ? 'STEALTH_ON' : 'STEALTH_OFF' });
+});
+
+// ── Review ────────────────────────────────────────────────────────────────────
+document.getElementById('btn-review').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'https://chromewebstore.google.com/detail/answerly-ai-%E2%80%94-canvas-home/gmekadimanglmacabjkmaigckocobnnc/reviews' });
 });
 
 // ── Customize ─────────────────────────────────────────────────────────────────

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Answerly AI — Customize</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 360px;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f12;
+      color: #f0f0f5;
+      font-size: 13px;
+      padding: 20px 16px 28px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #2e2e3e;
+    }
+    .header img { width: 26px; height: 26px; border-radius: 6px; }
+    .header-title { font-size: 16px; font-weight: 800; background: linear-gradient(135deg,#c4b5fd,#7c5cfc); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+
+    h3 { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: #8888a0; margin-bottom: 10px; }
+
+    .section { margin-bottom: 20px; }
+
+    /* Preset buttons */
+    .presets { display: flex; gap: 8px; flex-wrap: wrap; }
+    .preset-btn {
+      padding: 7px 14px;
+      border-radius: 20px;
+      border: 1px solid #3a3a5c;
+      background: #1a1a22;
+      color: #c0c0d8;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .preset-btn:hover, .preset-btn.active {
+      border-color: #7c5cfc;
+      color: #fff;
+      background: rgba(124,92,252,.15);
+    }
+
+    /* Color rows */
+    .color-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #1e1e2a;
+    }
+    .color-row:last-child { border-bottom: none; }
+    .color-label { color: #c0c0d8; font-size: 13px; }
+    .color-controls { display: flex; align-items: center; gap: 8px; }
+    .color-controls input[type="color"] {
+      width: 34px; height: 28px;
+      border: 1px solid #3a3a5c;
+      border-radius: 6px;
+      background: none;
+      cursor: pointer;
+      padding: 2px;
+    }
+    .color-controls input[type="text"] {
+      width: 80px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: 1px solid #3a3a5c;
+      background: #22222e;
+      color: #f0f0f5;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+    }
+    .color-controls input[type="text"]:focus { outline: none; border-color: #7c5cfc; }
+
+    /* Opacity */
+    .slider-row { display: flex; flex-direction: column; gap: 8px; }
+    .slider-labels { display: flex; justify-content: space-between; font-size: 11px; color: #8888a0; }
+    input[type="range"] {
+      width: 100%;
+      accent-color: #7c5cfc;
+      cursor: pointer;
+    }
+    .opacity-val { text-align: right; font-size: 12px; font-weight: 700; color: #7c5cfc; }
+
+    /* Toggle row */
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #1e1e2a;
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-info { flex: 1; }
+    .toggle-label { color: #c0c0d8; font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+    .toggle-desc { color: #8888a0; font-size: 11px; line-height: 1.4; }
+
+    /* Toggle switch */
+    .toggle-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; margin-top: 1px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: #2e2e3e;
+      border-radius: 99px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      top: 3px; left: 3px;
+      transition: transform .2s;
+    }
+    .toggle-switch input:checked + .toggle-track { background: #7c5cfc; }
+    .toggle-switch input:checked + .toggle-track::after { transform: translateX(18px); }
+
+    /* Preview */
+    .preview-box {
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.55;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin-bottom: 20px;
+    }
+    .preview-badge {
+      font-size: 10px; font-weight: 700; letter-spacing: .8px;
+      text-transform: uppercase; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .preview-hint { margin-bottom: 10px; }
+    .preview-answer-box {
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 8px;
+    }
+    .preview-answer-lbl {
+      font-size: 10px; font-weight: 700; letter-spacing: .8px;
+      text-transform: uppercase; display: block; margin-bottom: 4px;
+    }
+    .preview-answer-text { font-weight: 800; font-size: 14px; }
+
+    /* Preview button dot */
+    .preview-btn-demo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(124,92,252,.5);
+    }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 10px; margin-top: 4px; }
+    .btn-save {
+      flex: 1;
+      padding: 12px;
+      border-radius: 50px;
+      border: none;
+      background: #7c5cfc;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-save:hover { background: #9171fd; }
+    .btn-reset {
+      padding: 12px 18px;
+      border-radius: 50px;
+      border: 1px solid #3a3a5c;
+      background: transparent;
+      color: #8888a0;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-reset:hover { border-color: #7c5cfc; color: #fff; }
+
+    .saved-msg { text-align: center; color: #4ade80; font-size: 12px; font-weight: 600; margin-top: 10px; display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <img src="../assets/icon48.png" alt="Answerly AI" />
+    <span class="header-title">Customize</span>
+  </div>
+
+  <!-- Presets -->
+  <div class="section">
+    <h3>Presets</h3>
+    <div class="presets">
+      <button class="preset-btn active" data-preset="default">Default</button>
+      <button class="preset-btn" data-preset="ghost">Ghost (Invisible)</button>
+      <button class="preset-btn" data-preset="dark">Midnight</button>
+      <button class="preset-btn" data-preset="green">Matrix</button>
+    </div>
+  </div>
+
+  <!-- Colors -->
+  <div class="section">
+    <h3>Colors</h3>
+    <div class="color-row">
+      <span class="color-label">Logo / Button color</span>
+      <div class="color-controls">
+        <input type="color" id="color-accent" value="#7c5cfc" />
+        <input type="text" id="hex-accent" value="#7c5cfc" maxlength="7" />
+      </div>
+    </div>
+    <div class="color-row">
+      <span class="color-label">Card background</span>
+      <div class="color-controls">
+        <input type="color" id="color-bg" value="#1a1a2e" />
+        <input type="text" id="hex-bg" value="#1a1a2e" maxlength="7" />
+      </div>
+    </div>
+    <div class="color-row">
+      <span class="color-label">Border / accent</span>
+      <div class="color-controls">
+        <input type="color" id="color-border" value="#7c5cfc" />
+        <input type="text" id="hex-border" value="#7c5cfc" maxlength="7" />
+      </div>
+    </div>
+    <div class="color-row">
+      <span class="color-label">Answer text</span>
+      <div class="color-controls">
+        <input type="color" id="color-answer" value="#ffffff" />
+        <input type="text" id="hex-answer" value="#ffffff" maxlength="7" />
+      </div>
+    </div>
+    <div class="color-row">
+      <span class="color-label">Hint text</span>
+      <div class="color-controls">
+        <input type="color" id="color-hint" value="#c0c0d8" />
+        <input type="text" id="hex-hint" value="#c0c0d8" maxlength="7" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Opacity -->
+  <div class="section">
+    <h3>Card Opacity</h3>
+    <div class="slider-row">
+      <input type="range" id="opacity-slider" min="0" max="100" value="100" />
+      <div class="slider-labels">
+        <span>Invisible</span>
+        <span class="opacity-val" id="opacity-val">100%</span>
+        <span>Fully visible</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="section">
+    <h3>Preview</h3>
+    <!-- Button preview -->
+    <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:11px;color:#8888a0;">Button:</span>
+      <div class="preview-btn-demo" id="preview-btn-demo">?</div>
+      <span id="preview-btn-label" style="font-size:11px;color:#8888a0;"></span>
+    </div>
+    <!-- Card preview -->
+    <div class="preview-box" id="preview-card">
+      <div class="preview-badge" id="preview-badge">⊙ Answerly AI</div>
+      <div class="preview-hint" id="preview-hint">Think about what the UDP length field specifies for the full datagram.</div>
+      <div class="preview-answer-box" id="preview-answer-box">
+        <span class="preview-answer-lbl" id="preview-answer-lbl">Answer</span>
+        <div class="preview-answer-text" id="preview-answer-text">Each of the four fields is 2 bytes long.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-reset" id="btn-reset">Reset</button>
+    <button class="btn-save" id="btn-save">Save Changes</button>
+  </div>
+  <div class="saved-msg" id="saved-msg">✓ Saved! Reload your quiz page to see changes.</div>
+
+  <script src="customize.js"></script>
+</body>
+</html>
