@@ -18,7 +18,6 @@ window.__answerlyQuizSolverLoaded = true;
     answerColor: '#ffffff',
     hintColor:   '#c0c0d8',
     opacity:     100,
-    autoSelect:  false,
   };
   let theme = { ...DEFAULT_THEME };
 
@@ -330,7 +329,7 @@ window.__answerlyQuizSolverLoaded = true;
 
       const isFreeText = options.length === 0;
       const accent = theme.accentColor || DEFAULT_THEME.accentColor;
-      const effectiveAutoSelect = stealthHidden || theme.autoSelect;
+      const effectiveAutoSelect = stealthHidden;
 
       const header =
         qEl.querySelector('.question_name') ||
