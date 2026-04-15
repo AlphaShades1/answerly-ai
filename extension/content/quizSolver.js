@@ -262,10 +262,22 @@ window.__answerlyQuizSolverLoaded = true;
     return false;
   }
 
+  // ── Normalize answer text for matching ────────────────────────────────────
+  // Strips letter prefixes like "a.", "b)", "d." so "d. a U.S. senator"
+  // matches the same as "a U.S. senator"
+  function normalizeText(s) {
+    return s.trim().toLowerCase()
+      .replace(/^[a-z]\.\s+/i, '')  // strip "a. "
+      .replace(/^[a-z]\)\s+/i, '')  // strip "a) "
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   // ── Auto-select: click the matching radio/checkbox in Canvas ───────────────
   function autoSelectAnswer(qEl, answer) {
     const answerDivs = qEl.querySelectorAll('.answer');
-    const targets = answer.split(',').map(a => a.trim().toLowerCase()).filter(Boolean);
+    const targets = answer.split(',').map(a => normalizeText(a)).filter(Boolean);
+    const rawTargets = answer.split(',').map(a => a.trim().toLowerCase()).filter(Boolean);
 
     // Multiple answers (checkboxes) — click all matches
     if (targets.length > 1) {
@@ -273,9 +285,13 @@ window.__answerlyQuizSolverLoaded = true;
       for (const div of answerDivs) {
         const label = div.querySelector('.answer_label, label');
         if (!label) continue;
-        const labelText = label.innerText.trim().toLowerCase();
-        for (const target of targets) {
-          if (labelText.includes(target) || target.includes(labelText)) {
+        const labelText    = label.innerText.trim().toLowerCase();
+        const labelNorm    = normalizeText(labelText);
+        for (let i = 0; i < targets.length; i++) {
+          const t    = targets[i];
+          const tRaw = rawTargets[i];
+          if (labelNorm === t || labelNorm.includes(t) || t.includes(labelNorm) ||
+              labelText.includes(tRaw) || tRaw.includes(labelText)) {
             const input = div.querySelector('input[type="checkbox"]');
             if (input && !input.checked) { input.click(); matched = true; }
             break;
@@ -286,30 +302,54 @@ window.__answerlyQuizSolverLoaded = true;
     }
 
     // Single answer — radio or checkbox
-    const target = targets[0] || answer.trim().toLowerCase();
+    const target    = targets[0]    || normalizeText(answer);
+    const targetRaw = rawTargets[0] || answer.trim().toLowerCase();
 
+    // Pass 1: exact normalized match
     for (const div of answerDivs) {
       const label = div.querySelector('.answer_label, label');
       if (!label) continue;
-      const labelText = label.innerText.trim().toLowerCase();
-      if (labelText.includes(target) || target.includes(labelText)) {
+      const labelNorm = normalizeText(label.innerText);
+      if (labelNorm === target) {
         const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
         if (input) { input.click(); return true; }
       }
     }
 
-    // Fallback: partial match on first 20 chars
+    // Pass 2: includes match (normalized)
     for (const div of answerDivs) {
       const label = div.querySelector('.answer_label, label');
       if (!label) continue;
-      const labelText = label.innerText.trim().toLowerCase();
-      if (labelText.startsWith(target.slice(0, 20))) {
+      const labelNorm = normalizeText(label.innerText);
+      if (labelNorm.includes(target) || target.includes(labelNorm)) {
         const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
         if (input) { input.click(); return true; }
       }
     }
 
-    // Fallback: try single select dropdown
+    // Pass 3: raw includes match (original strings)
+    for (const div of answerDivs) {
+      const label = div.querySelector('.answer_label, label');
+      if (!label) continue;
+      const labelText = label.innerText.trim().toLowerCase();
+      if (labelText.includes(targetRaw) || targetRaw.includes(labelText)) {
+        const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
+        if (input) { input.click(); return true; }
+      }
+    }
+
+    // Pass 4: partial match on first 25 chars of normalized text
+    for (const div of answerDivs) {
+      const label = div.querySelector('.answer_label, label');
+      if (!label) continue;
+      const labelNorm = normalizeText(label.innerText);
+      if (labelNorm.startsWith(target.slice(0, 25)) || target.startsWith(labelNorm.slice(0, 25))) {
+        const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
+        if (input) { input.click(); return true; }
+      }
+    }
+
+    // Pass 5: fallback — single select dropdown
     const selects = qEl.querySelectorAll('select');
     if (selects.length === 1) return autoSelectDropdown(selects[0], answer);
 
@@ -443,14 +483,20 @@ window.__answerlyQuizSolverLoaded = true;
           e.preventDefault();
           e.stopPropagation();
           if (isFreeText || btn.dataset.done) return;
-          btn.dataset.done   = 'true';
-          btn.dataset.opened = 'true';
+          btn.dataset.done = 'true';
           chrome.runtime.sendMessage(
             { type: 'SOLVE_QUESTION', question: questionText, options },
             (resp) => {
               if (!chrome.runtime.lastError && resp && !resp.error) {
-                autoSelectAnswer(qEl, resp.answer);
+                const matched = autoSelectAnswer(qEl, resp.answer);
+                if (matched) {
+                  btn.dataset.opened = 'true'; // only mark done after confirmed match
+                } else {
+                  // Answer came back but didn't match any option — allow retry
+                  btn.dataset.done = '';
+                }
               } else {
+                // Network/server error — allow retry
                 btn.dataset.done = '';
               }
             }
@@ -593,7 +639,9 @@ window.__answerlyQuizSolverLoaded = true;
     if (msg.type === 'SOLVE_ALL') {
       injectStyles();
       injectButtons();
-      document.querySelectorAll('.answerly-btn:not([data-opened])').forEach(btn => btn.click());
+      // Stagger clicks 700ms apart so backend isn't flooded simultaneously
+      const btns = Array.from(document.querySelectorAll('.answerly-btn:not([data-opened])'));
+      btns.forEach((btn, i) => setTimeout(() => btn.click(), i * 700));
     }
   });
 
