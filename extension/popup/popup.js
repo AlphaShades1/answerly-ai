@@ -150,12 +150,20 @@ async function renderMain() {
       .then(r => r.json())
       .then(data => {
         if (data.remaining) {
-          const entry = { ...data.remaining, date: today };
+          // Calculate actual uses from server, then apply against our 150 limit.
+          // This works even if the deployed backend still reports an old limit.
+          const quizUsed   = (data.remaining.quizLimit   || 150) - (data.remaining.quiz       ?? 0);
+          const screenUsed = (data.remaining.screenshotLimit || 150) - (data.remaining.screenshot ?? 0);
+          const entry = {
+            quiz:       Math.max(0, 150 - quizUsed),
+            screenshot: Math.max(0, 150 - screenUsed),
+            date: today,
+          };
           chrome.storage.local.set({ [usageKey]: entry });
           updateUsageBars(entry);
         }
       })
-      .catch(() => {}); // network fail — keep showing 100/100 as fallback
+      .catch(() => {}); // network fail — keep showing 150/150 as fallback
   }
 }
 
