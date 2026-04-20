@@ -367,6 +367,15 @@ window.__answerlyQuizSolverLoaded = true;
       const { questionText, options, dropdownRows } = extractData(qEl);
       if (!questionText) return;
 
+      // Detect images inside the question — if present, redirect to screenshot tool
+      const textContainer =
+        qEl.querySelector('.question_text') ||
+        qEl.querySelector('[data-question-text]') ||
+        qEl.querySelector('.question-text') ||
+        qEl;
+      const hasImage = Array.from(textContainer.querySelectorAll('img'))
+        .some(img => (img.naturalWidth || img.width) > 30);
+
       const isFreeText = options.length === 0;
       const accent = theme.accentColor || DEFAULT_THEME.accentColor;
       const effectiveAutoSelect = stealthHidden;
@@ -393,9 +402,8 @@ window.__answerlyQuizSolverLoaded = true;
       header.appendChild(btn);
 
       if (dropdownRows.length > 0) {
-        // Only redirect to screenshot if the question explicitly references external data
-        // (e.g. packet traces, diagrams, images) — NOT just because options happen to be numbers
-        const needsScreenshot = /refer to|see (the |figure|diagram|image|graph|chart|table|packet|trace|capture|exhibit)|based on (the |figure|diagram|image|above)|shown (in|below|above)|in the (figure|diagram|image|graph|chart|table|packet|capture)/i.test(questionText);
+        // Redirect to screenshot if question has an image or explicitly references external data
+        const needsScreenshot = hasImage || /refer to|see (the |figure|diagram|image|graph|chart|table|packet|trace|capture|exhibit)|based on (the |figure|diagram|image|above)|shown (in|below|above)|in the (figure|diagram|image|graph|chart|table|packet|capture)/i.test(questionText);
 
         // ── DROPDOWN QUESTION: solve all dropdowns, show answers in card ──────
         const card = document.createElement('div');
@@ -515,7 +523,12 @@ window.__answerlyQuizSolverLoaded = true;
             Answerly AI
           </div>
           <div class="answerly-hint-area">
-            ${isFreeText
+            ${hasImage
+              ? `<div class="answerly-hint-row" style="color:#a090f0!important;">
+                  📸 This question contains an image.<br>
+                  <span style="color:#c0c0d8!important;">Use the <strong style="color:#fff!important;">Screenshot Tool</strong> for accurate AI assistance.</span>
+                 </div>`
+              : isFreeText
               ? `<div class="answerly-hint-row" style="color:#a090f0!important;">
                   📸 This is a free-response question.<br>
                   <span style="color:#c0c0d8!important;">Use the <strong style="color:#fff!important;">Screenshot Tool</strong> in the extension for AI assistance.</span>
@@ -532,7 +545,7 @@ window.__answerlyQuizSolverLoaded = true;
           e.stopPropagation();
           const isOpen = card.style.display !== 'none';
           card.style.display = isOpen ? 'none' : 'block';
-          if (!isOpen && !card.dataset.loaded && !isFreeText) {
+          if (!isOpen && !card.dataset.loaded && !isFreeText && !hasImage) {
             fetchAnswer(card, questionText, options);
           }
           if (!isOpen) {
