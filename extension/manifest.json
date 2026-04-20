@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Answerly AI — Canvas Homework Helper",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "AI-powered homework helper with quiz hints, answers, and a screenshot tool for Canvas LMS and other platforms.",
   "icons": {
     "16": "assets/icon16.png",
