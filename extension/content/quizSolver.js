@@ -481,6 +481,28 @@ window.__answerlyQuizSolverLoaded = true;
 
       } else if (effectiveAutoSelect) {
         // ── AUTO-SELECT MODE: invisible button, click silently selects answer ─
+
+        // If question has an image, show a visible screenshot prompt card instead
+        if (hasImage) {
+          const card = document.createElement('div');
+          card.className = `answerly-card ${INJECTED}`;
+          card.style.setProperty('background',   theme.cardBg,     'important');
+          card.style.setProperty('border-color', theme.cardBorder, 'important');
+          card.style.setProperty('opacity',      theme.opacity / 100, 'important');
+          card.innerHTML = `
+            <div class="answerly-badge" style="color:${accent}!important">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Answerly AI
+            </div>
+            <div class="answerly-hint-row" style="color:#a090f0!important;">
+              📸 This question contains an image.<br>
+              <span style="color:#c0c0d8!important;">Use the <strong style="color:#fff!important;">Screenshot Tool</strong> for accurate AI assistance.</span>
+            </div>`;
+          const answers = qEl.querySelector('.answers') || qEl.querySelector('.answer_group');
+          (answers || qEl).insertAdjacentElement('afterend', card);
+          btn.dataset.done = 'true';
+        }
+
         btn.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
