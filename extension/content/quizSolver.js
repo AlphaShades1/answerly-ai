@@ -367,14 +367,9 @@ window.__answerlyQuizSolverLoaded = true;
       const { questionText, options, dropdownRows } = extractData(qEl);
       if (!questionText) return;
 
-      // Detect images inside the question — if present, redirect to screenshot tool
-      const textContainer =
-        qEl.querySelector('.question_text') ||
-        qEl.querySelector('[data-question-text]') ||
-        qEl.querySelector('.question-text') ||
-        qEl;
-      const hasImage = Array.from(textContainer.querySelectorAll('img'))
-        .some(img => (img.naturalWidth || img.width) > 30);
+      // Detect images inside the question — if any <img> with a src exists, redirect to screenshot tool
+      const hasImage = !!qEl.querySelector('img[src]:not([src=""])') ||
+        !!qEl.querySelector('img:not([src=""])');
 
       const isFreeText = options.length === 0;
       const accent = theme.accentColor || DEFAULT_THEME.accentColor;
