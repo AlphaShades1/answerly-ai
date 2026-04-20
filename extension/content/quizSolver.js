@@ -442,7 +442,6 @@ window.__answerlyQuizSolverLoaded = true;
             ? questionText.slice(0, 800).trim() + '...'
             : questionText.trim();
           const results = [];
-          const image = await fetchQuestionImage(qEl);
 
           for (const { rowLabel, selectEl, options: rowOpts } of dropdownRows) {
             const cleanLabel = rowLabel.replace(/→\s*$/, '').trim();
@@ -452,7 +451,7 @@ window.__answerlyQuizSolverLoaded = true;
 
             await new Promise(resolve => {
               chrome.runtime.sendMessage(
-                { type: 'SOLVE_QUESTION', question: q, options: rowOpts, image },
+                { type: 'SOLVE_QUESTION', question: q, options: rowOpts },
                 (resp) => {
                   if (!chrome.runtime.lastError && resp && !resp.error) {
                     autoSelectDropdown(selectEl, resp.answer);
@@ -479,14 +478,13 @@ window.__answerlyQuizSolverLoaded = true;
 
       } else if (effectiveAutoSelect) {
         // ── AUTO-SELECT MODE: invisible button, click silently selects answer ─
-        btn.addEventListener('click', async (e) => {
+        btn.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
           if (isFreeText || btn.dataset.done) return;
           btn.dataset.done = 'true';
-          const image = await fetchQuestionImage(qEl);
           chrome.runtime.sendMessage(
-            { type: 'SOLVE_QUESTION', question: questionText, options, image },
+            { type: 'SOLVE_QUESTION', question: questionText, options },
             (resp) => {
               if (!chrome.runtime.lastError && resp && !resp.error) {
                 const matched = autoSelectAnswer(qEl, resp.answer);
@@ -529,53 +527,28 @@ window.__answerlyQuizSolverLoaded = true;
         const answers = qEl.querySelector('.answers') || qEl.querySelector('.answer_group');
         (answers || qEl).insertAdjacentElement('afterend', card);
 
-        btn.addEventListener('click', async (e) => {
+        btn.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
           const isOpen = card.style.display !== 'none';
           card.style.display = isOpen ? 'none' : 'block';
+          if (!isOpen && !card.dataset.loaded && !isFreeText) {
+            fetchAnswer(card, questionText, options);
+          }
           if (!isOpen) {
-            btn.dataset.opened = 'true';
-            if (!card.dataset.loaded && !isFreeText) {
-              card.dataset.loaded = 'true';
-              const image = await fetchQuestionImage(qEl);
-              fetchAnswer(card, questionText, options, image);
-            }
+            card.dataset.loaded = 'true';
+            btn.dataset.opened  = 'true';
           }
         });
       }
     });
   }
 
-  // ── Fetch images from question element ────────────────────────────────────
-  async function fetchQuestionImage(qEl) {
-    const container =
-      qEl.querySelector('.question_text') ||
-      qEl.querySelector('[data-question-text]') ||
-      qEl.querySelector('.question-text') ||
-      qEl;
-    const imgs = Array.from(container.querySelectorAll('img'))
-      .filter(img => img.src && img.naturalWidth > 30 && img.naturalHeight > 30);
-    for (const img of imgs) {
-      try {
-        const resp = await fetch(img.src);
-        const blob = await resp.blob();
-        const base64 = await new Promise(resolve => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result.replace(/^data:[^;]+;base64,/, ''));
-          reader.readAsDataURL(blob);
-        });
-        return base64;
-      } catch { continue; }
-    }
-    return null;
-  }
-
   // ── API ────────────────────────────────────────────────────────────────────
-  function fetchAnswer(card, questionText, options, image = null) {
+  function fetchAnswer(card, questionText, options) {
     card.dataset.loaded = 'true';
     chrome.runtime.sendMessage(
-      { type: 'SOLVE_QUESTION', question: questionText, options, image },
+      { type: 'SOLVE_QUESTION', question: questionText, options },
       (resp) => {
         if (chrome.runtime.lastError || !resp) {
           return renderError(card, 'Extension error — try reloading.');
