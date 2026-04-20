@@ -484,7 +484,7 @@ window.__answerlyQuizSolverLoaded = true;
         btn.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (isFreeText || btn.dataset.done) return;
+          if (isFreeText || hasImage || btn.dataset.done) return;
           btn.dataset.done = 'true';
           chrome.runtime.sendMessage(
             { type: 'SOLVE_QUESTION', question: questionText, options },
