@@ -393,10 +393,9 @@ window.__answerlyQuizSolverLoaded = true;
       header.appendChild(btn);
 
       if (dropdownRows.length > 0) {
-        // Detect if options are mostly numbers (e.g. packet trace questions) → needs screenshot
-        const allOpts = dropdownRows.flatMap(r => r.options);
-        const numericCount = allOpts.filter(o => /^\d+$/.test(o.trim())).length;
-        const needsScreenshot = numericCount > allOpts.length / 2;
+        // Only redirect to screenshot if the question explicitly references external data
+        // (e.g. packet traces, diagrams, images) — NOT just because options happen to be numbers
+        const needsScreenshot = /refer to|see (the |figure|diagram|image|graph|chart|table|packet|trace|capture|exhibit)|based on (the |figure|diagram|image|above)|shown (in|below|above)|in the (figure|diagram|image|graph|chart|table|packet|capture)/i.test(questionText);
 
         // ── DROPDOWN QUESTION: solve all dropdowns, show answers in card ──────
         const card = document.createElement('div');
