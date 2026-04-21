@@ -464,8 +464,9 @@ window.__answerlyQuizSolverLoaded = true;
                 { type: 'SOLVE_MATCHING', question: baseQ, rows: rows.map(r => ({ label: r.label, options: r.options })) },
                 (resp) => {
                   if (!chrome.runtime.lastError && resp && resp.answers) {
-                    rows.forEach(r => {
-                      const answer = resp.answers[r.label];
+                    // Backend returns numbered keys: {"1": "answer", "2": "answer", ...}
+                    rows.forEach((r, i) => {
+                      const answer = resp.answers[String(i + 1)];
                       if (answer) { autoSelectDropdown(r.selectEl, answer); results.push({ label: r.label, answer }); }
                       else results.push({ label: r.label, answer: '—' });
                     });
