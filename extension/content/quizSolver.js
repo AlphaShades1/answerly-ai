@@ -279,26 +279,32 @@ window.__answerlyQuizSolverLoaded = true;
     const targets = answer.split(',').map(a => normalizeText(a)).filter(Boolean);
     const rawTargets = answer.split(',').map(a => a.trim().toLowerCase()).filter(Boolean);
 
-    // Multiple answers (checkboxes) — click all matches
+    // Multiple answers (checkboxes) — two-pass: collect then safety-check
     if (targets.length > 1) {
-      let matched = false;
+      const toCheck = [];
       for (const div of answerDivs) {
         const label = div.querySelector('.answer_label, label');
         if (!label) continue;
-        const labelText    = label.innerText.trim().toLowerCase();
-        const labelNorm    = normalizeText(labelText);
+        const labelText = label.innerText.trim().toLowerCase();
+        const labelNorm = normalizeText(labelText);
         for (let i = 0; i < targets.length; i++) {
           const t    = targets[i];
           const tRaw = rawTargets[i];
-          if (labelNorm === t || labelNorm.includes(t) || t.includes(labelNorm) ||
-              labelText.includes(tRaw) || tRaw.includes(labelText)) {
+          // Strict matching: exact, OR label is contained in target (not target in label unless long)
+          if (labelNorm === t ||
+              labelNorm.includes(t) ||
+              (t.length > 20 && t.includes(labelNorm)) ||
+              (tRaw.length > 20 && tRaw.includes(labelText))) {
             const input = div.querySelector('input[type="checkbox"]');
-            if (input && !input.checked) { input.click(); matched = true; }
+            if (input && !input.checked) toCheck.push(input);
             break;
           }
         }
       }
-      return matched;
+      // Safety: if every option matched, AI was not selective — abort
+      if (toCheck.length >= answerDivs.length) return false;
+      toCheck.forEach(input => input.click());
+      return toCheck.length > 0;
     }
 
     // Single answer — radio or checkbox
@@ -441,6 +447,10 @@ window.__answerlyQuizSolverLoaded = true;
           btn.dataset.opened = 'true';
           if (!effectiveAutoSelect) card.style.display = 'block';
 
+          // Reset area to "Solving…" on every attempt (handles retries cleanly)
+          const area = card.querySelector('.answerly-hint-area');
+          if (area) area.innerHTML = '<div class="answerly-loading"><div class="answerly-spinner"></div>Solving…</div>';
+
           const baseQ = questionText.length > 800
             ? questionText.slice(0, 800).trim() + '...'
             : questionText.trim();
@@ -459,26 +469,33 @@ window.__answerlyQuizSolverLoaded = true;
               options: r.options,
               selectEl: r.selectEl,
             }));
+            let matchingFailed = false;
             await new Promise(resolve => {
               chrome.runtime.sendMessage(
                 { type: 'SOLVE_MATCHING', question: baseQ, rows: rows.map(r => ({ label: r.label, options: r.options })) },
                 (resp) => {
                   if (!chrome.runtime.lastError && resp && resp.answers) {
-                    // Backend returns numbered keys: {"1": "answer", "2": "answer", ...}
+                    // Backend returns numbered keys: {"1": "answer text", "2": "answer text", ...}
                     rows.forEach((r, i) => {
                       const answer = resp.answers[String(i + 1)];
                       if (answer) { autoSelectDropdown(r.selectEl, answer); results.push({ label: r.label, answer }); }
                       else results.push({ label: r.label, answer: '—' });
                     });
                   } else {
-                    rows.forEach(r => results.push({ label: r.label, answer: '—' }));
+                    matchingFailed = true;
                   }
                   resolve();
                 }
               );
             });
+            if (matchingFailed) {
+              btn.dataset.done = '';
+              if (area && !effectiveAutoSelect) area.innerHTML = '<div class="answerly-error">Failed to solve — click to retry.</div>';
+              return;
+            }
           } else {
             // ── Non-matching: solve each dropdown separately ──────────────────
+            let anySuccess = false;
             for (const { rowLabel, selectEl, options: rowOpts } of dropdownRows) {
               const cleanLabel = rowLabel.replace(/→\s*$/, '').trim();
               const q = cleanLabel ? `${baseQ}\n\nFor: "${cleanLabel}"` : baseQ;
@@ -489,6 +506,7 @@ window.__answerlyQuizSolverLoaded = true;
                     if (!chrome.runtime.lastError && resp && !resp.error) {
                       autoSelectDropdown(selectEl, resp.answer);
                       results.push({ label: cleanLabel, answer: resp.answer });
+                      anySuccess = true;
                     } else {
                       results.push({ label: cleanLabel, answer: '—' });
                     }
@@ -498,10 +516,14 @@ window.__answerlyQuizSolverLoaded = true;
               });
               await new Promise(resolve => setTimeout(resolve, 400));
             }
+            if (!anySuccess) {
+              btn.dataset.done = '';
+              if (area && !effectiveAutoSelect) area.innerHTML = '<div class="answerly-error">Failed to solve — click to retry.</div>';
+              return;
+            }
           }
 
           if (effectiveAutoSelect) { card.style.display = 'none'; return; }
-          const area = card.querySelector('.answerly-hint-area');
           area.innerHTML = results.map((r, i) =>
             `<div style="padding:5px 0;border-bottom:1px solid #2a2a4a;font-size:12px;">
               <span style="color:#fff!important;font-weight:600;">${i + 1}. ${r.label ? esc(r.label) + ' →' : ''}</span>
