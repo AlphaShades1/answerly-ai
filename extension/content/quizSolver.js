@@ -198,8 +198,7 @@ window.__answerlyQuizSolverLoaded = true;
 
     const labelEls = qEl.querySelectorAll(
       '.answer .answer_label, .answer_label, [data-answer-text], ' +
-      '.answer .answer_text, .answer_text, ' +
-      '.answer label'
+      '.answer .answer_text, .answer_text, .answer label'
     );
     const seen = new Set();
     const options = [];
@@ -207,6 +206,14 @@ window.__answerlyQuizSolverLoaded = true;
       const t = el.innerText.trim();
       if (t && !seen.has(t)) { seen.add(t); options.push(t); }
     });
+
+    // Fallback: if no labels found via class selectors, discover them from the inputs directly
+    if (options.length === 0) {
+      qEl.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(input => {
+        const t = getOptionLabelText(input, qEl);
+        if (t && !seen.has(t)) { seen.add(t); options.push(t); }
+      });
+    }
 
     // Detect dropdown (select) questions
     const dropdownRows = [];
@@ -277,97 +284,90 @@ window.__answerlyQuizSolverLoaded = true;
       .trim();
   }
 
-  // ── Auto-select: click the matching radio/checkbox in Canvas ───────────────
-  function autoSelectAnswer(qEl, answer) {
-    const answerDivs = qEl.querySelectorAll('.answer');
-    if (!answerDivs.length) return false;
+  // ── Get the visible label text for any input element ─────────────────────
+  // Works regardless of which wrapper class Canvas uses (.answer, .answer-option, etc.)
+  function getOptionLabelText(input, scope) {
+    scope = scope || document;
+    // 1. Explicit <label for="id">
+    if (input.id) {
+      const lbl = scope.querySelector(`label[for="${input.id}"]`) ||
+                  document.querySelector(`label[for="${input.id}"]`);
+      if (lbl) return lbl.innerText.trim();
+    }
+    // 2. Input wrapped inside a <label>
+    const wrappedLabel = input.closest('label');
+    if (wrappedLabel) return wrappedLabel.innerText.trim();
+    // 3. Named answer element in parent container
+    const container = input.closest('.answer, .answer-option, .answer_choice, [data-answer], li, tr');
+    if (container) {
+      const lbl = container.querySelector('.answer_label, .answer_text, label, span.answer-label');
+      if (lbl) return lbl.innerText.trim();
+      // Fallback: full text of the container minus the input's own text
+      return container.innerText.replace(input.value || '', '').trim();
+    }
+    // 4. Next sibling element
+    const sib = input.nextElementSibling;
+    if (sib) return sib.innerText.trim();
+    return '';
+  }
 
+  // ── Auto-select: click the matching radio/checkbox in Canvas ───────────────
+  // Anchored on input elements — works regardless of Canvas wrapper class names.
+  function autoSelectAnswer(qEl, answer) {
     const answerNorm  = normalizeText(answer);
     const answerLower = answer.trim().toLowerCase();
-
-    // Comma-split for exact-match targets (fallback when options have no commas)
     const targets    = answer.split(',').map(a => normalizeText(a)).filter(Boolean);
     const rawTargets = answer.split(',').map(a => a.trim().toLowerCase()).filter(Boolean);
 
-    // Helper: get label text from an answer div (supports multiple Canvas structures)
-    function getLabelText(div) {
-      const el = div.querySelector('.answer_label, .answer_text, label');
-      return el ? el.innerText.trim() : '';
-    }
-
-    // ── Checkbox / select-all-that-apply ──────────────────────────────────────
-    // Use REVERSE matching: check if each option text appears inside the AI answer.
-    // This handles commas embedded in option text and multi-answer combined strings.
-    const hasCheckboxes = !!qEl.querySelector('.answer input[type="checkbox"]');
-    if (hasCheckboxes) {
+    // ── Checkbox / select-all-that-apply ─────────────────────────────────────
+    const checkboxes = Array.from(qEl.querySelectorAll('input[type="checkbox"]'));
+    if (checkboxes.length > 0) {
       const toCheck = [];
-      for (const div of answerDivs) {
-        const labelText = getLabelText(div);
+      for (const input of checkboxes) {
+        const labelText = getOptionLabelText(input, qEl);
         if (!labelText) continue;
         const labelNorm = normalizeText(labelText);
         const labelLow  = labelText.toLowerCase();
 
+        // Exact comma-split match OR reverse substring (option appears inside AI answer)
         const exactMatch = targets.some(t => t === labelNorm) ||
                            rawTargets.some(t => t === labelLow);
-        // Reverse substring: option text (if long enough) appears in AI answer
         const revMatch   = labelNorm.length > 12 &&
                            (answerNorm.includes(labelNorm) || answerLower.includes(labelLow));
 
-        if (exactMatch || revMatch) {
-          const input = div.querySelector('input[type="checkbox"]');
-          if (input && !input.checked) toCheck.push(input);
-        }
+        if ((exactMatch || revMatch) && !input.checked) toCheck.push(input);
       }
-      // Safety: if every available checkbox would be ticked, AI wasn't selective — abort
-      if (toCheck.length >= answerDivs.length) return false;
+      // Safety: abort if every checkbox would be checked (AI was not selective)
+      if (toCheck.length >= checkboxes.length) return false;
       if (toCheck.length > 0) { toCheck.forEach(i => i.click()); return true; }
       return false;
     }
 
     // ── Single answer — radio ─────────────────────────────────────────────────
+    const radios  = Array.from(qEl.querySelectorAll('input[type="radio"]'));
     const target    = targets[0]    || answerNorm;
     const targetRaw = rawTargets[0] || answerLower;
 
     // Pass 1: exact normalized match
-    for (const div of answerDivs) {
-      const labelText = getLabelText(div);
-      if (!labelText) continue;
-      if (normalizeText(labelText) === target) {
-        const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
-        if (input) { input.click(); return true; }
-      }
+    for (const input of radios) {
+      const lbl = getOptionLabelText(input, qEl);
+      if (normalizeText(lbl) === target) { input.click(); return true; }
     }
-
     // Pass 2: includes match (normalized)
-    for (const div of answerDivs) {
-      const labelText = getLabelText(div);
-      if (!labelText) continue;
-      const labelNorm = normalizeText(labelText);
-      if (labelNorm.includes(target) || target.includes(labelNorm)) {
-        const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
-        if (input) { input.click(); return true; }
-      }
+    for (const input of radios) {
+      const lblNorm = normalizeText(getOptionLabelText(input, qEl));
+      if (lblNorm.includes(target) || target.includes(lblNorm)) { input.click(); return true; }
     }
-
     // Pass 3: raw includes match
-    for (const div of answerDivs) {
-      const labelText = getLabelText(div);
-      if (!labelText) continue;
-      const labelLow = labelText.toLowerCase();
-      if (labelLow.includes(targetRaw) || targetRaw.includes(labelLow)) {
-        const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
-        if (input) { input.click(); return true; }
-      }
+    for (const input of radios) {
+      const lblLow = getOptionLabelText(input, qEl).toLowerCase();
+      if (lblLow.includes(targetRaw) || targetRaw.includes(lblLow)) { input.click(); return true; }
     }
-
-    // Pass 4: partial match on first 25 chars
-    for (const div of answerDivs) {
-      const labelText = getLabelText(div);
-      if (!labelText) continue;
-      const labelNorm = normalizeText(labelText);
-      if (labelNorm.startsWith(target.slice(0, 25)) || target.startsWith(labelNorm.slice(0, 25))) {
-        const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
-        if (input) { input.click(); return true; }
+    // Pass 4: first 25 chars
+    for (const input of radios) {
+      const lblNorm = normalizeText(getOptionLabelText(input, qEl));
+      if (lblNorm.startsWith(target.slice(0, 25)) || target.startsWith(lblNorm.slice(0, 25))) {
+        input.click(); return true;
       }
     }
 
