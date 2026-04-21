@@ -170,35 +170,7 @@ window.__answerlyQuizSolverLoaded = true;
 
 .answerly-error { color: #f05454 !important; font-size: 12px !important; }
 
-      /* ── Eye visibility toggle button ── */
-      #answerly-eye-toggle {
-        position: fixed !important;
-        bottom: 20px !important;
-        left: 20px !important;
-        width: 36px !important;
-        height: 36px !important;
-        border-radius: 50% !important;
-        border: 1px solid #3a3a5c !important;
-        background: #1a1a2e !important;
-        color: #7c5cfc !important;
-        cursor: pointer !important;
-        z-index: 2147483647 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 4px 16px rgba(0,0,0,.55) !important;
-        transition: background .15s, border-color .15s, color .15s !important;
-        padding: 0 !important;
-      }
-      #answerly-eye-toggle:hover {
-        background: #2a2a40 !important;
-        border-color: #7c5cfc !important;
-      }
-      #answerly-eye-toggle.eye-hidden {
-        color: #555570 !important;
-        border-color: #2a2a3a !important;
-      }
-      /* When UI is hidden, collapse all answerly cards + question buttons */
+      /* When eye toggle hides UI, collapse all answerly cards + question buttons */
       .answerly-ui-hidden .answerly-card,
       .answerly-ui-hidden .answerly-btn {
         display: none !important;
@@ -770,34 +742,6 @@ window.__answerlyQuizSolverLoaded = true;
       .replace(/"/g,'&quot;');
   }
 
-  // ── Eye visibility toggle ──────────────────────────────────────────────────
-  function injectEyeBtn() {
-    if (document.getElementById('answerly-eye-toggle')) return;
-    const btn = document.createElement('button');
-    btn.id    = 'answerly-eye-toggle';
-    btn.type  = 'button';
-    btn.title = 'Toggle Answerly UI visibility';
-    btn.innerHTML = eyeOpenSVG();
-    btn.addEventListener('click', () => {
-      const hidden = document.body.classList.toggle('answerly-ui-hidden');
-      btn.classList.toggle('eye-hidden', hidden);
-      btn.innerHTML = hidden ? eyeClosedSVG() : eyeOpenSVG();
-    });
-    document.body.appendChild(btn);
-  }
-
-  function removeEyeBtn() {
-    document.getElementById('answerly-eye-toggle')?.remove();
-    document.body.classList.remove('answerly-ui-hidden');
-  }
-
-  function eyeOpenSVG() {
-    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
-  }
-  function eyeClosedSVG() {
-    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
-  }
-
   // ── Cleanup ────────────────────────────────────────────────────────────────
   function removeAll() {
     document.querySelectorAll(`.${INJECTED}`).forEach(el => el.remove());
@@ -818,14 +762,13 @@ window.__answerlyQuizSolverLoaded = true;
     chrome.storage.local.get(themeKey, (t) => {
       if (t[themeKey]) theme = { ...DEFAULT_THEME, ...t[themeKey] };
       injectButtons();
-      injectEyeBtn();
       startObserver();
     });
   }
   function deactivate() {
     solverActive = false;
     removeAll();
-    removeEyeBtn();
+    document.body.classList.remove('answerly-ui-hidden');
   }
 
   chrome.runtime.onMessage.addListener((msg) => {
@@ -833,16 +776,8 @@ window.__answerlyQuizSolverLoaded = true;
     if (msg.type === 'QUIZ_SOLVER_OFF') deactivate();
     if (msg.type === 'STEALTH_ON')  { stealthHidden = true;  if (solverActive) { removeAll(); injectButtons(); startObserver(); } }
     if (msg.type === 'STEALTH_OFF') { stealthHidden = false; if (solverActive) { removeAll(); injectButtons(); startObserver(); } }
-    if (msg.type === 'HIDE_UI') {
-      document.body.classList.add('answerly-ui-hidden');
-      const eyeBtn = document.getElementById('answerly-eye-toggle');
-      if (eyeBtn) { eyeBtn.classList.add('eye-hidden'); eyeBtn.innerHTML = eyeClosedSVG(); }
-    }
-    if (msg.type === 'SHOW_UI') {
-      document.body.classList.remove('answerly-ui-hidden');
-      const eyeBtn = document.getElementById('answerly-eye-toggle');
-      if (eyeBtn) { eyeBtn.classList.remove('eye-hidden'); eyeBtn.innerHTML = eyeOpenSVG(); }
-    }
+    if (msg.type === 'HIDE_UI') document.body.classList.add('answerly-ui-hidden');
+    if (msg.type === 'SHOW_UI')  document.body.classList.remove('answerly-ui-hidden');
     if (msg.type === 'SOLVE_ALL') {
       injectStyles();
       injectButtons();
