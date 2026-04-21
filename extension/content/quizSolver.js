@@ -418,7 +418,13 @@ window.__answerlyQuizSolverLoaded = true;
       }
     }
 
-    // Pass 5: fallback — single select dropdown
+    // Pass 5: letter fallback — if AI returned "B" etc., map directly to radio index
+    if (/^[a-e]$/.test(target)) {
+      const idx = target.charCodeAt(0) - 97; // 'a'→0, 'b'→1 …
+      if (radios[idx]) { radios[idx].click(); return true; }
+    }
+
+    // Pass 6: fallback — single select dropdown
     const selects = qEl.querySelectorAll('select');
     if (selects.length === 1) return autoSelectDropdown(selects[0], answer);
 
@@ -635,8 +641,9 @@ window.__answerlyQuizSolverLoaded = true;
           }
           if (isFreeText || btn.dataset.done) return;
           btn.dataset.done = 'true';
+          const isMultiSelect = !!qEl.querySelector('input[type="checkbox"]');
           chrome.runtime.sendMessage(
-            { type: 'SOLVE_QUESTION', question: questionText, options },
+            { type: 'SOLVE_QUESTION', question: questionText, options, isMultiSelect },
             (resp) => {
               if (!chrome.runtime.lastError && resp && !resp.error) {
                 const matched = autoSelectAnswer(qEl, resp.answer);
@@ -690,7 +697,8 @@ window.__answerlyQuizSolverLoaded = true;
           const isOpen = card.style.display !== 'none';
           card.style.display = isOpen ? 'none' : 'block';
           if (!isOpen && !card.dataset.loaded && !isFreeText && !hasImage) {
-            fetchAnswer(card, questionText, options);
+            const isMultiSelect = !!qEl.querySelector('input[type="checkbox"]');
+            fetchAnswer(card, questionText, options, isMultiSelect);
           }
           if (!isOpen) {
             card.dataset.loaded = 'true';
@@ -702,10 +710,10 @@ window.__answerlyQuizSolverLoaded = true;
   }
 
   // ── API ────────────────────────────────────────────────────────────────────
-  function fetchAnswer(card, questionText, options) {
+  function fetchAnswer(card, questionText, options, isMultiSelect) {
     card.dataset.loaded = 'true';
     chrome.runtime.sendMessage(
-      { type: 'SOLVE_QUESTION', question: questionText, options },
+      { type: 'SOLVE_QUESTION', question: questionText, options, isMultiSelect: !!isMultiSelect },
       (resp) => {
         if (chrome.runtime.lastError || !resp) {
           return renderError(card, 'Extension error — try reloading.');
@@ -825,6 +833,16 @@ window.__answerlyQuizSolverLoaded = true;
     if (msg.type === 'QUIZ_SOLVER_OFF') deactivate();
     if (msg.type === 'STEALTH_ON')  { stealthHidden = true;  if (solverActive) { removeAll(); injectButtons(); startObserver(); } }
     if (msg.type === 'STEALTH_OFF') { stealthHidden = false; if (solverActive) { removeAll(); injectButtons(); startObserver(); } }
+    if (msg.type === 'HIDE_UI') {
+      document.body.classList.add('answerly-ui-hidden');
+      const eyeBtn = document.getElementById('answerly-eye-toggle');
+      if (eyeBtn) { eyeBtn.classList.add('eye-hidden'); eyeBtn.innerHTML = eyeClosedSVG(); }
+    }
+    if (msg.type === 'SHOW_UI') {
+      document.body.classList.remove('answerly-ui-hidden');
+      const eyeBtn = document.getElementById('answerly-eye-toggle');
+      if (eyeBtn) { eyeBtn.classList.remove('eye-hidden'); eyeBtn.innerHTML = eyeOpenSVG(); }
+    }
     if (msg.type === 'SOLVE_ALL') {
       injectStyles();
       injectButtons();

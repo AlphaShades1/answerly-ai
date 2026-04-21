@@ -412,15 +412,28 @@ window.__answerlyScreenshotLoaded = true;
 
   // ── Markdown → HTML (safe subset) ─────────────────────────────────────────
   function renderMarkdown(text) {
-    return text
+    let html = text
       // Escape HTML first to prevent injection
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
       // **bold**
       .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#fff;font-weight:800;">$1</strong>')
       // *italic*
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      // Newlines → line breaks
-      .replace(/\n/g, '<br>');
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // Bullet list items (- or •): render as highlighted answer blocks
+    html = html.replace(/^[-•]\s+(.+)$/gm,
+      '<div style="margin:6px 0;padding:5px 10px;background:rgba(124,92,252,0.12);border-left:3px solid #7c5cfc;border-radius:4px;line-height:1.5;">$1</div>');
+
+    // Numbered list items (1. 2. etc.)
+    html = html.replace(/^\d+\.\s+(.+)$/gm,
+      '<div style="margin:6px 0;padding:5px 10px;background:rgba(124,92,252,0.12);border-left:3px solid #7c5cfc;border-radius:4px;line-height:1.5;">$1</div>');
+
+    // Double newline = paragraph gap
+    html = html.replace(/\n\n/g, '<div style="height:8px"></div>');
+    // Single newline = line break
+    html = html.replace(/\n/g, '<br>');
+
+    return html;
   }
 
   // ── Send to AI ─────────────────────────────────────────────────────────────

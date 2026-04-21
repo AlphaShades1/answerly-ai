@@ -83,7 +83,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`,
             },
-            body: JSON.stringify({ question: message.question, options: message.options, blankContext: message.blankContext }),
+            body: JSON.stringify({ question: message.question, options: message.options, blankContext: message.blankContext, isMultiSelect: message.isMultiSelect }),
           });
           const data = await res.json();
           if (!res.ok) {
