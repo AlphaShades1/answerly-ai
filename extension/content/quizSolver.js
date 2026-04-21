@@ -196,7 +196,11 @@ window.__answerlyQuizSolverLoaded = true;
       qEl.querySelector('.question-text');
     const questionText = textEl ? textEl.innerText.trim() : '';
 
-    const labelEls = qEl.querySelectorAll('.answer .answer_label, .answer_label, [data-answer-text]');
+    const labelEls = qEl.querySelectorAll(
+      '.answer .answer_label, .answer_label, [data-answer-text], ' +
+      '.answer .answer_text, .answer_text, ' +
+      '.answer label'
+    );
     const seen = new Set();
     const options = [];
     labelEls.forEach(el => {
@@ -276,47 +280,59 @@ window.__answerlyQuizSolverLoaded = true;
   // ── Auto-select: click the matching radio/checkbox in Canvas ───────────────
   function autoSelectAnswer(qEl, answer) {
     const answerDivs = qEl.querySelectorAll('.answer');
-    const targets = answer.split(',').map(a => normalizeText(a)).filter(Boolean);
+    if (!answerDivs.length) return false;
+
+    const answerNorm  = normalizeText(answer);
+    const answerLower = answer.trim().toLowerCase();
+
+    // Comma-split for exact-match targets (fallback when options have no commas)
+    const targets    = answer.split(',').map(a => normalizeText(a)).filter(Boolean);
     const rawTargets = answer.split(',').map(a => a.trim().toLowerCase()).filter(Boolean);
 
-    // Multiple answers (checkboxes) — two-pass: collect then safety-check
-    if (targets.length > 1) {
-      const toCheck = [];
-      for (const div of answerDivs) {
-        const label = div.querySelector('.answer_label, label');
-        if (!label) continue;
-        const labelText = label.innerText.trim().toLowerCase();
-        const labelNorm = normalizeText(labelText);
-        for (let i = 0; i < targets.length; i++) {
-          const t    = targets[i];
-          const tRaw = rawTargets[i];
-          // Strict matching: exact, OR label is contained in target (not target in label unless long)
-          if (labelNorm === t ||
-              labelNorm.includes(t) ||
-              (t.length > 20 && t.includes(labelNorm)) ||
-              (tRaw.length > 20 && tRaw.includes(labelText))) {
-            const input = div.querySelector('input[type="checkbox"]');
-            if (input && !input.checked) toCheck.push(input);
-            break;
-          }
-        }
-      }
-      // Safety: if every option matched, AI was not selective — abort
-      if (toCheck.length >= answerDivs.length) return false;
-      toCheck.forEach(input => input.click());
-      return toCheck.length > 0;
+    // Helper: get label text from an answer div (supports multiple Canvas structures)
+    function getLabelText(div) {
+      const el = div.querySelector('.answer_label, .answer_text, label');
+      return el ? el.innerText.trim() : '';
     }
 
-    // Single answer — radio or checkbox
-    const target    = targets[0]    || normalizeText(answer);
-    const targetRaw = rawTargets[0] || answer.trim().toLowerCase();
+    // ── Checkbox / select-all-that-apply ──────────────────────────────────────
+    // Use REVERSE matching: check if each option text appears inside the AI answer.
+    // This handles commas embedded in option text and multi-answer combined strings.
+    const hasCheckboxes = !!qEl.querySelector('.answer input[type="checkbox"]');
+    if (hasCheckboxes) {
+      const toCheck = [];
+      for (const div of answerDivs) {
+        const labelText = getLabelText(div);
+        if (!labelText) continue;
+        const labelNorm = normalizeText(labelText);
+        const labelLow  = labelText.toLowerCase();
+
+        const exactMatch = targets.some(t => t === labelNorm) ||
+                           rawTargets.some(t => t === labelLow);
+        // Reverse substring: option text (if long enough) appears in AI answer
+        const revMatch   = labelNorm.length > 12 &&
+                           (answerNorm.includes(labelNorm) || answerLower.includes(labelLow));
+
+        if (exactMatch || revMatch) {
+          const input = div.querySelector('input[type="checkbox"]');
+          if (input && !input.checked) toCheck.push(input);
+        }
+      }
+      // Safety: if every available checkbox would be ticked, AI wasn't selective — abort
+      if (toCheck.length >= answerDivs.length) return false;
+      if (toCheck.length > 0) { toCheck.forEach(i => i.click()); return true; }
+      return false;
+    }
+
+    // ── Single answer — radio ─────────────────────────────────────────────────
+    const target    = targets[0]    || answerNorm;
+    const targetRaw = rawTargets[0] || answerLower;
 
     // Pass 1: exact normalized match
     for (const div of answerDivs) {
-      const label = div.querySelector('.answer_label, label');
-      if (!label) continue;
-      const labelNorm = normalizeText(label.innerText);
-      if (labelNorm === target) {
+      const labelText = getLabelText(div);
+      if (!labelText) continue;
+      if (normalizeText(labelText) === target) {
         const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
         if (input) { input.click(); return true; }
       }
@@ -324,31 +340,31 @@ window.__answerlyQuizSolverLoaded = true;
 
     // Pass 2: includes match (normalized)
     for (const div of answerDivs) {
-      const label = div.querySelector('.answer_label, label');
-      if (!label) continue;
-      const labelNorm = normalizeText(label.innerText);
+      const labelText = getLabelText(div);
+      if (!labelText) continue;
+      const labelNorm = normalizeText(labelText);
       if (labelNorm.includes(target) || target.includes(labelNorm)) {
         const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
         if (input) { input.click(); return true; }
       }
     }
 
-    // Pass 3: raw includes match (original strings)
+    // Pass 3: raw includes match
     for (const div of answerDivs) {
-      const label = div.querySelector('.answer_label, label');
-      if (!label) continue;
-      const labelText = label.innerText.trim().toLowerCase();
-      if (labelText.includes(targetRaw) || targetRaw.includes(labelText)) {
+      const labelText = getLabelText(div);
+      if (!labelText) continue;
+      const labelLow = labelText.toLowerCase();
+      if (labelLow.includes(targetRaw) || targetRaw.includes(labelLow)) {
         const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
         if (input) { input.click(); return true; }
       }
     }
 
-    // Pass 4: partial match on first 25 chars of normalized text
+    // Pass 4: partial match on first 25 chars
     for (const div of answerDivs) {
-      const label = div.querySelector('.answer_label, label');
-      if (!label) continue;
-      const labelNorm = normalizeText(label.innerText);
+      const labelText = getLabelText(div);
+      if (!labelText) continue;
+      const labelNorm = normalizeText(labelText);
       if (labelNorm.startsWith(target.slice(0, 25)) || target.startsWith(labelNorm.slice(0, 25))) {
         const input = div.querySelector('input[type="radio"], input[type="checkbox"]');
         if (input) { input.click(); return true; }
