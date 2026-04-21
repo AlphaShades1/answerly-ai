@@ -99,6 +99,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
+    // Relay solve-matching request (matching/dropdown questions with shared options)
+    case 'SOLVE_MATCHING': {
+      chrome.storage.local.get('answerlySession', async (result) => {
+        const token = result.answerlySession?.token;
+        const code  = result.answerlySession?.code;
+        if (!token) { sendResponse({ error: 'Not logged in' }); return; }
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/solve-matching`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ question: message.question, rows: message.rows }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            sendResponse({ error: data.error || 'Server error', limitReached: data.limitReached });
+          } else {
+            incrementLocalUsage(code, 'quiz', data.remaining);
+            sendResponse({ answers: data.answers, remaining: data.remaining });
+          }
+        } catch (err) {
+          sendResponse({ error: 'Network error — is the backend running?' });
+        }
+      });
+      return true;
+    }
+
     // Relay solve-screenshot request from content script through to backend
     case 'SOLVE_SCREENSHOT': {
       chrome.storage.local.get('answerlySession', async (result) => {

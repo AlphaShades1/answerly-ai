@@ -446,27 +446,57 @@ window.__answerlyQuizSolverLoaded = true;
             : questionText.trim();
           const results = [];
 
-          for (const { rowLabel, selectEl, options: rowOpts } of dropdownRows) {
-            const cleanLabel = rowLabel.replace(/→\s*$/, '').trim();
-            const q = cleanLabel
-              ? `${baseQ}\n\nFor: "${cleanLabel}"`
-              : baseQ;
+          // Detect matching question: 2+ dropdowns all sharing the same options pool
+          const isMatching = dropdownRows.length >= 2 &&
+            dropdownRows.every(r =>
+              JSON.stringify([...r.options].sort()) === JSON.stringify([...dropdownRows[0].options].sort())
+            );
 
+          if (isMatching) {
+            // ── Send ALL rows in ONE call so AI can distribute answers correctly ──
+            const rows = dropdownRows.map(r => ({
+              label: r.rowLabel.replace(/→\s*$/, '').trim(),
+              options: r.options,
+              selectEl: r.selectEl,
+            }));
             await new Promise(resolve => {
               chrome.runtime.sendMessage(
-                { type: 'SOLVE_QUESTION', question: q, options: rowOpts },
+                { type: 'SOLVE_MATCHING', question: baseQ, rows: rows.map(r => ({ label: r.label, options: r.options })) },
                 (resp) => {
-                  if (!chrome.runtime.lastError && resp && !resp.error) {
-                    autoSelectDropdown(selectEl, resp.answer);
-                    results.push({ label: cleanLabel, answer: resp.answer });
+                  if (!chrome.runtime.lastError && resp && resp.answers) {
+                    rows.forEach(r => {
+                      const answer = resp.answers[r.label];
+                      if (answer) { autoSelectDropdown(r.selectEl, answer); results.push({ label: r.label, answer }); }
+                      else results.push({ label: r.label, answer: '—' });
+                    });
                   } else {
-                    results.push({ label: cleanLabel, answer: '—' });
+                    rows.forEach(r => results.push({ label: r.label, answer: '—' }));
                   }
                   resolve();
                 }
               );
             });
-            await new Promise(resolve => setTimeout(resolve, 400));
+          } else {
+            // ── Non-matching: solve each dropdown separately ──────────────────
+            for (const { rowLabel, selectEl, options: rowOpts } of dropdownRows) {
+              const cleanLabel = rowLabel.replace(/→\s*$/, '').trim();
+              const q = cleanLabel ? `${baseQ}\n\nFor: "${cleanLabel}"` : baseQ;
+              await new Promise(resolve => {
+                chrome.runtime.sendMessage(
+                  { type: 'SOLVE_QUESTION', question: q, options: rowOpts },
+                  (resp) => {
+                    if (!chrome.runtime.lastError && resp && !resp.error) {
+                      autoSelectDropdown(selectEl, resp.answer);
+                      results.push({ label: cleanLabel, answer: resp.answer });
+                    } else {
+                      results.push({ label: cleanLabel, answer: '—' });
+                    }
+                    resolve();
+                  }
+                );
+              });
+              await new Promise(resolve => setTimeout(resolve, 400));
+            }
           }
 
           if (effectiveAutoSelect) { card.style.display = 'none'; return; }
