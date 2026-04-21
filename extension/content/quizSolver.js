@@ -721,7 +721,27 @@ window.__answerlyQuizSolverLoaded = true;
         const row = document.createElement('div');
         row.className = 'answerly-answer-row';
         row.style.setProperty('border-color', theme.cardBorder, 'important');
-        row.innerHTML = `<span class="answerly-answer-lbl" style="color:${accent}!important">Answer</span><div class="answerly-answer-text" style="color:${theme.answerColor}!important">${esc(answer)}</div>`;
+
+        // Split comma-joined multi-answers into individual items for display
+        const parts = answer.split(', ').map(p => p.trim()).filter(Boolean);
+        let answerBodyHtml;
+        if (parts.length > 1) {
+          // Multiple answers: each on its own bolded line with a divider
+          answerBodyHtml = parts.map((p, i) => `
+            <div style="
+              display:flex; align-items:flex-start; gap:8px;
+              padding:6px 0;
+              ${i < parts.length - 1 ? 'border-bottom:1px solid #2a2a4a;' : ''}
+            ">
+              <span style="color:${accent};font-weight:900;flex-shrink:0;margin-top:1px;">✓</span>
+              <span style="color:${theme.answerColor};font-weight:800;font-size:14px;line-height:1.4;">${esc(p)}</span>
+            </div>`).join('');
+        } else {
+          // Single answer: bold, large
+          answerBodyHtml = `<div class="answerly-answer-text" style="color:${theme.answerColor}!important;font-weight:800!important;">${esc(answer)}</div>`;
+        }
+
+        row.innerHTML = `<span class="answerly-answer-lbl" style="color:${accent}!important">Answer</span>${answerBodyHtml}`;
         this.insertAdjacentElement('afterend', row);
         this.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transform:rotate(90deg)"><polyline points="9 18 15 12 9 6"/></svg> Hide Answer`;
         this.dataset.open = 'true';
