@@ -169,6 +169,40 @@ window.__answerlyQuizSolverLoaded = true;
       @keyframes answerly-spin { to { transform: rotate(360deg); } }
 
 .answerly-error { color: #f05454 !important; font-size: 12px !important; }
+
+      /* ── Eye visibility toggle button ── */
+      #answerly-eye-toggle {
+        position: fixed !important;
+        bottom: 20px !important;
+        left: 20px !important;
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        border: 1px solid #3a3a5c !important;
+        background: #1a1a2e !important;
+        color: #7c5cfc !important;
+        cursor: pointer !important;
+        z-index: 2147483647 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 4px 16px rgba(0,0,0,.55) !important;
+        transition: background .15s, border-color .15s, color .15s !important;
+        padding: 0 !important;
+      }
+      #answerly-eye-toggle:hover {
+        background: #2a2a40 !important;
+        border-color: #7c5cfc !important;
+      }
+      #answerly-eye-toggle.eye-hidden {
+        color: #555570 !important;
+        border-color: #2a2a3a !important;
+      }
+      /* When UI is hidden, collapse all answerly cards + question buttons */
+      .answerly-ui-hidden .answerly-card,
+      .answerly-ui-hidden .answerly-btn {
+        display: none !important;
+      }
     `;
     document.head.appendChild(s);
   }
@@ -340,6 +374,19 @@ window.__answerlyQuizSolverLoaded = true;
       // Safety: abort if every checkbox would be checked (AI was not selective)
       if (toCheck.length >= checkboxes.length) return false;
       if (toCheck.length > 0) { toCheck.forEach(i => i.click()); return true; }
+
+      // Letter fallback: if AI returned "A, C" style answers, map to checkbox indices
+      const letterTargets = answer.split(',').map(a => a.trim().toUpperCase()).filter(a => /^[A-E]$/.test(a));
+      if (letterTargets.length > 0) {
+        const letterChecks = [];
+        for (const letter of letterTargets) {
+          const idx = letter.charCodeAt(0) - 65;
+          if (checkboxes[idx] && !checkboxes[idx].checked) letterChecks.push(checkboxes[idx]);
+        }
+        if (letterChecks.length > 0 && letterChecks.length < checkboxes.length) {
+          letterChecks.forEach(i => i.click()); return true;
+        }
+      }
       return false;
     }
 
@@ -389,11 +436,16 @@ window.__answerlyQuizSolverLoaded = true;
       const { questionText, options, dropdownRows } = extractData(qEl);
       if (!questionText) return;
 
-      // Detect images inside the question — if any <img> with a src exists, redirect to screenshot tool
-      const hasImage = !!qEl.querySelector('img[src]:not([src=""])') ||
-        !!qEl.querySelector('img:not([src=""])');
+      // Detect images ONLY inside the question text area — ignore decorative icons in headers/labels
+      const qTextEl = qEl.querySelector('.question_text, [data-question-text], .question-text, .formattedHtml');
+      const hasImage = !!qTextEl && (
+        !!qTextEl.querySelector('img[src]:not([src=""])') ||
+        !!qTextEl.querySelector('img:not([src=""])')
+      );
 
-      const isFreeText = options.length === 0;
+      // Free text = no answer options AND no radio/checkbox inputs found in the question
+      const hasChoices = !!qEl.querySelector('input[type="checkbox"], input[type="radio"]');
+      const isFreeText = options.length === 0 && !hasChoices;
       const accent = theme.accentColor || DEFAULT_THEME.accentColor;
       const effectiveAutoSelect = stealthHidden;
 
@@ -710,6 +762,34 @@ window.__answerlyQuizSolverLoaded = true;
       .replace(/"/g,'&quot;');
   }
 
+  // ── Eye visibility toggle ──────────────────────────────────────────────────
+  function injectEyeBtn() {
+    if (document.getElementById('answerly-eye-toggle')) return;
+    const btn = document.createElement('button');
+    btn.id    = 'answerly-eye-toggle';
+    btn.type  = 'button';
+    btn.title = 'Toggle Answerly UI visibility';
+    btn.innerHTML = eyeOpenSVG();
+    btn.addEventListener('click', () => {
+      const hidden = document.body.classList.toggle('answerly-ui-hidden');
+      btn.classList.toggle('eye-hidden', hidden);
+      btn.innerHTML = hidden ? eyeClosedSVG() : eyeOpenSVG();
+    });
+    document.body.appendChild(btn);
+  }
+
+  function removeEyeBtn() {
+    document.getElementById('answerly-eye-toggle')?.remove();
+    document.body.classList.remove('answerly-ui-hidden');
+  }
+
+  function eyeOpenSVG() {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  }
+  function eyeClosedSVG() {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+  }
+
   // ── Cleanup ────────────────────────────────────────────────────────────────
   function removeAll() {
     document.querySelectorAll(`.${INJECTED}`).forEach(el => el.remove());
@@ -730,10 +810,15 @@ window.__answerlyQuizSolverLoaded = true;
     chrome.storage.local.get(themeKey, (t) => {
       if (t[themeKey]) theme = { ...DEFAULT_THEME, ...t[themeKey] };
       injectButtons();
+      injectEyeBtn();
       startObserver();
     });
   }
-  function deactivate() { solverActive = false; removeAll(); }
+  function deactivate() {
+    solverActive = false;
+    removeAll();
+    removeEyeBtn();
+  }
 
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'QUIZ_SOLVER_ON')  activate();
@@ -743,9 +828,15 @@ window.__answerlyQuizSolverLoaded = true;
     if (msg.type === 'SOLVE_ALL') {
       injectStyles();
       injectButtons();
-      // Stagger clicks 700ms apart so backend isn't flooded simultaneously
+      // First pass: stagger clicks 1200ms apart to avoid flooding the backend
       const btns = Array.from(document.querySelectorAll('.answerly-btn:not([data-opened])'));
-      btns.forEach((btn, i) => setTimeout(() => btn.click(), i * 700));
+      btns.forEach((btn, i) => setTimeout(() => btn.click(), i * 1200));
+      // Retry pass: after all initial clicks + 8s buffer, re-click any still unanswered
+      const retryDelay = btns.length * 1200 + 8000;
+      setTimeout(() => {
+        const retryBtns = Array.from(document.querySelectorAll('.answerly-btn:not([data-opened])'));
+        retryBtns.forEach((btn, i) => setTimeout(() => btn.click(), i * 1200));
+      }, retryDelay);
     }
   });
 
