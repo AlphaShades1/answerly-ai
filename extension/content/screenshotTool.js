@@ -319,7 +319,22 @@ window.__answerlyScreenshotLoaded = true;
           const bx = x, by = y > 22 ? y - 22 : y + h + 4;
           ctx.fillStyle = '#7c5cfc';
           ctx.beginPath();
-          ctx.roundRect(bx, by, tw + 12, 18, 4);
+          // roundRect not available in Chrome <99 — draw pill manually
+          if (ctx.roundRect) {
+            ctx.roundRect(bx, by, tw + 12, 18, 4);
+          } else {
+            const r = 4, bw = tw + 12, bh = 18;
+            ctx.moveTo(bx + r, by);
+            ctx.lineTo(bx + bw - r, by);
+            ctx.arcTo(bx + bw, by, bx + bw, by + r, r);
+            ctx.lineTo(bx + bw, by + bh - r);
+            ctx.arcTo(bx + bw, by + bh, bx + bw - r, by + bh, r);
+            ctx.lineTo(bx + r, by + bh);
+            ctx.arcTo(bx, by + bh, bx, by + bh - r, r);
+            ctx.lineTo(bx, by + r);
+            ctx.arcTo(bx, by, bx + r, by, r);
+            ctx.closePath();
+          }
           ctx.fill();
           ctx.fillStyle = '#fff';
           ctx.fillText(label, bx + 6, by + 13);
