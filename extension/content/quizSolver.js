@@ -686,12 +686,12 @@ window.__answerlyQuizSolverLoaded = true;
           return renderError(card, 'Extension error — try reloading.');
         }
         if (resp.error) return renderError(card, resp.error, resp.limitReached);
-        renderResult(card, resp.hint, resp.answer, resp.answerParts);
+        renderResult(card, resp.hint, resp.answer, resp.answerParts, options);
       }
     );
   }
 
-  function renderResult(card, hint, answer, answerParts) {
+  function renderResult(card, hint, answer, answerParts, options) {
     const accent = theme.accentColor || DEFAULT_THEME.accentColor;
     const area = card.querySelector('.answerly-hint-area');
     area.innerHTML = `
@@ -717,8 +717,20 @@ window.__answerlyQuizSolverLoaded = true;
         row.className = 'answerly-answer-row';
         row.style.setProperty('border-color', theme.cardBorder, 'important');
 
-        // Use the pre-split answerParts array from the backend (never re-split by comma)
-        const parts = Array.isArray(answerParts) && answerParts.length > 0 ? answerParts : [answer];
+        // Build the parts array — prefer server's clean answerParts array,
+        // then fall back to matching the answer string against the known options list
+        // (avoids any comma-splitting that would break options containing commas).
+        let parts;
+        if (Array.isArray(answerParts) && answerParts.length > 0) {
+          parts = answerParts;
+        } else if (Array.isArray(options) && options.length > 0) {
+          const ansLow = answer.toLowerCase();
+          parts = options.filter(opt => ansLow.includes(opt.trim().toLowerCase()));
+          if (parts.length === 0) parts = [answer];
+        } else {
+          parts = [answer];
+        }
+
         let answerBodyHtml;
         if (parts.length > 1) {
           // Multiple answers: each on its own bolded line with a divider
