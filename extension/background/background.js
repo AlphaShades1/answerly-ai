@@ -90,7 +90,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ error: data.error || 'Server error', limitReached: data.limitReached });
           } else {
             incrementLocalUsage(code, 'quiz', data.remaining);
-            sendResponse({ hint: data.hint, answer: data.answer, remaining: data.remaining });
+            sendResponse({ hint: data.hint, answer: data.answer, answerParts: data.answerParts, remaining: data.remaining });
           }
         } catch (err) {
           sendResponse({ error: 'Network error — is the backend running?' });

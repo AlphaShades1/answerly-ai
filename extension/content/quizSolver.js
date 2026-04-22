@@ -170,11 +170,6 @@ window.__answerlyQuizSolverLoaded = true;
 
 .answerly-error { color: #f05454 !important; font-size: 12px !important; }
 
-      /* When eye toggle hides UI, collapse all answerly cards + question buttons */
-      .answerly-ui-hidden .answerly-card,
-      .answerly-ui-hidden .answerly-btn {
-        display: none !important;
-      }
     `;
     document.head.appendChild(s);
   }
@@ -691,12 +686,12 @@ window.__answerlyQuizSolverLoaded = true;
           return renderError(card, 'Extension error — try reloading.');
         }
         if (resp.error) return renderError(card, resp.error, resp.limitReached);
-        renderResult(card, resp.hint, resp.answer);
+        renderResult(card, resp.hint, resp.answer, resp.answerParts);
       }
     );
   }
 
-  function renderResult(card, hint, answer) {
+  function renderResult(card, hint, answer, answerParts) {
     const accent = theme.accentColor || DEFAULT_THEME.accentColor;
     const area = card.querySelector('.answerly-hint-area');
     area.innerHTML = `
@@ -722,8 +717,8 @@ window.__answerlyQuizSolverLoaded = true;
         row.className = 'answerly-answer-row';
         row.style.setProperty('border-color', theme.cardBorder, 'important');
 
-        // Split comma-joined multi-answers into individual items for display
-        const parts = answer.split(', ').map(p => p.trim()).filter(Boolean);
+        // Use the pre-split answerParts array from the backend (never re-split by comma)
+        const parts = Array.isArray(answerParts) && answerParts.length > 0 ? answerParts : [answer];
         let answerBodyHtml;
         if (parts.length > 1) {
           // Multiple answers: each on its own bolded line with a divider
@@ -738,7 +733,7 @@ window.__answerlyQuizSolverLoaded = true;
             </div>`).join('');
         } else {
           // Single answer: bold, large
-          answerBodyHtml = `<div class="answerly-answer-text" style="color:${theme.answerColor}!important;font-weight:800!important;">${esc(answer)}</div>`;
+          answerBodyHtml = `<div class="answerly-answer-text" style="color:${theme.answerColor}!important;font-weight:800!important;">${esc(parts[0] || answer)}</div>`;
         }
 
         row.innerHTML = `<span class="answerly-answer-lbl" style="color:${accent}!important">Answer</span>${answerBodyHtml}`;
@@ -788,7 +783,6 @@ window.__answerlyQuizSolverLoaded = true;
   function deactivate() {
     solverActive = false;
     removeAll();
-    document.body.classList.remove('answerly-ui-hidden');
   }
 
   chrome.runtime.onMessage.addListener((msg) => {
@@ -796,8 +790,6 @@ window.__answerlyQuizSolverLoaded = true;
     if (msg.type === 'QUIZ_SOLVER_OFF') deactivate();
     if (msg.type === 'STEALTH_ON')  { stealthHidden = true;  if (solverActive) { removeAll(); injectButtons(); startObserver(); } }
     if (msg.type === 'STEALTH_OFF') { stealthHidden = false; if (solverActive) { removeAll(); injectButtons(); startObserver(); } }
-    if (msg.type === 'HIDE_UI') document.body.classList.add('answerly-ui-hidden');
-    if (msg.type === 'SHOW_UI')  document.body.classList.remove('answerly-ui-hidden');
     if (msg.type === 'SOLVE_ALL') {
       injectStyles();
       injectButtons();
