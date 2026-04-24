@@ -166,6 +166,20 @@ body {
 }
 .notice svg { flex-shrink: 0; color: var(--purple); }
 
+/* ── Screenshot disclaimer ── */
+.screenshot-notice {
+  margin: 8px 12px 0;
+  padding: 7px 10px;
+  background: rgba(124,92,252,0.1);
+  border: 1px solid rgba(124,92,252,0.25);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  text-align: center;
+}
+.screenshot-notice strong { color: #a78bfa; }
+
 /* ── Tool Buttons ── */
 .tools-body {
   display: flex;

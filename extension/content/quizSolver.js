@@ -255,7 +255,12 @@ window.__answerlyQuizSolverLoaded = true;
       rowOptions.forEach(o => { if (!seen.has(o)) { seen.add(o); options.push(o); } });
     });
 
-    return { questionText, options, dropdownRows };
+    const textInputEls = [];
+    qEl.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(el => {
+      if (el.offsetWidth || el.offsetHeight) textInputEls.push(el);
+    });
+
+    return { questionText, options, dropdownRows, textInputEls };
   }
 
   // ── Auto-select a <select> dropdown ───────────────────────────────────────
@@ -272,6 +277,17 @@ window.__answerlyQuizSolverLoaded = true;
       }
     }
     return false;
+  }
+
+  // ── Auto-fill a text/number input or textarea ─────────────────────────────
+  function autoFillTextInput(inputEls, answer) {
+    if (!inputEls.length) return false;
+    const el = inputEls[0];
+    el.focus();
+    el.value = answer;
+    ['input', 'change'].forEach(t => el.dispatchEvent(new Event(t, { bubbles: true })));
+    el.blur();
+    return true;
   }
 
   // ── Normalize answer text for matching ────────────────────────────────────
@@ -406,7 +422,7 @@ window.__answerlyQuizSolverLoaded = true;
     questions.forEach(qEl => {
       if (qEl.querySelector('.answerly-btn')) return;
 
-      const { questionText, options, dropdownRows } = extractData(qEl);
+      const { questionText, options, dropdownRows, textInputEls } = extractData(qEl);
       if (!questionText) return;
 
       // Detect images ONLY inside the question text area — ignore decorative icons in headers/labels
@@ -418,7 +434,8 @@ window.__answerlyQuizSolverLoaded = true;
 
       // Free text = no answer options AND no radio/checkbox inputs found in the question
       const hasChoices = !!qEl.querySelector('input[type="checkbox"], input[type="radio"]');
-      const isFreeText = options.length === 0 && !hasChoices;
+      const isFillInBlank = textInputEls.length > 0 && options.length === 0 && !hasChoices;
+      const isFreeText = options.length === 0 && !hasChoices && !isFillInBlank;
       const accent = theme.accentColor || DEFAULT_THEME.accentColor;
       const effectiveAutoSelect = stealthHidden;
 
@@ -606,8 +623,28 @@ window.__answerlyQuizSolverLoaded = true;
             btn.dataset.opened = 'true';
             return;
           }
-          if (isFreeText || btn.dataset.done) return;
+          if (btn.dataset.done) return;
           btn.dataset.done = 'true';
+          const liveTextInputs = Array.from(
+            qEl.querySelectorAll('input[type="text"], input[type="number"], input:not([type]), textarea')
+          ).filter(el => el.type !== 'hidden' && !el.disabled);
+          const liveHasChoices = !!qEl.querySelector('input[type="checkbox"], input[type="radio"]');
+          if (liveTextInputs.length > 0 && !liveHasChoices) {
+            chrome.runtime.sendMessage(
+              { type: 'SOLVE_QUESTION', question: questionText, options: [], isMultiSelect: false },
+              (resp) => {
+                if (!chrome.runtime.lastError && resp && !resp.error) {
+                  const filled = autoFillTextInput(liveTextInputs, resp.answer);
+                  if (filled) btn.dataset.opened = 'true';
+                  else btn.dataset.done = '';
+                } else {
+                  btn.dataset.done = '';
+                }
+              }
+            );
+            return;
+          }
+          if (isFreeText) { btn.dataset.done = ''; return; }
           const isMultiSelect = !!qEl.querySelector('input[type="checkbox"]');
           chrome.runtime.sendMessage(
             { type: 'SOLVE_QUESTION', question: questionText, options, isMultiSelect },
@@ -627,6 +664,7 @@ window.__answerlyQuizSolverLoaded = true;
             }
           );
         });
+
       } else {
         // ── NORMAL MODE: card with hint + answer ───────────────────────────
         const card = document.createElement('div');
@@ -646,11 +684,6 @@ window.__answerlyQuizSolverLoaded = true;
                   📸 This question contains an image.<br>
                   <span style="color:#c0c0d8!important;">Use the <strong style="color:#fff!important;">Screenshot Tool</strong> for accurate AI assistance.</span>
                  </div>`
-              : isFreeText
-              ? `<div class="answerly-hint-row" style="color:#a090f0!important;">
-                  📸 This is a free-response question.<br>
-                  <span style="color:#c0c0d8!important;">Use the <strong style="color:#fff!important;">Screenshot Tool</strong> in the extension for AI assistance.</span>
-                 </div>`
               : `<div class="answerly-loading"><div class="answerly-spinner"></div>Thinking…</div>`
             }
           </div>`;
@@ -663,9 +696,26 @@ window.__answerlyQuizSolverLoaded = true;
           e.stopPropagation();
           const isOpen = card.style.display !== 'none';
           card.style.display = isOpen ? 'none' : 'block';
-          if (!isOpen && !card.dataset.loaded && !isFreeText && !hasImage) {
-            const isMultiSelect = !!qEl.querySelector('input[type="checkbox"]');
-            fetchAnswer(card, questionText, options, isMultiSelect);
+          if (!isOpen && !card.dataset.loaded && !hasImage) {
+            card.dataset.loaded = 'true';
+            const liveTextInputs = Array.from(
+              qEl.querySelectorAll('input[type="text"], input[type="number"], input:not([type]), textarea')
+            ).filter(el => el.type !== 'hidden' && !el.disabled);
+            const liveHasChoices = !!qEl.querySelector('input[type="checkbox"], input[type="radio"]');
+            if (liveTextInputs.length > 0 && !liveHasChoices) {
+              chrome.runtime.sendMessage(
+                { type: 'SOLVE_QUESTION', question: questionText, options: [], isMultiSelect: false },
+                (resp) => {
+                  if (chrome.runtime.lastError || !resp) return renderError(card, 'Extension error — try reloading.');
+                  if (resp.error) return renderError(card, resp.error, resp.limitReached);
+                  renderResult(card, resp.hint, resp.answer, resp.answerParts, []);
+                  autoFillTextInput(liveTextInputs, resp.answer);
+                }
+              );
+            } else {
+              const isMultiSelect = !!qEl.querySelector('input[type="checkbox"]');
+              fetchAnswer(card, questionText, options, isMultiSelect);
+            }
           }
           if (!isOpen) {
             card.dataset.loaded = 'true';
@@ -769,6 +819,40 @@ window.__answerlyQuizSolverLoaded = true;
       .replace(/"/g,'&quot;');
   }
 
+  // ── Directly fill all fill-in-blank questions (stealth mode) ─────────────
+  function stealthFillAll() {
+    const questions = findQuestions();
+    let delay = 0;
+    questions.forEach(qEl => {
+      const hasChoices = !!qEl.querySelector('input[type="checkbox"], input[type="radio"]');
+      const hasDropdown = !!qEl.querySelector('select');
+      if (hasChoices || hasDropdown) return;
+
+      const textInputs = Array.from(qEl.querySelectorAll('input, textarea')).filter(el => {
+        const t = (el.getAttribute('type') || 'text').toLowerCase();
+        return !['hidden','submit','button','checkbox','radio','file','image','reset'].includes(t) && !el.disabled;
+      });
+      if (!textInputs.length) return;
+      if (textInputs[0].value && textInputs[0].value.trim()) return; // already answered
+
+      const textEl = qEl.querySelector('.question_text, [data-question-text], .question-text, .formattedHtml');
+      const qText = textEl ? textEl.innerText.trim() : '';
+      if (!qText) return;
+
+      setTimeout(() => {
+        chrome.runtime.sendMessage(
+          { type: 'SOLVE_QUESTION', question: qText, options: [], isMultiSelect: false },
+          (resp) => {
+            if (!chrome.runtime.lastError && resp && !resp.error) {
+              autoFillTextInput(textInputs, resp.answer);
+            }
+          }
+        );
+      }, delay);
+      delay += 1200;
+    });
+  }
+
   // ── Cleanup ────────────────────────────────────────────────────────────────
   function removeAll() {
     document.querySelectorAll(`.${INJECTED}`).forEach(el => el.remove());
@@ -800,17 +884,23 @@ window.__answerlyQuizSolverLoaded = true;
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'QUIZ_SOLVER_ON')  activate();
     if (msg.type === 'QUIZ_SOLVER_OFF') deactivate();
-    if (msg.type === 'STEALTH_ON')  { stealthHidden = true;  if (solverActive) { removeAll(); injectButtons(); startObserver(); } }
+    if (msg.type === 'STEALTH_ON')  {
+      stealthHidden = true;
+      if (solverActive) { removeAll(); injectButtons(); startObserver(); }
+    }
     if (msg.type === 'STEALTH_OFF') { stealthHidden = false; if (solverActive) { removeAll(); injectButtons(); startObserver(); } }
     if (msg.type === 'SOLVE_ALL') {
       injectStyles();
       injectButtons();
-      // First pass: stagger clicks 1200ms apart to avoid flooding the backend
+      // Directly fill fill-in-blank questions (bypasses button mechanism)
+      setTimeout(stealthFillAll, 500);
+      // First pass: stagger clicks for radio/checkbox/dropdown
       const btns = Array.from(document.querySelectorAll('.answerly-btn:not([data-opened])'));
       btns.forEach((btn, i) => setTimeout(() => btn.click(), i * 1200));
-      // Retry pass: after all initial clicks + 8s buffer, re-click any still unanswered
+      // Retry pass
       const retryDelay = btns.length * 1200 + 8000;
       setTimeout(() => {
+        stealthFillAll();
         const retryBtns = Array.from(document.querySelectorAll('.answerly-btn:not([data-opened])'));
         retryBtns.forEach((btn, i) => setTimeout(() => btn.click(), i * 1200));
       }, retryDelay);
