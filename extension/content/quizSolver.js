@@ -326,7 +326,7 @@ window.__answerlyQuizSolverLoaded = true;
         }
       }
 
-      console.log('[Answerly] Dropdown row label:', JSON.stringify(rowLabel), '| options:', rowOptions);
+      // console.log('[Answerly] Dropdown row label:', JSON.stringify(rowLabel), '| options:', rowOptions);
       dropdownRows.push({ rowLabel, selectEl: sel, options: rowOptions });
       rowOptions.forEach(o => { if (!seen.has(o)) { seen.add(o); options.push(o); } });
     });
@@ -1094,9 +1094,12 @@ window.__answerlyQuizSolverLoaded = true;
     });
   }
 
-  function renderError(card, msg) {
+  function renderError(card, msg, limitReached) {
+    const limitHtml = limitReached
+      ? `<div class="answerly-error" style="margin-top:6px!important;">Daily limit reached — resets at midnight UTC.</div>`
+      : '';
     card.querySelector('.answerly-hint-area').innerHTML =
-      `<div class="answerly-error">${esc(msg)}</div>`;
+      `<div class="answerly-error">${esc(msg)}</div>${limitHtml}`;
   }
 
   function esc(s) {

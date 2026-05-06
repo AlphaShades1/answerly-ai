@@ -97,11 +97,17 @@ async function init() {
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
           if (data.codeExpired || res.status === 401) {
+            // Deactivate any running tools before kicking the user out
+            if (quizActive)       await sendToActiveTab({ type: 'QUIZ_SOLVER_OFF' });
+            if (screenshotActive) await sendToActiveTab({ type: 'SCREENSHOT_TOOL_OFF' });
+            if (screenshotStealthActive) await sendToActiveTab({ type: 'SS_STEALTH_OFF' });
             await chrome.storage.local.remove([
               'answerlySession','answerlyQuizActive','answerlyScreenshotActive',
               'answerlyQuizStealthActive','answerlyScreenshotStealthActive'
             ]);
             currentSession = null;
+            quizActive = false; screenshotActive = false;
+            quizStealthActive = false; screenshotStealthActive = false;
             showView('view-activate');
           }
         }
@@ -329,7 +335,8 @@ document.getElementById('menu-manage').addEventListener('click', () => {
 
 document.getElementById('menu-help').addEventListener('click', () => {
   menuDropdown.classList.add('hidden');
-  chrome.tabs.create({ url: 'mailto:AnswerlyAISupport@gmail.com' });
+  // mailto: doesn't work via chrome.tabs.create — copy address to clipboard instead
+  navigator.clipboard.writeText('AnswerlyAISupport@gmail.com').catch(() => {});
 });
 
 
@@ -397,12 +404,7 @@ btnScreenshot.addEventListener('click', async () => {
     await sendToActiveTab({ type: 'SCREENSHOT_TOOL_ON' });
     if (screenshotStealthActive) await sendToActiveTab({ type: 'SS_STEALTH_ON' });
   } else {
-    // Turn off screenshot stealth when screenshot tool is deactivated
-    if (screenshotStealthActive) {
-      screenshotStealthActive = false;
-      await chrome.storage.local.set({ answerlyScreenshotStealthActive: false });
-      await sendToActiveTab({ type: 'SS_STEALTH_OFF' });
-    }
+    // Do NOT turn off screenshot stealth — it operates independently of the screenshot tool
     await sendToActiveTab({ type: 'SCREENSHOT_TOOL_OFF' });
   }
   renderStealthBtns();
