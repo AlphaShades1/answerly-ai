@@ -152,22 +152,38 @@
 
     <!-- Footer -->
     <div class="footer">
-      <div class="stealth-row" id="stealth-row">
-        <span class="stealth-label">Stealth</span>
-        <div class="stealth-tip">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <div class="stealth-tooltip">Hides the <b>?</b> button on each question. Click where it normally appears (next to the question title) to silently fetch &amp; auto-select the answer — nothing visible on screen.</div>
+      <div class="stealth-group">
+        <!-- Quiz Stealth -->
+        <div class="stealth-row" id="quiz-stealth-row">
+          <button id="btn-quiz-stealth" class="toggle-pill" title="Toggle quiz stealth mode">
+            <span class="toggle-pill-knob"></span>
+          </button>
+          <span class="stealth-label">Quiz Stealth</span>
+          <div class="stealth-tip">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div class="stealth-tooltip">Hides the <b>?</b> button on each question. Click where it normally appears to silently fetch &amp; auto-select the answer — nothing visible on screen.</div>
+          </div>
         </div>
-        <button id="btn-stealth" class="toggle-pill" title="Toggle stealth mode">
-          <span class="toggle-pill-knob"></span>
-        </button>
+        <!-- Screenshot Stealth -->
+        <div class="stealth-row" id="ss-stealth-row">
+          <button id="btn-ss-stealth" class="toggle-pill" title="Toggle screenshot stealth mode">
+            <span class="toggle-pill-knob"></span>
+          </button>
+          <span class="stealth-label">Screenshot Stealth <span style="font-size:9px;font-weight:500;opacity:0.65;letter-spacing:.3px;">(Beta)</span></span>
+          <div class="stealth-tip">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div class="stealth-tooltip">Places an invisible 📸 button on each question — hover over it to reveal it. Click it, a fullscreen overlay appears, drag to outline the question area, and the answer is automatically filled in the answer box. No popup, no visible AI interaction. Works with or without Quiz Solver.</div>
+          </div>
+        </div>
       </div>
-      <button id="btn-review" class="footer-icon-btn review-btn" title="Leave a review">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-        </svg>
-      </button>
-      <button id="btn-customize" class="link-btn footer-link">Customize</button>
+      <div class="footer-bottom-row">
+        <button id="btn-review" class="footer-icon-btn review-btn" title="Leave a review">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </button>
+        <button id="btn-customize" class="link-btn footer-link">Customize</button>
+      </div>
     </div>
   </div>
 

@@ -2,10 +2,11 @@
 const BACKEND_URL = 'https://answerly-ai-backend.onrender.com';
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let currentSession   = null; // { token, code, expiresAt }
-let quizActive       = false;
-let screenshotActive = false;
-let stealthActive    = false;
+let currentSession          = null; // { token, code, expiresAt }
+let quizActive              = false;
+let screenshotActive        = false;
+let quizStealthActive       = false;
+let screenshotStealthActive = false;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const viewActivate = document.getElementById('view-activate');
@@ -38,8 +39,10 @@ const usageQuizText     = document.getElementById('usage-quiz-text');
 const usageScreenBar    = document.getElementById('usage-screenshot-bar');
 const usageScreenText   = document.getElementById('usage-screenshot-text');
 
-const btnStealth = document.getElementById('btn-stealth');
-const stealthRow = document.getElementById('stealth-row');
+const btnQuizStealth = document.getElementById('btn-quiz-stealth');
+const quizStealthRow = document.getElementById('quiz-stealth-row');
+const btnSsStealth   = document.getElementById('btn-ss-stealth');
+const ssStealthRow   = document.getElementById('ss-stealth-row');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showView(id) {
@@ -69,7 +72,8 @@ async function init() {
   // By the time the user types their code and clicks Activate, it'll be ready.
   fetch(`${BACKEND_URL}/health`).catch(() => {});
   const stored = await chrome.storage.local.get([
-    'answerlySession', 'answerlyQuizActive', 'answerlyScreenshotActive', 'answerlyStealthActive'
+    'answerlySession', 'answerlyQuizActive', 'answerlyScreenshotActive',
+    'answerlyQuizStealthActive', 'answerlyScreenshotStealthActive'
   ]);
 
   if (stored.answerlySession) {
@@ -78,10 +82,11 @@ async function init() {
 
     if (tokenValid) {
       // ── Show UI immediately from local token — no network wait ──────────
-      currentSession   = stored.answerlySession;
-      quizActive       = !!stored.answerlyQuizActive;
-      screenshotActive = !!stored.answerlyScreenshotActive;
-      stealthActive    = !!stored.answerlyStealthActive;
+      currentSession          = stored.answerlySession;
+      quizActive              = !!stored.answerlyQuizActive;
+      screenshotActive        = !!stored.answerlyScreenshotActive;
+      quizStealthActive       = !!stored.answerlyQuizStealthActive;
+      screenshotStealthActive = !!stored.answerlyScreenshotStealthActive;
       await renderMain();
       showView('view-main');
 
@@ -92,7 +97,10 @@ async function init() {
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
           if (data.codeExpired || res.status === 401) {
-            await chrome.storage.local.remove(['answerlySession','answerlyQuizActive','answerlyScreenshotActive','answerlyStealthActive']);
+            await chrome.storage.local.remove([
+              'answerlySession','answerlyQuizActive','answerlyScreenshotActive',
+              'answerlyQuizStealthActive','answerlyScreenshotStealthActive'
+            ]);
             currentSession = null;
             showView('view-activate');
           }
@@ -105,7 +113,10 @@ async function init() {
     }
 
     // Token expired locally — clear and show activation
-    await chrome.storage.local.remove(['answerlySession', 'answerlyQuizActive', 'answerlyScreenshotActive', 'answerlyStealthActive']);
+    await chrome.storage.local.remove([
+      'answerlySession', 'answerlyQuizActive', 'answerlyScreenshotActive',
+      'answerlyQuizStealthActive', 'answerlyScreenshotStealthActive'
+    ]);
   }
 
   showView('view-activate');
@@ -124,7 +135,8 @@ async function renderMain() {
 
   renderToolBtn(btnQuizSolver, quizLabel, quizActive, 'QUIZ SOLVER');
   renderToolBtn(btnScreenshot, screenshotLabel, screenshotActive, 'SCREENSHOT TOOL');
-  renderStealthBtn();
+  renderStealthBtns();
+  renderSolveAllBtn();
 
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const url  = tabs[0]?.url || '';
@@ -172,9 +184,22 @@ function renderToolBtn(btn, label, active, name) {
   label.textContent  = active ? `DEACTIVATE ${name}` : `ACTIVATE ${name}`;
 }
 
-function renderStealthBtn() {
-  btnStealth.classList.toggle('active', stealthActive);
-  stealthRow.classList.toggle('stealth-disabled', !quizActive);
+function renderStealthBtns() {
+  btnQuizStealth.classList.toggle('active', quizStealthActive);
+  quizStealthRow.classList.toggle('stealth-disabled', !quizActive);
+
+  btnSsStealth.classList.toggle('active', screenshotStealthActive);
+  // Screenshot stealth is fully independent — no tool prerequisite
+  ssStealthRow.classList.remove('stealth-disabled');
+}
+
+function renderSolveAllBtn() {
+  const btn   = document.getElementById('btn-solve-all');
+  const label = document.getElementById('solve-all-label');
+  btn.disabled      = !quizActive;
+  btn.style.opacity = quizActive ? '' : '0.4';
+  btn.style.cursor  = quizActive ? '' : 'not-allowed';
+  if (!quizActive) label.textContent = 'SOLVE ALL QUESTIONS';
 }
 
 function updateUsageBars(remaining) {
@@ -271,11 +296,15 @@ btnDeactivate.addEventListener('click', async () => {
   if (quizActive)       await sendToActiveTab({ type: 'QUIZ_SOLVER_OFF' });
   if (screenshotActive) await sendToActiveTab({ type: 'SCREENSHOT_TOOL_OFF' });
 
-  currentSession   = null;
-  quizActive       = false;
-  screenshotActive = false;
-  stealthActive    = false;
-  await chrome.storage.local.remove(['answerlySession','answerlyQuizActive','answerlyScreenshotActive','answerlyStealthActive']);
+  currentSession          = null;
+  quizActive              = false;
+  screenshotActive        = false;
+  quizStealthActive       = false;
+  screenshotStealthActive = false;
+  await chrome.storage.local.remove([
+    'answerlySession','answerlyQuizActive','answerlyScreenshotActive',
+    'answerlyQuizStealthActive','answerlyScreenshotStealthActive'
+  ]);
   profileDropdown.classList.add('hidden');
   codeInput.value = '';
   showView('view-activate');
@@ -333,19 +362,25 @@ btnQuizSolver.addEventListener('click', async () => {
   if (quizActive) {
     await injectScript('content/quizSolver.js');
     await sendToActiveTab({ type: 'QUIZ_SOLVER_ON' });
+    // Re-apply active stealth states on re-injection
+    if (quizStealthActive) await sendToActiveTab({ type: 'QUIZ_STEALTH_ON' });
+    if (screenshotStealthActive) await sendToActiveTab({ type: 'SS_STEALTH_ON' });
   } else {
-    // Turn off stealth when quiz solver is deactivated
-    if (stealthActive) {
-      stealthActive = false;
-      await chrome.storage.local.set({ answerlyStealthActive: false });
-      await sendToActiveTab({ type: 'STEALTH_OFF' });
+    // Turn off quiz stealth when quiz solver is deactivated
+    if (quizStealthActive) {
+      quizStealthActive = false;
+      await chrome.storage.local.set({ answerlyQuizStealthActive: false });
+      await sendToActiveTab({ type: 'QUIZ_STEALTH_OFF' });
     }
+    // Do NOT turn off screenshot stealth — it runs independently of quiz solver
     await sendToActiveTab({ type: 'QUIZ_SOLVER_OFF' });
   }
-  renderStealthBtn();
+  renderStealthBtns();
+  renderSolveAllBtn();
 });
 
 document.getElementById('btn-solve-all').addEventListener('click', async () => {
+  if (!quizActive) return; // only works when quiz solver is on
   const label = document.getElementById('solve-all-label');
   label.textContent = 'SOLVING…';
   await injectScript('content/quizSolver.js');
@@ -360,18 +395,39 @@ btnScreenshot.addEventListener('click', async () => {
   if (screenshotActive) {
     await injectScript('content/screenshotTool.js');
     await sendToActiveTab({ type: 'SCREENSHOT_TOOL_ON' });
+    if (screenshotStealthActive) await sendToActiveTab({ type: 'SS_STEALTH_ON' });
   } else {
+    // Turn off screenshot stealth when screenshot tool is deactivated
+    if (screenshotStealthActive) {
+      screenshotStealthActive = false;
+      await chrome.storage.local.set({ answerlyScreenshotStealthActive: false });
+      await sendToActiveTab({ type: 'SS_STEALTH_OFF' });
+    }
     await sendToActiveTab({ type: 'SCREENSHOT_TOOL_OFF' });
   }
+  renderStealthBtns();
 });
 
 
-// ── Stealth toggle ────────────────────────────────────────────────────────────
-btnStealth.addEventListener('click', async () => {
-  stealthActive = !stealthActive;
-  renderStealthBtn();
-  await chrome.storage.local.set({ answerlyStealthActive: stealthActive });
-  await sendToActiveTab({ type: stealthActive ? 'STEALTH_ON' : 'STEALTH_OFF' });
+// ── Stealth toggles ───────────────────────────────────────────────────────────
+btnQuizStealth.addEventListener('click', async () => {
+  if (!quizActive) return; // guard: can't enable without quiz solver on
+  quizStealthActive = !quizStealthActive;
+  renderStealthBtns();
+  await chrome.storage.local.set({ answerlyQuizStealthActive: quizStealthActive });
+  await sendToActiveTab({ type: quizStealthActive ? 'QUIZ_STEALTH_ON' : 'QUIZ_STEALTH_OFF' });
+});
+
+btnSsStealth.addEventListener('click', async () => {
+  // Screenshot stealth is independent — no prerequisite tool required
+  screenshotStealthActive = !screenshotStealthActive;
+  renderStealthBtns();
+  await chrome.storage.local.set({ answerlyScreenshotStealthActive: screenshotStealthActive });
+  if (screenshotStealthActive) {
+    // Inject quizSolver.js so it can run screenshot stealth even without quiz solver active
+    await injectScript('content/quizSolver.js');
+  }
+  await sendToActiveTab({ type: screenshotStealthActive ? 'SS_STEALTH_ON' : 'SS_STEALTH_OFF' });
 });
 
 // ── Review ────────────────────────────────────────────────────────────────────

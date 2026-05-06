@@ -240,10 +240,16 @@ body {
 /* ── Footer ── */
 .footer {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px 14px 12px;
   border-top: 1px solid var(--border);
+}
+
+.footer-bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 
@@ -258,7 +264,7 @@ body {
 .stealth-tooltip {
   display: none;
   position: absolute;
-  left: calc(100% + 7px);
+  right: calc(100% + 7px);
   top: 50%;
   transform: translateY(-50%);
   width: 172px;
@@ -276,6 +282,12 @@ body {
 .stealth-tooltip b { color: var(--text); }
 .stealth-tip:hover .stealth-tooltip { display: block; }
 
+.stealth-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .stealth-row {
   display: flex;
   align-items: center;
@@ -289,7 +301,9 @@ body {
   font-size: 11px;
   color: var(--text-muted);
   font-weight: 600;
+  flex: 1;
 }
+
 .toggle-pill {
   width: 36px;
   height: 20px;
@@ -334,7 +348,6 @@ body {
 
 .review-btn {
   color: #f59e0b;
-  margin-left: auto;
 }
 .review-btn:hover {
   color: #fbbf24;

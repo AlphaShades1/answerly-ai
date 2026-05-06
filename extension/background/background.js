@@ -125,6 +125,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
+    // Stealth screenshot: content script sends a pre-cropped image → backend returns answer
+    case 'SOLVE_SCREENSHOT_STEALTH': {
+      chrome.storage.local.get('answerlySession', async (result) => {
+        const token = result.answerlySession?.token;
+        const code  = result.answerlySession?.code;
+        if (!token) { sendResponse({ error: 'Not logged in' }); return; }
+        if (!message.image) { sendResponse({ error: 'No image provided' }); return; }
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/solve-screenshot`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ image: message.image, context: message.questionText, stealth: true }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            sendResponse({ error: data.error || 'Server error', limitReached: data.limitReached });
+          } else {
+            incrementLocalUsage(code, 'screenshot', data.remaining);
+            sendResponse({ answer: data.answer, answerText: data.answerText, remaining: data.remaining });
+          }
+        } catch (err) {
+          sendResponse({ error: 'Network error — is the backend running?' });
+        }
+      });
+      return true;
+    }
+
     // Relay solve-screenshot request from content script through to backend
     case 'SOLVE_SCREENSHOT': {
       chrome.storage.local.get('answerlySession', async (result) => {
@@ -164,19 +191,22 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // Match any Canvas domain (not just instructure.com)
   if (!/\/courses\/\d+\/(quizzes|assignments)/.test(url)) return;
 
-  chrome.storage.local.get(['answerlyQuizActive', 'answerlyScreenshotActive', 'answerlyStealthActive'], async (stored) => {
+  chrome.storage.local.get([
+    'answerlyQuizActive', 'answerlyScreenshotActive',
+    'answerlyQuizStealthActive', 'answerlyScreenshotStealthActive'
+  ], async (stored) => {
     try {
       // Re-inject scripts first, then send activation messages
       if (stored.answerlyQuizActive) {
         await chrome.scripting.executeScript({ target: { tabId }, files: ['content/quizSolver.js'] });
         await chrome.tabs.sendMessage(tabId, { type: 'QUIZ_SOLVER_ON' });
+        if (stored.answerlyQuizStealthActive)       await chrome.tabs.sendMessage(tabId, { type: 'QUIZ_STEALTH_ON' });
+        if (stored.answerlyScreenshotStealthActive) await chrome.tabs.sendMessage(tabId, { type: 'SS_STEALTH_ON' });
       }
       if (stored.answerlyScreenshotActive) {
         await chrome.scripting.executeScript({ target: { tabId }, files: ['content/screenshotTool.js'] });
         await chrome.tabs.sendMessage(tabId, { type: 'SCREENSHOT_TOOL_ON' });
-      }
-      if (stored.answerlyStealthActive) {
-        await chrome.tabs.sendMessage(tabId, { type: 'STEALTH_ON' });
+        if (stored.answerlyScreenshotStealthActive) await chrome.tabs.sendMessage(tabId, { type: 'SS_STEALTH_ON' });
       }
     } catch (err) {
       // Tab may not be ready yet — ignore

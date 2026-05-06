@@ -491,13 +491,13 @@ window.__answerlyScreenshotLoaded = true;
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'SCREENSHOT_TOOL_ON')  activate();
     if (msg.type === 'SCREENSHOT_TOOL_OFF') deactivate();
-    if (msg.type === 'STEALTH_ON')  applyStealthState(true);
-    if (msg.type === 'STEALTH_OFF') applyStealthState(false);
+    if (msg.type === 'SS_STEALTH_ON')  applyStealthState(true);
+    if (msg.type === 'SS_STEALTH_OFF') applyStealthState(false);
   });
 
-  chrome.storage.local.get(['answerlyScreenshotActive', 'answerlyStealthActive'], (s) => {
-    if (s.answerlyScreenshotActive) activate();
-    if (s.answerlyStealthActive)    applyStealthState(true);
+  chrome.storage.local.get(['answerlyScreenshotActive', 'answerlyScreenshotStealthActive'], (s) => {
+    if (s.answerlyScreenshotActive)        activate();
+    if (s.answerlyScreenshotStealthActive) applyStealthState(true);
   });
 
 })();
