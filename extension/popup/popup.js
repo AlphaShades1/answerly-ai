@@ -195,8 +195,7 @@ function renderStealthBtns() {
   quizStealthRow.classList.toggle('stealth-disabled', !quizActive);
 
   btnSsStealth.classList.toggle('active', screenshotStealthActive);
-  // Screenshot stealth is fully independent — no tool prerequisite
-  ssStealthRow.classList.remove('stealth-disabled');
+  ssStealthRow.classList.toggle('stealth-disabled', !screenshotActive);
 }
 
 function renderSolveAllBtn() {
@@ -404,7 +403,12 @@ btnScreenshot.addEventListener('click', async () => {
     await sendToActiveTab({ type: 'SCREENSHOT_TOOL_ON' });
     if (screenshotStealthActive) await sendToActiveTab({ type: 'SS_STEALTH_ON' });
   } else {
-    // Do NOT turn off screenshot stealth — it operates independently of the screenshot tool
+    // Turn off screenshot stealth when screenshot tool is deactivated
+    if (screenshotStealthActive) {
+      screenshotStealthActive = false;
+      await chrome.storage.local.set({ answerlyScreenshotStealthActive: false });
+      await sendToActiveTab({ type: 'SS_STEALTH_OFF' });
+    }
     await sendToActiveTab({ type: 'SCREENSHOT_TOOL_OFF' });
   }
   renderStealthBtns();
@@ -421,7 +425,7 @@ btnQuizStealth.addEventListener('click', async () => {
 });
 
 btnSsStealth.addEventListener('click', async () => {
-  // Screenshot stealth is independent — no prerequisite tool required
+  if (!screenshotActive) return; // requires Screenshot Tool to be on
   screenshotStealthActive = !screenshotStealthActive;
   renderStealthBtns();
   await chrome.storage.local.set({ answerlyScreenshotStealthActive: screenshotStealthActive });
