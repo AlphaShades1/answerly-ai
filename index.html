@@ -34,12 +34,48 @@
     "applicationCategory": "BrowserApplication",
     "description": "Chrome extension that instantly solves Canvas LMS quizzes and homework with AI.",
     "url": "https://getanswerlyai.com/",
-    "offers": { "@type": "Offer", "price": "9.99", "priceCurrency": "USD" },
-    "aggregateRating": { "@type": "AggregateRating", "ratingValue": "5.0", "ratingCount": "15" }
+    "offers": { "@type": "Offer", "price": "9.99", "priceCurrency": "USD" }
+  }
+  </script>
+
+  <!-- ── SEO: FAQ structured data (expandable FAQ rich result) ── -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Does it work on my school's Canvas?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Answerly AI works on all Canvas LMS installations regardless of which university or college hosts them." }
+      },
+      {
+        "@type": "Question",
+        "name": "What question types does it support?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Multiple choice, multiple select (checkboxes), matching dropdowns, and free response (via Screenshot Tool). True/false questions also work." }
+      },
+      {
+        "@type": "Question",
+        "name": "How accurate is the AI?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Answerly AI uses Google's Gemini AI model, which is highly accurate on factual and conceptual questions. For questions requiring specific lab data or personal context, the Screenshot Tool provides the best results." }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I cancel my subscription?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes, cancel anytime from your Stripe billing portal. You'll keep access until the end of your billing period." }
+      },
+      {
+        "@type": "Question",
+        "name": "Does it work on mobile or tablet?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Answerly AI is a Chrome desktop extension. It works on Windows, Mac, and Chromebooks. It does not work on iOS/Android devices." }
+      }
+    ]
   }
   </script>
 
   <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -56,6 +92,7 @@
         <a href="#how">How It Works</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
+        <a href="blog/">Blog</a>
       </div>
       <a href="https://chromewebstore.google.com/detail/answerly-ai-%E2%80%94-canvas-home/gmekadimanglmacabjkmaigckocobnnc" target="_blank" class="nav-cta">Get Started →</a>
     </div>
