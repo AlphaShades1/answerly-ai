@@ -62,7 +62,7 @@
 
   <div class="privacy-wrap">
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: April 5, 2025</p>
+    <p class="updated">Last updated: September 2, 2026</p>
 
     <p>Answerly AI ("we", "our", or "us") operates the Answerly AI Chrome Extension and associated website. This Privacy Policy explains what information we collect, how we use it, and your rights regarding that information.</p>
 
@@ -70,15 +70,20 @@
     <p>We collect the minimum information necessary to provide our service:</p>
     <ul>
       <li><strong>Activation code:</strong> Your unique subscription code is stored locally in your browser's extension storage to verify your access. It is never transmitted to third parties.</li>
-      <li><strong>Quiz question text and screenshots:</strong> When you use the Quiz Solver or Screenshot Tool, the question text or image is sent to our backend server and then to Google's Gemini AI API to generate an answer. This data is not stored on our servers after processing.</li>
+      <li><strong>Quiz question text and screenshots:</strong> When you use the Quiz Solver or Screenshot Tool, the question text or image is sent to our backend server and then to our AI provider to generate an answer. Screenshot images are never stored &mdash; they are discarded as soon as your answer is returned.</li>
+      <li><strong>Diagnostic answer log:</strong> To find and fix wrong answers, we keep a short-lived record of each request: the question text, the answer options shown to you, and the answer our AI chose. It is tied to your activation code, never to your name, email, course, or school. These records are automatically deleted after 14 days, are used only to improve answer accuracy, and are never sold or shared.</li>
       <li><strong>Usage counters:</strong> We track how many Quiz Solver and Screenshot Tool requests you've made per day to enforce daily limits. These counters are tied to your activation code, not to any personal identity.</li>
       <li><strong>Email address:</strong> Collected by Stripe at the time of subscription for billing purposes. We do not store your email address on our own servers.</li>
+      <li><strong>Quiz scores:</strong> When you submit a quiz on Canvas and land on its results page, the extension reports the quiz's title, the points you earned, the points available, and the attempt number to our server. We use this <em>only</em> to measure how accurate our AI answers are, so we can improve them. This record is tied to your activation code &mdash; never to your name, email, course, or school &mdash; and the score record itself contains no question or answer text.</li>
     </ul>
 
     <h2>2. Information We Do NOT Collect</h2>
     <ul>
       <li>We do not collect your name, IP address, or location.</li>
-      <li>We do not store quiz questions, answers, or screenshots after your request is processed.</li>
+      <li>We do not store your screenshot images at any point.</li>
+      <li>We do not keep quiz questions or answers beyond the 14-day diagnostic window described in Section 1.</li>
+      <li>We do not collect your course name, instructor, institution, or student ID.</li>
+      <li>We do not report your scores to your school, your instructor, or anyone else, and we never sell them.</li>
       <li>We do not track your browsing history or activity outside of Canvas quiz pages.</li>
       <li>We do not sell or share your data with advertisers.</li>
     </ul>
@@ -95,7 +100,7 @@
     <p>Your extension preferences (theme, stealth mode settings, activation code) are stored locally in your browser using Chrome's <code>storage.local</code> API. This data never leaves your device except as described above.</p>
 
     <h2>5. Data Retention</h2>
-    <p>We do not retain quiz question data or screenshot data after your request is fulfilled. Usage counters reset daily and are permanently deleted when your subscription ends.</p>
+    <p>Screenshot images are discarded as soon as your request is fulfilled. Diagnostic answer records (question text, options, and the chosen answer) are automatically deleted 14 days after they are created. Usage counters reset daily and are permanently deleted when your subscription ends. Quiz score records are retained only as long as needed to evaluate answer accuracy, and are deleted on request &mdash; email us and we will remove every score tied to your activation code.</p>
 
     <h2>6. Children's Privacy</h2>
     <p>Answerly AI is not directed at children under 13. We do not knowingly collect personal information from children under 13. If you believe a child has provided us with personal information, please contact us and we will delete it.</p>
