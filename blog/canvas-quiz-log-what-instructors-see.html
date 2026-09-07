@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Canvas Quiz Logs: What Your Instructor Can Actually See (2026)</title>
+  <meta name="description" content="What Canvas quiz logs really record — tab switches, answer timestamps, page focus events — and what instructors can and can't see about how you took a quiz." />
+  <meta name="keywords" content="canvas quiz log, does canvas track tab switching, can canvas see if you switch tabs, canvas quiz log explained, what can teachers see on canvas" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://getanswerlyai.com/blog/canvas-quiz-log-what-instructors-see.html" />
+  <link rel="icon" href="../assets/icon.png" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Answerly AI" />
+  <meta property="og:title" content="Canvas Quiz Logs: What Your Instructor Can Actually See (2026)" />
+  <meta property="og:description" content="A factual breakdown of what Canvas quiz logs record, what they don't, and why the data is far less conclusive than students assume." />
+  <meta property="og:url" content="https://getanswerlyai.com/blog/canvas-quiz-log-what-instructors-see.html" />
+  <meta property="og:image" content="https://getanswerlyai.com/assets/icon.png" />
+  <meta name="twitter:card" content="summary" />
+
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"Article",
+    "headline":"Canvas Quiz Logs: What Your Instructor Can Actually See (2026)",
+    "description":"What Canvas quiz logs really record — tab switches, answer timestamps, page focus events — and what instructors can and can't see.",
+    "author":{"@type":"Organization","name":"Answerly AI"},
+    "publisher":{"@type":"Organization","name":"Answerly AI","logo":{"@type":"ImageObject","url":"https://getanswerlyai.com/assets/icon.png"}},
+    "mainEntityOfPage":"https://getanswerlyai.com/blog/canvas-quiz-log-what-instructors-see.html",
+    "datePublished":"2026-09-07",
+    "dateModified":"2026-09-07"
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"FAQPage",
+    "mainEntity":[
+      {"@type":"Question","name":"Can Canvas tell if you switch tabs during a quiz?","acceptedAnswer":{"@type":"Answer","text":"Canvas can record that the quiz page lost focus, which happens when you switch tabs, switch applications, minimize the window, or in some cases when a notification steals focus. It logs that focus was lost and regained, not what you looked at. Canvas cannot see your other tabs, your browsing history, or anything outside the quiz page."}},
+      {"@type":"Question","name":"What does a Canvas quiz log actually show?","acceptedAnswer":{"@type":"Answer","text":"A Classic Quizzes log shows a timeline of the attempt: when the session started, when each question was answered, when answers were changed, and events indicating the quiz page stopped or resumed being viewed. It shows timing and sequence, not content from outside the quiz."}},
+      {"@type":"Question","name":"Do instructors actually check Canvas quiz logs?","acceptedAnswer":{"@type":"Answer","text":"Rarely, and usually only when something else prompts it — a grade far out of line with a student's other work, a technical dispute about a submission, or an existing integrity review. The log is not a report that gets generated automatically or reviewed for every student."}},
+      {"@type":"Question","name":"Is losing focus on a Canvas quiz proof of cheating?","acceptedAnswer":{"@type":"Answer","text":"No. Focus events have many innocent causes: a notification, an accidental click outside the window, a second monitor, a screen reader, or the browser itself. On its own a focus event shows only that the page was not in the foreground, which is why it is weak evidence and why institutions generally require more than a log to support an allegation."}},
+      {"@type":"Question","name":"Does Canvas record quiz activity for New Quizzes too?","acceptedAnswer":{"@type":"Answer","text":"Yes. New Quizzes keeps its own activity log with comparable information — session start, per-question answer events, and page visibility events. The format differs from the Classic Quizzes log but the type of data is similar."}}
+    ]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../style.css?v=5" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    .article-wrap{max-width:720px;margin:0 auto;padding:120px 24px 80px}
+    .crumb{font-size:13px;color:var(--text-muted);margin-bottom:22px}
+    .crumb a{color:var(--text-muted);text-decoration:none}
+    .crumb a:hover{color:var(--purple)}
+    .article-wrap h1{font-size:clamp(30px,5vw,44px);font-weight:800;line-height:1.12;letter-spacing:-.02em;margin-bottom:14px}
+    .article-meta{font-size:13.5px;color:var(--text-muted);margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--border)}
+    .article-body h2{font-size:24px;font-weight:700;margin:42px 0 12px;letter-spacing:-.01em}
+    .article-body h3{font-size:18px;font-weight:600;margin:26px 0 8px;color:#e8e8f5}
+    .article-body p{color:#c8c8de;margin-bottom:16px;font-size:16.5px}
+    .article-body ul{margin:0 0 18px;padding-left:22px;color:#c8c8de}
+    .article-body li{margin-bottom:9px}
+    .article-body strong{color:#fff;font-weight:600}
+    .article-body a{color:var(--purple);text-decoration:none}
+    .article-body a:hover{text-decoration:underline}
+    .lede{font-size:19px!important;color:#d8d8ea!important;line-height:1.6}
+    .callout{background:var(--bg-card);border:1px solid var(--border);border-left:3px solid var(--purple);border-radius:10px;padding:18px 20px;margin:26px 0}
+    .callout p{margin:0;font-size:15.5px}
+    .logbox{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin:22px 0;font-size:14px;line-height:1.9;color:#c8c8de;overflow-x:auto}
+    .logbox .t{color:var(--text-muted);display:inline-block;min-width:78px}
+    .logbox .e{color:#e8e8f5}
+    .cta-box{background:linear-gradient(135deg,rgba(124,92,252,.14),rgba(124,92,252,.04));border:1px solid rgba(124,92,252,.3);border-radius:16px;padding:30px 26px;margin:44px 0 10px;text-align:center}
+    .cta-box h3{margin:0 0 8px;font-size:21px;color:#fff}
+    .cta-box p{color:#c8c8de;margin:0 0 18px;font-size:15.5px}
+    .cta-box a{display:inline-block;background:var(--purple);color:#fff;padding:12px 26px;border-radius:50px;font-weight:600;text-decoration:none}
+    .cta-box a:hover{background:var(--purple-dark)}
+    .faq-block{margin-top:40px}
+    .faq-block h2{margin-bottom:6px}
+    .qa{border-top:1px solid var(--border);padding:18px 0}
+    .qa h3{margin:0 0 6px;font-size:16.5px;color:#fff}
+    .qa p{margin:0;font-size:15.5px}
+    .related{margin-top:44px;padding-top:24px;border-top:1px solid var(--border)}
+    .related a{color:var(--purple);text-decoration:none;font-weight:600}
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-logo">
+        <img src="../assets/icon.png" alt="Answerly AI" class="nav-icon" />
+        <span>Answerly AI</span>
+      </a>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="../#how">How It Works</a>
+        <a href="../#pricing">Pricing</a>
+        <a href="./">Blog</a>
+      </div>
+      <a href="https://chromewebstore.google.com/detail/answerly-ai-%E2%80%94-canvas-home/gmekadimanglmacabjkmaigckocobnnc" target="_blank" class="nav-cta">Get Started →</a>
+    </div>
+  </nav>
+
+  <main class="article-wrap">
+    <div class="crumb"><a href="../">Home</a> &nbsp;/&nbsp; <a href="./">Blog</a> &nbsp;/&nbsp; Canvas Quiz Logs</div>
+
+    <article>
+      <h1>Canvas Quiz Logs: What Your Instructor Can Actually See</h1>
+      <div class="article-meta">Explainer · Updated September 2026 · ~9 min read</div>
+
+      <div class="article-body">
+        <p class="lede">"Can Canvas tell if I switch tabs?" is one of the most searched questions about online quizzes, and most of the answers online are either scare stories or wishful thinking. Here's the factual version: what a Canvas quiz log records, what it doesn't, how instructors actually use it, and why the data is far less conclusive than the internet suggests.</p>
+
+        <h2>What a quiz log is</h2>
+        <p>Every Canvas quiz attempt generates a <strong>log</strong> — a timestamped record of what happened during the attempt. For Classic Quizzes, an instructor reaches it through <em>Moderate This Quiz</em> and then a per-student log view. New Quizzes keeps a comparable activity log in its own interface.</p>
+        <p>The log is not a report anyone receives automatically. It's a diagnostic page an instructor has to deliberately open, one student at a time. That distinction matters, and we'll come back to it.</p>
+
+        <h2>What the log records</h2>
+        <p>A typical Classic Quizzes log reads roughly like this:</p>
+        <div class="logbox">
+          <div><span class="t">00:00</span> <span class="e">Session started</span></div>
+          <div><span class="t">00:14</span> <span class="e">Answered question 1</span></div>
+          <div><span class="t">00:41</span> <span class="e">Answered question 2</span></div>
+          <div><span class="t">01:03</span> <span class="e">Stopped viewing the Canvas quiz-taking page</span></div>
+          <div><span class="t">01:22</span> <span class="e">Resumed viewing the Canvas quiz-taking page</span></div>
+          <div><span class="t">01:35</span> <span class="e">Answered question 3</span></div>
+          <div><span class="t">02:07</span> <span class="e">Answered question 2 (changed answer)</span></div>
+        </div>
+        <p>Broken down, the log captures four kinds of event:</p>
+        <ul>
+          <li><strong>Session start and end</strong> — when the attempt was opened and submitted.</li>
+          <li><strong>Answer events</strong> — which question was answered, and when. Changed answers appear as separate entries, so the log shows revision history within the attempt.</li>
+          <li><strong>Page focus events</strong> — entries indicating the quiz page stopped or resumed being viewed.</li>
+          <li><strong>Timing</strong> — the gap between every event, which is really the log's core content.</li>
+        </ul>
+
+        <h2>What the log does <em>not</em> record</h2>
+        <p>This is where most of the fear online is misplaced. A Canvas quiz log is generated by a web page running in your browser, and a web page is heavily restricted in what it can observe. The log <strong>cannot</strong> see:</p>
+        <ul>
+          <li><strong>Your other tabs.</strong> Canvas has no visibility into what other pages are open, what's on them, or what you searched.</li>
+          <li><strong>Your browsing history.</strong> Nothing outside the quiz page is accessible to it.</li>
+          <li><strong>Other applications.</strong> Whether you opened a PDF, a messaging app, or a calculator is invisible to Canvas.</li>
+          <li><strong>Your screen.</strong> A quiz page cannot capture or view your display.</li>
+          <li><strong>Your keystrokes outside the quiz.</strong> It sees answers you enter into its own fields, nothing more.</li>
+          <li><strong>Other devices.</strong> A phone next to your laptop is entirely outside its awareness.</li>
+        </ul>
+        <p>The distinction is between <em>focus</em> and <em>content</em>. The page can tell that it is no longer the thing in front of you. It cannot tell what replaced it. "Stopped viewing the Canvas quiz-taking page" is the full extent of what was observed — the log entry is the whole story, not a summary of a longer one.</p>
+        <p>This is worth internalizing, because it's the difference between a system that watches you and a system that notices it isn't being watched. Canvas is the second one. Dedicated remote proctoring software — Respondus, Proctorio, and similar — is a different category entirely, with camera and screen access you explicitly grant on install. If your course requires proctoring software, you'll know, because you had to install it.</p>
+
+        <h2>Why focus events are weak evidence</h2>
+        <p>Here's the part that rarely makes it into the scare stories: a "stopped viewing" event has a long list of innocent causes.</p>
+        <ul>
+          <li>A system or app notification taking focus for a moment.</li>
+          <li>Clicking anywhere outside the browser window — including on a second monitor.</li>
+          <li>A password manager, screen reader, or accessibility tool activating.</li>
+          <li>The browser opening a print dialog, a download prompt, or a permission request.</li>
+          <li>On laptops, closing the lid or the machine sleeping.</li>
+          <li>Switching to a calculator or reference the instructor explicitly allowed.</li>
+          <li>On some setups, simply scrolling with a trackpad gesture that shifts window focus.</li>
+        </ul>
+        <p>Because the causes are so varied, a focus event on its own establishes almost nothing. An attempt with fifteen focus events across ninety minutes on a laptop with notifications enabled looks exactly like an attempt where someone checked their phone constantly — and exactly like one where neither happened.</p>
+        <p>Institutions generally recognize this. Academic integrity policies typically require substantive evidence, and a log showing focus changes is rarely sufficient on its own. Where logs do get used, it's normally as supporting context for a case that started somewhere else, not as the trigger.</p>
+
+        <div class="callout">
+          <p><strong>The realistic summary:</strong> Canvas records that the quiz page lost focus and when. It does not record why, what you did instead, or whether you did anything at all. That's a meaningful difference, and it's why quiz logs are treated as weak signals rather than proof.</p>
+        </div>
+
+        <h2>How often do instructors actually look?</h2>
+        <p>Almost never, in the ordinary case. Opening a quiz log is a manual, per-student action, and a professor with 200 students is not clicking through 200 logs after every quiz. In practice, logs get opened for three reasons:</p>
+        <h3>1. A technical dispute</h3>
+        <p>By far the most common reason. A student says the quiz submitted early, or froze, or lost their answers. The log is how the instructor checks the timeline and, frequently, confirms the student's account. This is the log working <em>for</em> students, and it's the use case Instructure clearly designed it for.</p>
+        <h3>2. A grade far out of line with everything else</h3>
+        <p>If someone who has been getting 60s suddenly returns a perfect score in four minutes on a forty-question exam, that stands out on its own — the log is opened afterwards to add detail. Note the ordering: the score prompted the check, not the log.</p>
+        <h3>3. An existing investigation</h3>
+        <p>If an integrity case is already open for some other reason, the log becomes one of the documents reviewed.</p>
+        <p>What doesn't happen is routine surveillance. There's no dashboard flagging students, no automated alert, and no report that lands in an instructor's inbox. The data sits there unless someone deliberately goes to look at it.</p>
+
+        <h2>The thing that actually looks unusual</h2>
+        <p>If you take one practical point from this article, make it this one: <strong>timing patterns are far more visible than focus events.</strong></p>
+        <p>Answer timestamps show the rhythm of an attempt. Human problem-solving is irregular — some questions take eight seconds, some take four minutes, and people revisit questions they were unsure about. That irregularity is what a normal log looks like.</p>
+        <p>What reads as anomalous is uniformity: forty questions answered at almost identical intervals, or an entire exam completed in a fraction of the expected time with no revisions. Those patterns are visible at a glance in a way that a scattering of focus events simply isn't.</p>
+        <p>This is also the honest argument for working through material rather than racing it. An attempt where you actually thought about the questions produces a log that looks like someone thinking about questions, because that's what happened.</p>
+
+        <h2>What this means in practice</h2>
+        <p>Three takeaways worth holding onto:</p>
+        <ul>
+          <li><strong>The fear is overstated.</strong> Canvas cannot see your other tabs or your screen. The most alarming claims online are simply false.</li>
+          <li><strong>The log is mostly a support tool.</strong> Its most common real-world use is confirming that a student's technical problem actually happened.</li>
+          <li><strong>Understand the material.</strong> No amount of knowledge about logging changes the fact that the person who understands the content finishes faster, with a normal-looking attempt, and does better on the parts no tool helps with.</li>
+        </ul>
+        <p>If you want the mechanics of the quizzes themselves — question types, autosave, how grading works — that's covered in <a href="./how-canvas-quizzes-work.html">how Canvas quizzes work</a>.</p>
+
+        <div class="cta-box">
+          <h3>Understand the question, not just the answer</h3>
+          <p>Answerly AI explains the reasoning behind Canvas questions, so the concept sticks — which is the part that shows up on the final.</p>
+          <a href="../#pricing">See how it works →</a>
+        </div>
+
+        <div class="faq-block">
+          <h2>Frequently asked questions</h2>
+          <div class="qa"><h3>Can Canvas tell if you switch tabs during a quiz?</h3><p>Canvas can record that the quiz page lost focus, which happens when you switch tabs, switch applications, minimize the window, or when a notification steals focus. It logs that focus was lost and regained — not what you looked at. Canvas cannot see your other tabs, your browsing history, or anything outside the quiz page.</p></div>
+          <div class="qa"><h3>What does a Canvas quiz log actually show?</h3><p>A timeline of the attempt: when the session started, when each question was answered, when answers were changed, and events indicating the quiz page stopped or resumed being viewed. It shows timing and sequence, not content from outside the quiz.</p></div>
+          <div class="qa"><h3>Do instructors actually check Canvas quiz logs?</h3><p>Rarely, and usually only when something else prompts it — a grade far out of line with a student's other work, a technical dispute about a submission, or an existing integrity review. The log is not generated automatically or reviewed for every student.</p></div>
+          <div class="qa"><h3>Is losing focus on a Canvas quiz proof of cheating?</h3><p>No. Focus events have many innocent causes: a notification, an accidental click outside the window, a second monitor, a screen reader, or the browser itself. On its own, a focus event shows only that the page wasn't in the foreground, which is why it's weak evidence and why institutions generally require more than a log to support an allegation.</p></div>
+          <div class="qa"><h3>Does Canvas record quiz activity for New Quizzes too?</h3><p>Yes. New Quizzes keeps its own activity log with comparable information — session start, per-question answer events, and page visibility events. The format differs from the Classic Quizzes log, but the type of data is similar.</p></div>
+        </div>
+
+        <div class="related">
+          Keep reading: <a href="./how-canvas-quizzes-work.html">How Canvas Quizzes Work: Question Types, Grading &amp; Study Tips →</a>
+        </div>
+      </div>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-logo">
+        <img src="../assets/icon.png" alt="Answerly AI" class="nav-icon" />
+        <span>Answerly AI</span>
+      </div>
+      <div class="footer-links">
+        <a href="../">Home</a>
+        <a href="./">Blog</a>
+        <a href="../privacy.html">Privacy Policy</a>
+        <a href="mailto:AnswerlyAISupport@gmail.com">Support</a>
+      </div>
+      <p class="footer-copy">© 2026 Answerly AI. All rights reserved.</p>
+    </div>
+  </footer>
+
+</body>
+</html>

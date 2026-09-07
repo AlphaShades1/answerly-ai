@@ -27,7 +27,8 @@
     "author":{"@type":"Organization","name":"Answerly AI"},
     "publisher":{"@type":"Organization","name":"Answerly AI","logo":{"@type":"ImageObject","url":"https://getanswerlyai.com/assets/icon.png"}},
     "mainEntityOfPage":"https://getanswerlyai.com/blog/how-canvas-quizzes-work.html",
-    "datePublished":"2026-08-31"
+    "datePublished":"2026-08-31",
+    "dateModified":"2026-09-07"
   }
   </script>
   <script type="application/ld+json">
@@ -37,7 +38,12 @@
     "mainEntity":[
       {"@type":"Question","name":"What question types can Canvas quizzes use?","acceptedAnswer":{"@type":"Answer","text":"Multiple choice, multiple answer (checkboxes), true/false, matching, fill-in-the-blank, dropdown, numerical, and free-response essay questions. Everything except essay questions is graded automatically."}},
       {"@type":"Question","name":"Does Canvas save my quiz answers automatically?","acceptedAnswer":{"@type":"Answer","text":"Yes. Canvas autosaves each answer as you go, so a dropped connection usually won't lose your work. You still have to click Submit for the attempt to be graded."}},
-      {"@type":"Question","name":"How are Canvas quizzes graded?","acceptedAnswer":{"@type":"Answer","text":"Objective question types are graded instantly by Canvas. Essay and file-upload questions are graded manually by your instructor, so those scores appear later."}}
+      {"@type":"Question","name":"How are Canvas quizzes graded?","acceptedAnswer":{"@type":"Answer","text":"Objective question types are graded instantly by Canvas. Essay and file-upload questions are graded manually by your instructor, so those scores appear later."}},
+      {"@type":"Question","name":"What is the difference between Classic Quizzes and New Quizzes?","acceptedAnswer":{"@type":"Answer","text":"Classic Quizzes is the original Canvas quiz engine; New Quizzes is the newer replacement. The student experience is similar, but New Quizzes usually shows one question per page and supports extra formats like categorization, ordering, and hot-spot questions. Your school chooses which engine is enabled."}},
+      {"@type":"Question","name":"Can I go back and change an answer on a Canvas quiz?","acceptedAnswer":{"@type":"Answer","text":"Usually yes, unless your instructor enabled lock questions after answering. That setting is shown on the quiz's front page before you start, and when it is on you cannot return to a question once you have moved past it."}},
+      {"@type":"Question","name":"What happens if my internet disconnects during a Canvas quiz?","acceptedAnswer":{"@type":"Answer","text":"Your saved answers are normally still there when you get back, because Canvas saves each answer as you select it. The timer does not pause, though, because it runs on the server, so a timed quiz keeps counting down while you are offline. Reconnect as quickly as you can and submit."}},
+      {"@type":"Question","name":"Why is my Canvas quiz score lower than what I calculated?","acceptedAnswer":{"@type":"Answer","text":"The most common cause is a multiple-answer question where you selected some but not all of the correct options, since most are all-or-nothing. The second most common is a fill-in-the-blank answer that was conceptually right but did not match the instructor's answer key text. Both show up in the quiz review if your instructor allows it."}},
+      {"@type":"Question","name":"Can instructors see if I left the quiz page?","acceptedAnswer":{"@type":"Answer","text":"Canvas keeps a quiz log for each attempt showing a timeline of when answers were selected and changed, and depending on the setup, when the page lost focus. It is standard LMS behavior and most instructors never open it, but the platform does record the shape of the attempt, not just the final score."}}
     ]
   }
   </script>
@@ -102,16 +108,20 @@
 
     <article>
       <h1>How Canvas Quizzes Work: Question Types, Grading &amp; Study Tips</h1>
-      <div class="article-meta">Study guide · Updated August 2026 · ~6 min read</div>
+      <div class="article-meta">Study guide · Updated September 2026 · ~10 min read</div>
 
       <div class="article-body">
         <p class="lede">Canvas is the learning platform behind thousands of colleges and high schools, and quizzes are where most of your grade actually gets decided. Understanding how a Canvas quiz is built — the question types, how answers save, how grading happens — makes the whole thing far less stressful. Here's the plain-English breakdown, plus the study habits that reliably raise scores.</p>
 
         <h2>Classic Quizzes vs. New Quizzes</h2>
-        <p>Canvas has two quiz engines running side by side. <strong>Classic Quizzes</strong> is the original tool; <strong>New Quizzes</strong> is the newer replacement your school may have switched on. For you as a student the experience is nearly identical — you answer questions and hit submit — but New Quizzes adds a few extra question formats and a cleaner one-question-at-a-time layout. If your quiz looks slightly different from a classmate's at another school, this is usually why.</p>
+        <p>Canvas has two quiz engines running side by side. <strong>Classic Quizzes</strong> is the original tool; <strong>New Quizzes</strong> is the newer replacement your school may have switched on. For you as a student the experience is nearly identical — you answer questions and hit submit — but the differences are worth knowing because they change how a quiz behaves under you.</p>
+        <h3>What changes for you</h3>
+        <p>New Quizzes tends to show <strong>one question per page</strong> by default, with a navigation panel listing every question so you can jump around. Classic more often shows the whole quiz as a single scrolling page. New Quizzes also adds question formats Classic never had — categorization, ordering, and hot-spot questions, where you drag items into buckets, arrange them in sequence, or click a region of an image.</p>
+        <p>The other practical difference is timing. Because New Quizzes loads questions individually, a weak connection can make it feel slower between questions, while Classic loads everything once and then sits there. Neither is more likely to lose your work, but they fail differently: Classic tends to fail all at once, New Quizzes tends to stall on a single question.</p>
+        <p>If your quiz looks slightly different from a classmate's at another school, the engine is usually why. You can often tell which one you're in from the URL — Classic quizzes sit under <code>/quizzes/</code>, while New Quizzes attempts run through a separate assessment view.</p>
 
         <h2>The question types you'll actually see</h2>
-        <p>Almost every Canvas quiz is built from the same handful of question types. Knowing how each is graded tells you where to spend your study time:</p>
+        <p>Almost every Canvas quiz is built from the same handful of question types. Knowing how each is graded tells you where to spend your study time — and where the easy points are hiding:</p>
         <ul>
           <li><strong>Multiple choice</strong> — one correct answer. Graded instantly.</li>
           <li><strong>Multiple answer (checkboxes)</strong> — several correct options; you usually need <em>all</em> of them for full credit. Read carefully.</li>
@@ -124,8 +134,37 @@
         </ul>
         <p>Everything except essay questions is graded by the computer the moment you submit, which is why most quiz scores appear instantly.</p>
 
+        <h3>Strategy by question type</h3>
+        <p>Each type rewards a slightly different approach:</p>
+        <p><strong>Multiple answer questions</strong> are where most students quietly lose points. Canvas usually requires every correct box and no incorrect ones for full credit, so a question with four right answers is really four true/false questions stacked together. Evaluate each option independently — ask "is this one true on its own?" rather than trying to pick the best group.</p>
+        <p><strong>Fill-in-the-blank</strong> is graded by text matching against a list your instructor typed. That means a conceptually correct answer can be marked wrong for phrasing. Prefer the exact term used in your course materials over a synonym, keep it short (single word or short phrase), and skip articles like "a" or "the" unless the sentence needs them. If the blank sits mid-sentence, match the grammatical form the sentence implies.</p>
+        <p><strong>Numerical questions</strong> often accept a range, but not always a rounded value. Enter more decimal places than you think you need, and check whether the question specifies units — some instructors set the answer key to a bare number and any unit text marks it wrong.</p>
+        <p><strong>Matching and dropdowns</strong> are the one place where process of elimination genuinely pays. Answer the pairs you're certain of first, then reconsider the rest with a smaller pool of options. If the two columns are the same length and every option is used once, each confident answer makes the remaining ones easier.</p>
+        <p><strong>Essay questions</strong> aren't graded by the computer, so write for a human. Answer the question in the first sentence, then support it. Instructors grading forty responses reward answers that are immediately legible over ones that build to a conclusion.</p>
+
         <h2>How autosave and submitting work</h2>
         <p>A common panic moment: your Wi-Fi drops mid-quiz. Good news — <strong>Canvas autosaves each answer as you select it.</strong> Come back, refresh, and your previous answers are usually still there. What autosave does <em>not</em> do is submit for you: the attempt is only graded once you click <strong>Submit Quiz</strong>. If there's a time limit, Canvas auto-submits whatever you have when the clock hits zero, so always answer the easy questions first.</p>
+        <p>Two things are worth knowing about how the save actually works. First, the save happens when you <em>select</em> an answer, not when you finish typing — so for essay and fill-in-the-blank questions, clicking outside the box helps ensure the text is committed. Second, the timer runs on the server, not in your browser. Closing the tab or losing power does not pause it. If a quiz is timed and something goes wrong, get back in as fast as you can, because the clock kept running without you.</p>
+
+        <h2>Time limits, attempts, and question locking</h2>
+        <p>Instructors control several settings that change the shape of a quiz, and the settings are usually visible on the quiz's front page before you start:</p>
+        <ul>
+          <li><strong>Time limit</strong> — a countdown that starts when you begin and auto-submits at zero. Once started, it generally cannot be paused.</li>
+          <li><strong>Multiple attempts</strong> — some quizzes allow two or more tries, with the grade taken from the highest, latest, or average attempt depending on the setting. Check which before you retake anything.</li>
+          <li><strong>One question at a time</strong> — questions appear individually rather than as one page.</li>
+          <li><strong>Lock questions after answering</strong> — the setting that actually hurts. When enabled alongside one-question-at-a-time, you cannot go back and change an answer. If you see this flagged on the quiz's front page, slow down: there is no reviewing at the end.</li>
+          <li><strong>Shuffled answers</strong> — option order is randomized per student, which is why "the answer is C" is never transferable between classmates.</li>
+          <li><strong>Access code or availability window</strong> — the quiz only opens with a password or inside a set date range.</li>
+        </ul>
+        <p>Read the front page before clicking Take the Quiz. Thirty seconds spent checking whether questions lock and how many attempts you get prevents the most common avoidable disasters.</p>
+
+        <h2>What your instructor can see</h2>
+        <p>Canvas records more than your score. For Classic Quizzes, instructors have access to a <strong>quiz log</strong> showing a timeline of the attempt: when it started, when each answer was selected or changed, and — depending on the setup — when the quiz page lost and regained focus. New Quizzes keeps a comparable activity log.</p>
+        <p>None of this is hidden or unusual; it's standard LMS behavior, and most instructors never open the logs at all. But it's worth knowing that the platform records the shape of your attempt, not just the result. It's also why quizzes taken in one focused sitting look unremarkable while heavily interrupted ones stand out.</p>
+
+        <div class="callout">
+          <p><strong>Before you start any graded quiz:</strong> check the time limit, the number of attempts, and whether questions lock after answering. Use a stable connection, close what you don't need, and answer everything you know cold before spending time on the hard questions.</p>
+        </div>
 
         <div class="callout">
           <p><strong>Quick tip:</strong> if a quiz shows one question per page, there's often no penalty for using the "Next / Previous" buttons to skim the whole quiz first. Answer everything you know cold, then loop back to the hard ones with a clear head.</p>
@@ -141,7 +180,13 @@
         <h3>2. Turn your notes into questions</h3>
         <p>For every key concept, write the question your professor would ask. Canvas quizzes are just those questions in digital form — so if you can answer your own, you're ready.</p>
         <h3>3. Understand the reasoning, not just the answer</h3>
-        <p>Memorizing "B" for one question won't help when the wording changes. Understanding <em>why</em> B is correct means you can handle the same concept phrased any way. This is where an <strong>AI study helper</strong> earns its keep: instead of just marking you right or wrong, it can show the correct answer <em>and explain the reasoning</em>, so the concept clicks the first time.</p>
+        <p>Memorizing "B" for one question won't help when the wording changes — and since Canvas shuffles answer order by default, "B" isn't even stable between students. Understanding <em>why</em> B is correct means you can handle the same concept phrased any way. This is where an <strong>AI study helper</strong> earns its keep: instead of just marking you right or wrong, it can show the correct answer <em>and explain the reasoning</em>, so the concept clicks the first time.</p>
+        <h3>4. Study in the format you'll be tested in</h3>
+        <p>If the quiz is multiple choice, practice with multiple choice. If it's fill-in-the-blank, practice producing the term from memory rather than recognizing it in a list. Recognition and recall are different skills, and studying with flashcards you flip too quickly trains the wrong one. The closer your practice format is to the test format, the less the test surprises you.</p>
+        <h3>5. Review the quiz after you get it back</h3>
+        <p>Most students look at the score and close the tab. If your instructor allows it, Canvas will show which questions you missed — and on many quizzes, the correct answers. That review is the single highest-value twenty minutes in the course, because a wrong answer on a quiz is a precise map of a gap that will still be there on the final. Write down every miss and what the right reasoning was.</p>
+        <h3>6. Do the easy questions first, always</h3>
+        <p>On a timed quiz, points are points regardless of difficulty. Spending eight minutes on a hard question while five easy ones sit unanswered is the most common way students lose points they knew. Make one fast pass answering everything you're sure of, then come back — unless the quiz locks questions after answering, in which case pace yourself deliberately from the start.</p>
 
         <div class="cta-box">
           <h3>Study Canvas quizzes the smart way</h3>
@@ -154,6 +199,11 @@
           <div class="qa"><h3>What question types can Canvas quizzes use?</h3><p>Multiple choice, multiple answer, true/false, matching, fill-in-the-blank, dropdown, numerical, and free-response essay. Everything except essays is graded automatically.</p></div>
           <div class="qa"><h3>Does Canvas save my quiz answers automatically?</h3><p>Yes — Canvas autosaves each answer as you go, so a dropped connection usually won't lose your work. You still have to click Submit for the attempt to count.</p></div>
           <div class="qa"><h3>How are Canvas quizzes graded?</h3><p>Objective questions are graded instantly by Canvas. Essay and file-upload answers are graded manually by your instructor, so those scores appear later.</p></div>
+          <div class="qa"><h3>What is the difference between Classic Quizzes and New Quizzes?</h3><p>Classic Quizzes is the original Canvas quiz engine; New Quizzes is the newer replacement. The student experience is similar, but New Quizzes usually shows one question per page and supports extra formats like categorization, ordering, and hot-spot questions. Your school chooses which engine is enabled.</p></div>
+          <div class="qa"><h3>Can I go back and change an answer on a Canvas quiz?</h3><p>Usually yes, unless your instructor enabled "lock questions after answering." That setting is shown on the quiz's front page before you start, and when it's on you cannot return to a question once you've moved past it.</p></div>
+          <div class="qa"><h3>What happens if my internet disconnects during a Canvas quiz?</h3><p>Your saved answers are normally still there when you get back, because Canvas saves each answer as you select it. The timer does not pause, though — it runs on the server, so a timed quiz keeps counting down while you're offline. Reconnect as quickly as you can and submit.</p></div>
+          <div class="qa"><h3>Why is my Canvas quiz score lower than what I calculated?</h3><p>The most common cause is a multiple-answer question where you selected some but not all of the correct options — most are all-or-nothing. The second most common is a fill-in-the-blank answer that was conceptually right but didn't match the instructor's answer key text. Both show up in the quiz review if your instructor allows it.</p></div>
+          <div class="qa"><h3>Can instructors see if I left the quiz page?</h3><p>Canvas keeps a quiz log for each attempt showing a timeline of when answers were selected and changed, and depending on the setup, when the page lost focus. It's standard LMS behavior and most instructors never open it, but the platform does record the shape of the attempt, not just the final score.</p></div>
         </div>
 
         <div class="related">

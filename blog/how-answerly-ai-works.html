@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>How Answerly AI Works: The Complete Guide (2026)</title>
+  <meta name="description" content="A full walkthrough of Answerly AI — every tool, every question type it handles, what it can't do, and how to set it up. Written for people who want the honest version." />
+  <meta name="keywords" content="how answerly ai works, answerly ai tutorial, canvas quiz solver guide, answerly ai setup, canvas extension tutorial, answerly ai features" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://getanswerlyai.com/blog/how-answerly-ai-works.html" />
+  <link rel="icon" href="../assets/icon.png" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Answerly AI" />
+  <meta property="og:title" content="How Answerly AI Works: The Complete Guide (2026)" />
+  <meta property="og:description" content="Every tool explained, every supported question type, and an honest list of what it can't do." />
+  <meta property="og:url" content="https://getanswerlyai.com/blog/how-answerly-ai-works.html" />
+  <meta property="og:image" content="https://getanswerlyai.com/assets/icon.png" />
+  <meta name="twitter:card" content="summary" />
+
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"Article",
+    "headline":"How Answerly AI Works: The Complete Guide (2026)",
+    "description":"A full walkthrough of Answerly AI — every tool, every question type it handles, what it can't do, and how to set it up.",
+    "author":{"@type":"Organization","name":"Answerly AI"},
+    "publisher":{"@type":"Organization","name":"Answerly AI","logo":{"@type":"ImageObject","url":"https://getanswerlyai.com/assets/icon.png"}},
+    "mainEntityOfPage":"https://getanswerlyai.com/blog/how-answerly-ai-works.html",
+    "datePublished":"2026-09-07",
+    "dateModified":"2026-09-07"
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"HowTo",
+    "name":"How to set up and use Answerly AI on Canvas",
+    "description":"Install Answerly AI, activate your code, and use the Quiz Solver and Screenshot Tool on a Canvas quiz.",
+    "step":[
+      {"@type":"HowToStep","name":"Install the extension","text":"Add Answerly AI from the Chrome Web Store. It works in Chrome and any Chromium browser, including Microsoft Edge."},
+      {"@type":"HowToStep","name":"Activate your code","text":"Open the extension and paste the activation code from your email. This links the extension to your subscription."},
+      {"@type":"HowToStep","name":"Open a Canvas quiz","text":"Navigate to a Canvas quiz or assignment page. The extension's tools stay disabled until it detects a Canvas page."},
+      {"@type":"HowToStep","name":"Turn on the Quiz Solver","text":"Click Activate Quiz Solver. A small button appears on each question that the solver can read."},
+      {"@type":"HowToStep","name":"Solve a question","text":"Click the button on any question. The answer and the reasoning appear in a card, and the matching option is selected automatically."},
+      {"@type":"HowToStep","name":"Use the Screenshot Tool for anything else","text":"For diagrams, images, or question types the solver cannot parse, activate the Screenshot Tool and drag a box around the question."}
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"FAQPage",
+    "mainEntity":[
+      {"@type":"Question","name":"What question types does Answerly AI support?","acceptedAnswer":{"@type":"Answer","text":"The Quiz Solver handles multiple choice, multiple answer (checkboxes), true/false, matching, dropdown, and fill-in-the-blank questions, including multi-blank questions, on both Classic Quizzes and New Quizzes. Essay questions, diagrams, images, and New Quizzes' drag-based formats (categorization, ordering, hot spot) are handled by the Screenshot Tool instead."}},
+      {"@type":"Question","name":"Does Answerly AI work on Microsoft Edge?","acceptedAnswer":{"@type":"Answer","text":"Yes. Edge is built on Chromium and installs extensions from the Chrome Web Store directly. You may see a one-time prompt to allow extensions from other stores. Other Chromium browsers such as Brave, Opera, and Vivaldi generally work the same way."}},
+      {"@type":"Question","name":"Does Answerly AI work on Blackboard or Moodle?","acceptedAnswer":{"@type":"Answer","text":"The Quiz Solver is built specifically for Canvas and does not run on other learning platforms. Privacy Guard is the exception — it works across Canvas, Moodle, Blackboard, and other LMS platforms. The Screenshot Tool is designed around the Canvas workflow."}},
+      {"@type":"Question","name":"What is stealth mode in Answerly AI?","acceptedAnswer":{"@type":"Answer","text":"Stealth mode hides the visible buttons the extension normally places on each question. In Quiz Stealth, you click where the button would normally appear and the answer is fetched and selected silently, with nothing shown on screen. Screenshot Stealth works the same way for the screenshot tool. Both are display preferences and do not change what the extension can answer."}},
+      {"@type":"Question","name":"How many questions can Answerly AI solve per day?","acceptedAnswer":{"@type":"Answer","text":"The Pro plan includes 150 Quiz Solver solves and 150 Screenshot Tool solves per day, counted separately, resetting at midnight UTC. The remaining count for each is shown in the extension popup."}},
+      {"@type":"Question","name":"Can Answerly AI use my class notes?","acceptedAnswer":{"@type":"Answer","text":"Yes. You can upload a PDF, image, or text file up to 7 MB as context, and the AI uses it as reference when answering each question, so answers match your course material rather than generic knowledge. It works with both the Quiz Solver and the Screenshot Tool and stays active until you remove it."}}
+    ]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../style.css?v=5" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    .article-wrap{max-width:760px;margin:0 auto;padding:120px 24px 80px}
+    .crumb{font-size:13px;color:var(--text-muted);margin-bottom:22px}
+    .crumb a{color:var(--text-muted);text-decoration:none}
+    .crumb a:hover{color:var(--purple)}
+    .article-wrap h1{font-size:clamp(30px,5vw,44px);font-weight:800;line-height:1.12;letter-spacing:-.02em;margin-bottom:14px}
+    .article-meta{font-size:13.5px;color:var(--text-muted);margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--border)}
+    .article-body h2{font-size:24px;font-weight:700;margin:42px 0 12px;letter-spacing:-.01em}
+    .article-body h3{font-size:18px;font-weight:600;margin:26px 0 8px;color:#e8e8f5}
+    .article-body p{color:#c8c8de;margin-bottom:16px;font-size:16.5px}
+    .article-body ul,.article-body ol{margin:0 0 18px;padding-left:22px;color:#c8c8de}
+    .article-body li{margin-bottom:9px}
+    .article-body strong{color:#fff;font-weight:600}
+    .article-body a{color:var(--purple);text-decoration:none}
+    .article-body a:hover{text-decoration:underline}
+    .lede{font-size:19px!important;color:#d8d8ea!important;line-height:1.6}
+    .callout{background:var(--bg-card);border:1px solid var(--border);border-left:3px solid var(--purple);border-radius:10px;padding:18px 20px;margin:26px 0}
+    .callout p{margin:0;font-size:15.5px}
+    .toc{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:26px 0}
+    .toc h3{margin:0 0 10px;font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)}
+    .toc ol{margin:0;padding-left:20px}
+    .toc li{margin-bottom:7px;font-size:15.5px}
+    .cmp-scroll{overflow-x:auto;margin:26px 0 8px;-webkit-overflow-scrolling:touch}
+    table.cmp{border-collapse:collapse;width:100%;min-width:600px;font-size:14.5px}
+    table.cmp th,table.cmp td{border:1px solid var(--border);padding:11px 14px;text-align:left;vertical-align:top}
+    table.cmp thead th{background:rgba(124,92,252,.12);color:#fff;font-weight:700;font-size:13.5px}
+    table.cmp th.feat{background:var(--bg-card);color:#e8e8f5;font-weight:600;width:32%}
+    table.cmp td{color:#c8c8de}
+    .yes{color:#8be59a;font-weight:600}
+    .no{color:#e58b8b;font-weight:600}
+    .mid{color:#e5cf8b;font-weight:600}
+    .cmp-note{font-size:12.5px;color:var(--text-muted);margin:0 0 18px}
+    .steps{counter-reset:step;list-style:none;padding-left:0}
+    .steps li{counter-increment:step;position:relative;padding-left:44px;margin-bottom:18px}
+    .steps li::before{content:counter(step);position:absolute;left:0;top:-2px;width:28px;height:28px;border-radius:50%;background:rgba(124,92,252,.18);border:1px solid rgba(124,92,252,.4);color:#b9a4ff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+    .steps li b{color:#fff;display:block;margin-bottom:3px}
+    .cta-box{background:linear-gradient(135deg,rgba(124,92,252,.14),rgba(124,92,252,.04));border:1px solid rgba(124,92,252,.3);border-radius:16px;padding:30px 26px;margin:44px 0 10px;text-align:center}
+    .cta-box h3{margin:0 0 8px;font-size:21px;color:#fff}
+    .cta-box p{color:#c8c8de;margin:0 0 18px;font-size:15.5px}
+    .cta-box a{display:inline-block;background:var(--purple);color:#fff;padding:12px 26px;border-radius:50px;font-weight:600;text-decoration:none}
+    .cta-box a:hover{background:var(--purple-dark)}
+    .faq-block{margin-top:40px}
+    .faq-block h2{margin-bottom:6px}
+    .qa{border-top:1px solid var(--border);padding:18px 0}
+    .qa h3{margin:0 0 6px;font-size:16.5px;color:#fff}
+    .qa p{margin:0;font-size:15.5px}
+    .related{margin-top:44px;padding-top:24px;border-top:1px solid var(--border)}
+    .related a{color:var(--purple);text-decoration:none;font-weight:600}
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-logo">
+        <img src="../assets/icon.png" alt="Answerly AI" class="nav-icon" />
+        <span>Answerly AI</span>
+      </a>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="../#how">How It Works</a>
+        <a href="../#pricing">Pricing</a>
+        <a href="./">Blog</a>
+      </div>
+      <a href="https://chromewebstore.google.com/detail/answerly-ai-%E2%80%94-canvas-home/gmekadimanglmacabjkmaigckocobnnc" target="_blank" class="nav-cta">Get Started →</a>
+    </div>
+  </nav>
+
+  <main class="article-wrap">
+    <div class="crumb"><a href="../">Home</a> &nbsp;/&nbsp; <a href="./">Blog</a> &nbsp;/&nbsp; How Answerly AI Works</div>
+
+    <article>
+      <h1>How Answerly AI Works: The Complete Guide</h1>
+      <div class="article-meta">Tutorial · Updated September 2026 · ~14 min read</div>
+
+      <div class="article-body">
+        <p class="lede">This is the full walkthrough — every tool, exactly which question types are handled automatically, which ones aren't, and how to set the whole thing up. It includes an honest list of limitations, because knowing what a tool <em>can't</em> do is what stops you being surprised in the middle of a quiz.</p>
+
+        <div class="toc">
+          <h3>What's covered</h3>
+          <ol>
+            <li>What it actually is</li>
+            <li>Setup, step by step</li>
+            <li>The Quiz Solver</li>
+            <li>Which question types work — full table</li>
+            <li>The Screenshot Tool</li>
+            <li>Solve All</li>
+            <li>Uploading your notes as context</li>
+            <li>Stealth modes</li>
+            <li>Privacy Guard</li>
+            <li>Customization</li>
+            <li>Limits, and what it can't do</li>
+            <li>Troubleshooting</li>
+          </ol>
+        </div>
+
+        <h2>1. What it actually is</h2>
+        <p>Answerly AI is a Chrome extension that runs on Canvas quiz pages. It reads the question that's already on your screen, sends it to an AI model, and returns the answer together with the reasoning behind it — then selects the matching option for you.</p>
+        <p>The design goal is that nothing leaves the page. Most alternatives make you copy a question into another tab, which is slow and loses formatting. Answerly reads the question in place, which is why it can handle formats that don't survive copy-paste, like matching grids and multi-blank sentences.</p>
+        <p>Two things worth being clear about up front. It is <strong>Canvas-specific</strong> — the solver does not run on Blackboard, Moodle, or anything else. And it is <strong>a study tool</strong>: how you use it on graded work is governed by your institution's academic integrity policy, and that's your call to make.</p>
+
+        <h2>2. Setup, step by step</h2>
+        <ol class="steps">
+          <li><b>Install from the Chrome Web Store</b>Works in Chrome and any Chromium browser — Microsoft Edge, Brave, Opera, Vivaldi. Edge shows a one-time prompt to allow extensions from other stores; accept it and everything works normally.</li>
+          <li><b>Pin the extension</b>Click the puzzle-piece icon in your toolbar and pin Answerly AI. You'll be opening it often enough that hunting through the menu gets old.</li>
+          <li><b>Activate your code</b>Open the extension and paste the activation code from your email. If it isn't there, check your spam folder — activation emails end up there more often than they should. This links the extension to your subscription.</li>
+          <li><b>Open a Canvas quiz</b>The tools stay greyed out until the extension detects a Canvas page. If you see "Navigate to a Canvas quiz or assignment to use these tools," you're not on one yet — that message is the extension working correctly, not an error.</li>
+          <li><b>Turn on the tool you want</b>Quiz Solver for standard questions, Screenshot Tool for everything else. They're independent, and you can run both at once.</li>
+        </ol>
+
+        <h2>3. The Quiz Solver</h2>
+        <p>Click <strong>Activate Quiz Solver</strong> and the extension scans the page, placing a small button on every question it can read.</p>
+        <p>Click that button and three things happen: the question and its options are read from the page, sent to the AI, and the response comes back as a card showing the answer <em>and</em> the reasoning. The matching option is selected automatically.</p>
+        <h3>How it identifies question types</h3>
+        <p>This is the part that determines what works, so it's worth understanding. The solver doesn't rely on Canvas's internal labels — it reads the actual form controls on the page:</p>
+        <ul>
+          <li>Radio buttons or checkboxes → multiple choice or multiple answer.</li>
+          <li>Two or more dropdowns sharing the same option list → a matching question, solved as one unit so answers stay consistent across rows.</li>
+          <li>Dropdowns with different options → independent dropdowns, solved separately.</li>
+          <li>Text inputs with no choices → fill-in-the-blank. Multiple inputs means a multi-blank question, and the answer is split across them.</li>
+          <li>None of the above → nothing the solver can fill, so it points you to the Screenshot Tool.</li>
+        </ul>
+        <p>Reading the markup rather than Canvas's labels is what lets the same code work across both Canvas quiz engines, since <a href="./how-canvas-quizzes-work.html">Classic Quizzes and New Quizzes</a> produce quite different page structures.</p>
+        <h3>Why the reasoning matters</h3>
+        <p>The card shows why the answer is right, not just what it is. That isn't decoration. An unexplained answer is unverifiable — you have no way to tell a well-reasoned answer from a confident mistake. The reasoning gives you something to check against your own thinking, and where the two diverge is precisely the concept you were missing.</p>
+
+        <h2>4. Which question types work</h2>
+        <p>The honest table. "Solver" means filled automatically; "Screenshot" means use the Screenshot Tool instead.</p>
+        <div class="cmp-scroll">
+          <table class="cmp">
+            <thead>
+              <tr><th class="feat">Question type</th><th>Classic Quizzes</th><th>New Quizzes</th><th>How</th></tr>
+            </thead>
+            <tbody>
+              <tr><th class="feat">Multiple choice</th><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td><td>Solver</td></tr>
+              <tr><th class="feat">Multiple answer (checkboxes)</th><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td><td>Solver</td></tr>
+              <tr><th class="feat">True / false</th><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td><td>Solver</td></tr>
+              <tr><th class="feat">Matching</th><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td><td>Solver — solved as one unit</td></tr>
+              <tr><th class="feat">Dropdown / multiple dropdowns</th><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td><td>Solver</td></tr>
+              <tr><th class="feat">Fill-in-the-blank (single)</th><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td><td>Solver</td></tr>
+              <tr><th class="feat">Fill-in-the-blank (multi-blank)</th><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td><td>Solver — answer split per blank</td></tr>
+              <tr><th class="feat">Numerical</th><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td><td>Solver — treated as fill-in</td></tr>
+              <tr><th class="feat">Essay / free response</th><td><span class="mid">Screenshot</span></td><td><span class="mid">Screenshot</span></td><td>No field to auto-fill</td></tr>
+              <tr><th class="feat">Diagrams &amp; image questions</th><td><span class="mid">Screenshot</span></td><td><span class="mid">Screenshot</span></td><td>Not text on the page</td></tr>
+              <tr><th class="feat">Categorization (drag to buckets)</th><td><span class="no">n/a</span></td><td><span class="mid">Screenshot</span></td><td>New Quizzes only format</td></tr>
+              <tr><th class="feat">Ordering (drag to sequence)</th><td><span class="no">n/a</span></td><td><span class="mid">Screenshot</span></td><td>New Quizzes only format</td></tr>
+              <tr><th class="feat">Hot Spot (click an image region)</th><td><span class="no">n/a</span></td><td><span class="mid">Screenshot</span></td><td>New Quizzes only format</td></tr>
+              <tr><th class="feat">File upload</th><td><span class="no">No</span></td><td><span class="no">No</span></td><td>Nothing to answer</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="cmp-note">Accurate as of version 1.3.0, September 2026.</p>
+        <p>On a question it can't fill, the extension tells you rather than failing silently — a small notice naming the question type and pointing to the Screenshot Tool. In stealth mode it's a dim notification that fades after five seconds, or sooner if you dismiss it.</p>
+
+        <div class="callout">
+          <p><strong>The design principle:</strong> the solver fails closed. If it can't confidently identify a question's controls, it does nothing and says so, rather than guessing and filling in a wrong answer. A tool that silently answers incorrectly is worse than one that admits its limits.</p>
+        </div>
+
+        <h2>5. The Screenshot Tool</h2>
+        <p>This is the universal fallback, and it's what makes the coverage gaps above manageable rather than blocking.</p>
+        <p>Activate it, and a fullscreen overlay appears. Drag a box around any part of the page — a diagram, an essay prompt, a chemical structure, a drag-and-drop question the solver can't touch — and the AI reads the image and answers it.</p>
+        <h3>Custom instructions</h3>
+        <p>The capture panel has an optional context box. Whatever you type there is sent along with the image, which turns a single tool into several:</p>
+        <ul>
+          <li><em>"Explain in one line"</em> — for a fast check when the clock is running.</li>
+          <li><em>"Show the steps"</em> — for a math problem where you need the method, not the number.</li>
+          <li><em>"Which option is correct and why"</em> — for a multiple choice question rendered as an image.</li>
+          <li><em>"Summarize this passage"</em> — for a long reading-comprehension block.</li>
+        </ul>
+        <p>Because it works on pixels rather than page structure, the Screenshot Tool is immune to markup changes. When Canvas ships an update that breaks structural parsing, this still works.</p>
+
+        <h2>6. Solve All</h2>
+        <p><strong>Solve All Questions</strong> runs the solver across every question on the page in one action, staggering the requests rather than firing them simultaneously.</p>
+        <p>It skips anything already answered, so you can work through a quiz manually and use Solve All to fill the remainder. Questions it can't handle are left untouched rather than filled with a guess.</p>
+        <p>A practical note: on a quiz set to one-question-at-a-time, Solve All only sees the question currently on screen, because the others aren't in the page yet. That's a Canvas behavior, not a bug.</p>
+
+        <h2>7. Uploading your notes as context</h2>
+        <p>The most underused feature, and the one that most improves answer quality.</p>
+        <p>You can upload a <strong>PDF, image, or text file up to 7 MB</strong> — lecture slides, a study guide, a textbook chapter. The AI then uses it as reference material when answering, so responses reflect your course rather than general knowledge.</p>
+        <p>This matters where courses define terms in specific ways. A general model answers from the most common usage; with your slides loaded, it answers from your instructor's usage. It applies to both the Quiz Solver and Screenshot Tool, and stays active until you remove it — so load your material at the start of a study session and forget about it.</p>
+
+        <h2>8. Stealth modes</h2>
+        <p>Two independent toggles that change how visible the extension is on screen. Neither changes what it can answer.</p>
+        <h3>Quiz Stealth</h3>
+        <p>Hides the button on each question. Click where it would normally sit and the answer is fetched and selected silently — nothing appears on screen.</p>
+        <h3>Screenshot Stealth</h3>
+        <p>Places an invisible capture button on each question that reveals itself on hover. Click it, drag your box, and the answer fills in with no visible panel.</p>
+        <p>These are display preferences. If you prefer a clean page, or you're screen-sharing during a study session, they keep the interface out of the way.</p>
+
+        <h2>9. Privacy Guard</h2>
+        <p>A separate toggle that blocks activity logging while you work: tab-switch detection, page-view tracking, and quiz event logging. Unlike the solver, it works across Canvas, Moodle, Blackboard, and other LMS platforms.</p>
+        <p><strong>One important detail:</strong> Privacy Guard installs its protections as the page loads, so enable it <em>before</em> opening the quiz. If you turn it on while a quiz is already open, refresh the page. Enabling it mid-quiz without refreshing means the page's existing tracking is already running.</p>
+        <p>For context on what Canvas records and how much it actually means, see <a href="./canvas-quiz-log-what-instructors-see.html">what your instructor can actually see</a> — the short version is that it's considerably less than most students assume.</p>
+
+        <h2>10. Customization</h2>
+        <p>The <strong>Customize</strong> page controls how the interface looks:</p>
+        <ul>
+          <li><strong>Presets</strong> — complete themes in one click.</li>
+          <li><strong>Colors</strong> — button, card background, border, answer text, and hint text individually.</li>
+          <li><strong>Card opacity</strong> — a slider from fully visible to fully invisible, for something between normal and stealth.</li>
+          <li><strong>Stealth keybind</strong> — a keyboard shortcut instead of clicking.</li>
+          <li><strong>Live preview</strong> — changes render immediately, so you're not guessing.</li>
+        </ul>
+
+        <h2>11. Limits, and what it can't do</h2>
+        <h3>Daily limits</h3>
+        <p>The Pro plan includes <strong>150 Quiz Solver solves and 150 Screenshot solves per day</strong>, counted separately and reset at midnight UTC. Remaining counts are shown in the popup. For normal coursework these are generous — a 40-question exam uses roughly a quarter of one bucket.</p>
+        <h3>What it genuinely can't do</h3>
+        <p>Stated plainly:</p>
+        <ul>
+          <li><strong>Other platforms.</strong> The solver is Canvas-only. Blackboard, Moodle, D2L, Schoology — no. Privacy Guard is the sole exception.</li>
+          <li><strong>Drag-and-drop interactions.</strong> It won't physically drag items into buckets or reorder a sequence. The Screenshot Tool tells you the correct arrangement; you perform it.</li>
+          <li><strong>Hot Spot clicks.</strong> Same — it can tell you which region, but won't click it.</li>
+          <li><strong>Write your essay into the box.</strong> The Screenshot Tool answers essay prompts, but composing and submitting is yours.</li>
+          <li><strong>Guarantee correctness.</strong> It's an AI model. It's strong on well-formed questions and can be wrong — most often on ambiguous phrasing, questions relying on a specific lecture's framing, or images that are genuinely unclear. This is exactly why the reasoning is shown: so you can check it.</li>
+          <li><strong>Work offline.</strong> Answers are generated server-side and require a connection.</li>
+          <li><strong>Bypass proctoring software.</strong> If your course uses a lockdown browser or proctoring tool, that's a separate system and outside what this does.</li>
+        </ul>
+
+        <div class="callout">
+          <p><strong>The one habit worth building:</strong> attempt the question before you solve it, then compare. Used that way the reasoning becomes a diagnostic — it shows you exactly which concept you were missing, which is the thing that helps on the exam where no tool is available.</p>
+        </div>
+
+        <h2>12. Troubleshooting</h2>
+        <h3>Buttons don't appear on questions</h3>
+        <p>Check the extension shows the Canvas page as detected, confirm the Quiz Solver toggle is on, then refresh. On a slow-loading quiz the page may not have finished rendering when the extension scanned it.</p>
+        <h3>"Network error"</h3>
+        <p>Usually a brief connection problem — wait a moment and click again. If it persists across several minutes, the backend may be mid-deploy; it resolves on its own.</p>
+        <h3>Privacy Guard doesn't seem to be working</h3>
+        <p>Refresh the page. It applies its protections at page load, so enabling it on an already-open quiz has no effect until you reload.</p>
+        <h3>A question is answered but the option isn't selected</h3>
+        <p>Occasionally happens when Canvas renders options in an unusual way. The answer is still shown in the card — select it manually. If it recurs on a specific question type, that's worth reporting through the in-extension support chat.</p>
+        <h3>Daily limit reached</h3>
+        <p>Limits reset at midnight UTC. Note that Quiz Solver and Screenshot counts are separate, so exhausting one leaves the other available.</p>
+
+        <div class="cta-box">
+          <h3>Try it on your next Canvas quiz</h3>
+          <p>Every major question type, a screenshot tool for everything else, and the reasoning behind every answer.</p>
+          <a href="../#pricing">Get Answerly AI →</a>
+        </div>
+
+        <div class="faq-block">
+          <h2>Frequently asked questions</h2>
+          <div class="qa"><h3>What question types does Answerly AI support?</h3><p>The Quiz Solver handles multiple choice, multiple answer, true/false, matching, dropdown, and fill-in-the-blank questions — including multi-blank — on both Classic Quizzes and New Quizzes. Essay questions, diagrams, images, and New Quizzes' drag-based formats (categorization, ordering, hot spot) go through the Screenshot Tool instead.</p></div>
+          <div class="qa"><h3>Does Answerly AI work on Microsoft Edge?</h3><p>Yes. Edge is built on Chromium and installs extensions from the Chrome Web Store directly — you may see a one-time prompt to allow extensions from other stores. Brave, Opera, and Vivaldi generally work the same way.</p></div>
+          <div class="qa"><h3>Does Answerly AI work on Blackboard or Moodle?</h3><p>The Quiz Solver is built specifically for Canvas and doesn't run on other platforms. Privacy Guard is the exception — it works across Canvas, Moodle, Blackboard, and other LMS platforms.</p></div>
+          <div class="qa"><h3>What is stealth mode in Answerly AI?</h3><p>Stealth mode hides the visible buttons the extension places on each question. In Quiz Stealth you click where the button would normally appear and the answer is fetched and selected silently. Screenshot Stealth does the same for the screenshot tool. Both are display preferences and don't change what the extension can answer.</p></div>
+          <div class="qa"><h3>How many questions can Answerly AI solve per day?</h3><p>The Pro plan includes 150 Quiz Solver solves and 150 Screenshot Tool solves per day, counted separately, resetting at midnight UTC. Remaining counts are shown in the extension popup.</p></div>
+          <div class="qa"><h3>Can Answerly AI use my class notes?</h3><p>Yes. Upload a PDF, image, or text file up to 7 MB as context and the AI uses it as reference when answering, so answers match your course material rather than generic knowledge. It works with both the Quiz Solver and Screenshot Tool and stays active until you remove it.</p></div>
+        </div>
+
+        <div class="related">
+          Keep reading: <a href="./how-canvas-quizzes-work.html">How Canvas Quizzes Work: Question Types, Grading &amp; Study Tips →</a>
+        </div>
+      </div>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-logo">
+        <img src="../assets/icon.png" alt="Answerly AI" class="nav-icon" />
+        <span>Answerly AI</span>
+      </div>
+      <div class="footer-links">
+        <a href="../">Home</a>
+        <a href="./">Blog</a>
+        <a href="../privacy.html">Privacy Policy</a>
+        <a href="mailto:AnswerlyAISupport@gmail.com">Support</a>
+      </div>
+      <p class="footer-copy">© 2026 Answerly AI. All rights reserved.</p>
+    </div>
+  </footer>
+
+</body>
+</html>
