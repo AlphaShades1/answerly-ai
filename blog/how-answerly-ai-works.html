@@ -229,14 +229,16 @@
         <h2>5. The Screenshot Tool</h2>
         <p>This is the universal fallback, and it's what makes the coverage gaps above manageable rather than blocking.</p>
         <p>Activate it, and a fullscreen overlay appears. Drag a box around any part of the page — a diagram, an essay prompt, a chemical structure, a drag-and-drop question the solver can't touch — and the AI reads the image and answers it.</p>
-        <h3>Custom instructions</h3>
-        <p>The capture panel has an optional context box. Whatever you type there is sent along with the image, which turns a single tool into several:</p>
+        <h3>The context box</h3>
+        <p>The capture panel has an optional context box. Its job is to tell the AI <strong>which question to answer</strong> when your capture contains more than one — which happens often, since quiz pages are dense and a drag box rarely isolates a single question cleanly.</p>
+        <p>Type a few words from the question you want, or its number:</p>
         <ul>
-          <li><em>"Explain in one line"</em> — for a fast check when the clock is running.</li>
-          <li><em>"Show the steps"</em> — for a math problem where you need the method, not the number.</li>
-          <li><em>"Which option is correct and why"</em> — for a multiple choice question rendered as an image.</li>
-          <li><em>"Summarize this passage"</em> — for a long reading-comprehension block.</li>
+          <li><em>"question 4"</em> — when several numbered questions are in the capture.</li>
+          <li><em>"the one about mitosis"</em> — a distinguishing phrase from the question you mean.</li>
+          <li><em>"the bottom question"</em> — positional, when two are stacked in the shot.</li>
         </ul>
+        <p>Leave it empty and the AI answers whatever it judges to be the main question in the image, which is usually right for a tight capture around one question. It's most worth using when your box caught a neighbour, or when a passage sits above several questions about it.</p>
+        <p>One thing it is <em>not</em>: a place for output instructions. Typing something like "explain in one line" won't change the answer's format — the text is used to identify the question, so an instruction there just confuses which question you meant. Capture tightly and leave the box empty when there's only one question in frame.</p>
         <p>Because it works on pixels rather than page structure, the Screenshot Tool is immune to markup changes. When Canvas ships an update that breaks structural parsing, this still works.</p>
 
         <h2>6. Solve All</h2>
