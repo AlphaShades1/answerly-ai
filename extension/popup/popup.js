@@ -7,6 +7,7 @@ let quizActive              = false;
 let screenshotActive        = false;
 let quizStealthActive       = false;
 let screenshotStealthActive = false;
+let privacyGuardActive      = false;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const viewActivate = document.getElementById('view-activate');
@@ -26,6 +27,13 @@ const btnDeactivate   = document.getElementById('btn-deactivate');
 const btnMenu      = document.getElementById('btn-menu');
 const menuDropdown = document.getElementById('menu-dropdown');
 const btnClose     = document.getElementById('btn-close');
+const contextSection    = document.getElementById('context-file-section');
+const btnUploadContext  = document.getElementById('btn-upload-context');
+const contextFileInput  = document.getElementById('context-file-input');
+const contextFileActive = document.getElementById('context-file-active');
+const contextFileName   = document.getElementById('context-file-name');
+const btnClearContext   = document.getElementById('btn-clear-context');
+const contextStatus     = document.getElementById('context-status');
 
 const notCanvasNotice = document.getElementById('not-canvas-notice');
 const btnQuizSolver   = document.getElementById('btn-quiz-solver');
@@ -39,14 +47,15 @@ const usageQuizText     = document.getElementById('usage-quiz-text');
 const usageScreenBar    = document.getElementById('usage-screenshot-bar');
 const usageScreenText   = document.getElementById('usage-screenshot-text');
 
-const btnQuizStealth = document.getElementById('btn-quiz-stealth');
-const quizStealthRow = document.getElementById('quiz-stealth-row');
-const btnSsStealth   = document.getElementById('btn-ss-stealth');
-const ssStealthRow   = document.getElementById('ss-stealth-row');
+const btnQuizStealth  = document.getElementById('btn-quiz-stealth');
+const quizStealthRow  = document.getElementById('quiz-stealth-row');
+const btnSsStealth    = document.getElementById('btn-ss-stealth');
+const ssStealthRow    = document.getElementById('ss-stealth-row');
+const btnPrivacyGuard = document.getElementById('btn-privacy-guard');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showView(id) {
-  ['view-activate', 'view-main', 'view-loading'].forEach(v => {
+  ['view-activate', 'view-main', 'view-loading', 'view-support'].forEach(v => {
     document.getElementById(v)?.classList.add('hidden');
   });
   document.getElementById(id).classList.remove('hidden');
@@ -67,13 +76,44 @@ function formatDate(iso) {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+// ── "Solve All skipped image questions" notice ────────────────────────────────
+// The solver writes answerlySkippedImages whenever a Solve All pass leaves
+// image-dependent questions blank. In normal mode the student also sees an
+// on-page toast, but in stealth mode nothing is drawn on the quiz page at all —
+// so this popup notice is their only way to learn why some answers are missing.
+//
+// Only recent records are shown. Without the freshness check, a skip from days
+// ago would greet the user every time they opened the popup.
+const SKIPPED_FRESH_MS = 5 * 60 * 1000;
+
+function renderSkippedImages(rec) {
+  const box = document.getElementById('skipped-images-notice');
+  const txt = document.getElementById('skipped-images-text');
+  if (!box || !txt) return;
+
+  const fresh = rec && rec.count > 0 && (Date.now() - rec.ts) < SKIPPED_FRESH_MS;
+  if (!fresh) { box.classList.add('hidden'); return; }
+
+  const n = rec.count;
+  txt.innerHTML = n === 1
+    ? '<strong>1 question was skipped</strong> because its answer is in an image. Use the <strong>Screenshot Tool</strong> on it.'
+    : `<strong>${n} questions were skipped</strong> because their answers are in images. Use the <strong>Screenshot Tool</strong> on them.`;
+  box.classList.remove('hidden');
+}
+
+async function refreshSkippedImages() {
+  const { answerlySkippedImages } = await chrome.storage.local.get('answerlySkippedImages');
+  renderSkippedImages(answerlySkippedImages);
+}
+
 async function init() {
   // Wake up Render server immediately (free tier sleeps after inactivity).
   // By the time the user types their code and clicks Activate, it'll be ready.
   fetch(`${BACKEND_URL}/health`).catch(() => {});
   const stored = await chrome.storage.local.get([
     'answerlySession', 'answerlyQuizActive', 'answerlyScreenshotActive',
-    'answerlyQuizStealthActive', 'answerlyScreenshotStealthActive'
+    'answerlyQuizStealthActive', 'answerlyScreenshotStealthActive',
+    'answerlyPrivacyGuardActive'
   ]);
 
   if (stored.answerlySession) {
@@ -85,8 +125,20 @@ async function init() {
       currentSession          = stored.answerlySession;
       quizActive              = !!stored.answerlyQuizActive;
       screenshotActive        = !!stored.answerlyScreenshotActive;
-      quizStealthActive       = !!stored.answerlyQuizStealthActive;
-      screenshotStealthActive = !!stored.answerlyScreenshotStealthActive;
+      // A stealth flag is only real while its parent tool is on. When the tool is
+      // off the stealth row is merely greyed out, so a stale `true` stayed hidden
+      // from the user and then silently re-armed (hiding the screenshot widget)
+      // the moment the tool was switched back on. Normalise it away for good.
+      quizStealthActive       = quizActive       && !!stored.answerlyQuizStealthActive;
+      screenshotStealthActive = screenshotActive && !!stored.answerlyScreenshotStealthActive;
+      privacyGuardActive      = !!stored.answerlyPrivacyGuardActive;
+      if (quizStealthActive       !== !!stored.answerlyQuizStealthActive ||
+          screenshotStealthActive !== !!stored.answerlyScreenshotStealthActive) {
+        await chrome.storage.local.set({
+          answerlyQuizStealthActive:       quizStealthActive,
+          answerlyScreenshotStealthActive: screenshotStealthActive,
+        });
+      }
       await renderMain();
       showView('view-main');
 
@@ -103,11 +155,13 @@ async function init() {
             if (screenshotStealthActive) await sendToActiveTab({ type: 'SS_STEALTH_OFF' });
             await chrome.storage.local.remove([
               'answerlySession','answerlyQuizActive','answerlyScreenshotActive',
-              'answerlyQuizStealthActive','answerlyScreenshotStealthActive'
+              'answerlyQuizStealthActive','answerlyScreenshotStealthActive',
+              'answerlyPrivacyGuardActive'
             ]);
             currentSession = null;
             quizActive = false; screenshotActive = false;
             quizStealthActive = false; screenshotStealthActive = false;
+            privacyGuardActive = false;
             showView('view-activate');
           }
         }
@@ -121,7 +175,8 @@ async function init() {
     // Token expired locally — clear and show activation
     await chrome.storage.local.remove([
       'answerlySession', 'answerlyQuizActive', 'answerlyScreenshotActive',
-      'answerlyQuizStealthActive', 'answerlyScreenshotStealthActive'
+      'answerlyQuizStealthActive', 'answerlyScreenshotStealthActive',
+      'answerlyPrivacyGuardActive'
     ]);
   }
 
@@ -139,14 +194,24 @@ async function renderMain() {
   profileCode.textContent   = currentSession.code;
   profileExpiry.textContent = 'Active until ' + formatDate(currentSession.expiresAt);
 
+  // Context-file uploader — available to everyone
+  contextSection.classList.remove('hidden');
+  const storedCtx = await chrome.storage.local.get('answerlyContextFile');
+  if (storedCtx.answerlyContextFile?.fileName) showContextActive(storedCtx.answerlyContextFile.fileName);
+  else contextFileActive.classList.add('hidden');
+
   renderToolBtn(btnQuizSolver, quizLabel, quizActive, 'QUIZ SOLVER');
   renderToolBtn(btnScreenshot, screenshotLabel, screenshotActive, 'SCREENSHOT TOOL');
   renderStealthBtns();
   renderSolveAllBtn();
+  btnPrivacyGuard.classList.toggle('active', privacyGuardActive);
 
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const url  = tabs[0]?.url || '';
-  const isCanvas = /\/courses\/\d+\/(quizzes|assignments)/.test(url);
+  // Hide the "not on Canvas" notice when on a Canvas quiz/assignment page
+  // OR when on a quiz-lti page (New Quizzes) directly
+  const isCanvas = /\/courses\/\d+\/(quizzes|assignments)/.test(url)
+                || url.includes('quiz-lti-iad-prod.instructure.com');
   notCanvasNotice.classList.toggle('hidden', isCanvas);
 
   // Load usage for THIS specific code (per-code storage so switching accounts is correct)
@@ -268,8 +333,33 @@ btnActivate.addEventListener('click', async () => {
       return;
     }
 
-    currentSession = { token: data.token, code: data.code, expiresAt: data.expiresAt };
+    currentSession = { token: data.token, code: data.code, expiresAt: data.expiresAt, tier: data.tier || 'base' };
     await chrome.storage.local.set({ answerlySession: currentSession });
+
+    // Some codes are configured server-side (AUTO_ENABLE_CODES on the backend) to
+    // come up with every tool already on, so the user types their code and is
+    // ready — no walking them through five separate toggles.
+    //
+    // Deliberately only on activation. These are starting values, not enforced
+    // ones: whatever they switch off afterwards stays off, because nothing here
+    // runs again until they activate a code.
+    //
+    // Only the storage flags are written. The background script already re-reads
+    // them on every tab update and injects accordingly, so the tools come up on
+    // the next Canvas page without the popup reaching into tabs itself.
+    if (data.autoEnable) {
+      await chrome.storage.local.set({
+        answerlyQuizActive:              true,
+        answerlyQuizStealthActive:       true,
+        answerlyScreenshotActive:        true,
+        answerlyScreenshotStealthActive: true,
+        answerlyPrivacyGuardActive:      true,
+      });
+      // Privacy Guard is a dynamically registered content script, so the
+      // background has to register it — setting the flag alone is not enough.
+      chrome.runtime.sendMessage({ type: 'PRIVACY_GUARD_TOGGLE', active: true }).catch(() => {});
+    }
+
     await renderMain();
     showView('view-main');
   } catch {
@@ -289,6 +379,16 @@ btnBuy.addEventListener('click', () => {
   chrome.tabs.create({ url: 'https://buy.stripe.com/9B6aEP1Pi4CZ6CP17Y67S00' });
 });
 
+document.getElementById('btn-discord-activate').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'https://discord.gg/uxFXsMgqrE' });
+});
+
+// Manage Subscription from the activation screen — opens Stripe's hosted portal
+// login page (customer enters their email there; no logged-in session needed).
+document.getElementById('btn-manage-activate').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'https://billing.stripe.com/p/login/9B6aEP1Pi4CZ6CP17Y67S00' });
+});
+
 // ── Profile dropdown ──────────────────────────────────────────────────────────
 btnProfile.addEventListener('click', (e) => {
   e.stopPropagation();
@@ -306,9 +406,12 @@ btnDeactivate.addEventListener('click', async () => {
   screenshotActive        = false;
   quizStealthActive       = false;
   screenshotStealthActive = false;
+  privacyGuardActive      = false;
+  chrome.runtime.sendMessage({ type: 'PRIVACY_GUARD_TOGGLE', active: false }).catch(() => {});
   await chrome.storage.local.remove([
     'answerlySession','answerlyQuizActive','answerlyScreenshotActive',
-    'answerlyQuizStealthActive','answerlyScreenshotStealthActive'
+    'answerlyQuizStealthActive','answerlyScreenshotStealthActive',
+    'answerlyPrivacyGuardActive'
   ]);
   profileDropdown.classList.add('hidden');
   codeInput.value = '';
@@ -338,6 +441,63 @@ document.getElementById('menu-help').addEventListener('click', () => {
   navigator.clipboard.writeText('AnswerlyAISupport@gmail.com').catch(() => {});
 });
 
+// ── Pro: context file upload ────────────────────────────────────────────────
+// Uploads a reference file (PDF/image/text); backend extracts its text once and
+// the extension stores it. quizSolver.js sends that text as context per question.
+btnUploadContext.addEventListener('click', () => contextFileInput.click());
+
+contextFileInput.addEventListener('change', async () => {
+  const file = contextFileInput.files[0];
+  if (!file) return;
+  if (file.size > 7 * 1024 * 1024) {
+    showContextStatus('File too large (max 7 MB).', true);
+    contextFileInput.value = '';
+    return;
+  }
+  showContextStatus('Reading file…', false);
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload  = () => resolve(r.result);
+      r.onerror = () => reject(new Error('read failed'));
+      r.readAsDataURL(file);
+    });
+    const base64 = String(dataUrl).split(',')[1];
+    const res = await fetch(`${BACKEND_URL}/api/process-context`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.token}` },
+      body: JSON.stringify({ fileData: base64, mimeType: file.type || 'text/plain', fileName: file.name }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showContextStatus(data.error || 'Upload failed.', true); return; }
+    await chrome.storage.local.set({ answerlyContextFile: { fileName: data.fileName, context: data.context } });
+    showContextActive(data.fileName);
+    showContextStatus('Loaded ✓ — used as context when solving', false);
+  } catch {
+    showContextStatus('Could not process this file.', true);
+  } finally {
+    contextFileInput.value = '';
+  }
+});
+
+btnClearContext.addEventListener('click', async () => {
+  await chrome.storage.local.remove('answerlyContextFile');
+  contextFileActive.classList.add('hidden');
+  showContextStatus('', false);
+});
+
+function showContextActive(name) {
+  contextFileName.textContent = name;
+  contextFileActive.classList.remove('hidden');
+}
+
+function showContextStatus(msg, isError) {
+  if (!msg) { contextStatus.classList.add('hidden'); return; }
+  contextStatus.textContent = msg;
+  contextStatus.style.color = isError ? '#f09090' : '#9bdc9b';
+  contextStatus.classList.remove('hidden');
+}
+
 
 btnClose.addEventListener('click', () => window.close());
 
@@ -353,6 +513,17 @@ async function injectScript(file) {
   }
 }
 
+async function injectMainWorldScript(file) {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab  = tabs[0];
+  if (!tab?.id) return;
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [file], world: 'MAIN' });
+  } catch (err) {
+    console.warn('Answerly AI: main-world injection failed', err.message);
+  }
+}
+
 async function sendToActiveTab(message) {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const tab  = tabs[0];
@@ -364,12 +535,17 @@ async function sendToActiveTab(message) {
 btnQuizSolver.addEventListener('click', async () => {
   quizActive = !quizActive;
   renderToolBtn(btnQuizSolver, quizLabel, quizActive, 'QUIZ SOLVER');
-  await chrome.storage.local.set({ answerlyQuizActive: quizActive });
+  // Write the stealth flag too — turning the solver on must never inherit a stale
+  // stealth state (that is what made normal mode come back up as stealth).
+  await chrome.storage.local.set({
+    answerlyQuizActive: quizActive,
+    answerlyQuizStealthActive: quizActive && quizStealthActive,
+  });
   if (quizActive) {
     await injectScript('content/quizSolver.js');
     await sendToActiveTab({ type: 'QUIZ_SOLVER_ON' });
-    // Re-apply active stealth states on re-injection
-    if (quizStealthActive) await sendToActiveTab({ type: 'QUIZ_STEALTH_ON' });
+    // Re-assert BOTH directions so the page can never keep a stale stealth mode
+    await sendToActiveTab({ type: quizStealthActive ? 'QUIZ_STEALTH_ON' : 'QUIZ_STEALTH_OFF' });
     if (screenshotStealthActive) await sendToActiveTab({ type: 'SS_STEALTH_ON' });
   } else {
     // Turn off quiz stealth when quiz solver is deactivated
@@ -389,27 +565,41 @@ document.getElementById('btn-solve-all').addEventListener('click', async () => {
   if (!quizActive) return; // only works when quiz solver is on
   const label = document.getElementById('solve-all-label');
   label.textContent = 'SOLVING…';
+  // Drop the previous pass's notice before starting a new one, so a stale count
+  // can't sit there looking like it describes the run now in progress. The
+  // storage listener hides the box; the solver rewrites it if this pass skips.
+  await chrome.storage.local.remove('answerlySkippedImages');
   await injectScript('content/quizSolver.js');
   await sendToActiveTab({ type: 'SOLVE_ALL' });
+  // Also trigger New Quizzes solver via storage (iframe can't receive tab messages)
+  await chrome.storage.local.set({ answerlyNQSolveAll: Date.now() });
   setTimeout(() => { label.textContent = 'SOLVE ALL QUESTIONS'; }, 2000);
 });
 
 btnScreenshot.addEventListener('click', async () => {
   screenshotActive = !screenshotActive;
   renderToolBtn(btnScreenshot, screenshotLabel, screenshotActive, 'SCREENSHOT TOOL');
-  await chrome.storage.local.set({ answerlyScreenshotActive: screenshotActive });
+  // Always write the stealth flag alongside the tool flag so turning the tool on
+  // can never silently re-arm a stale stealth state (which hid the widget).
+  await chrome.storage.local.set({
+    answerlyScreenshotActive: screenshotActive,
+    answerlyScreenshotStealthActive: screenshotActive && screenshotStealthActive,
+  });
   if (screenshotActive) {
     await injectScript('content/screenshotTool.js');
     await sendToActiveTab({ type: 'SCREENSHOT_TOOL_ON' });
-    if (screenshotStealthActive) await sendToActiveTab({ type: 'SS_STEALTH_ON' });
+    await sendToActiveTab({ type: screenshotStealthActive ? 'SS_STEALTH_ON' : 'SS_STEALTH_OFF' });
   } else {
     // Turn off screenshot stealth when screenshot tool is deactivated
     if (screenshotStealthActive) {
       screenshotStealthActive = false;
       await chrome.storage.local.set({ answerlyScreenshotStealthActive: false });
-      await sendToActiveTab({ type: 'SS_STEALTH_OFF' });
     }
-    await sendToActiveTab({ type: 'SCREENSHOT_TOOL_OFF' });
+    // Broadcast OFF to ALL tabs so no stale widgets remain
+    const allTabs = await chrome.tabs.query({});
+    for (const t of allTabs) {
+      try { await chrome.tabs.sendMessage(t.id, { type: 'SCREENSHOT_TOOL_OFF' }); } catch {}
+    }
   }
   renderStealthBtns();
 });
@@ -436,9 +626,36 @@ btnSsStealth.addEventListener('click', async () => {
   await sendToActiveTab({ type: screenshotStealthActive ? 'SS_STEALTH_ON' : 'SS_STEALTH_OFF' });
 });
 
+// ── Privacy Guard toggle ──────────────────────────────────────────────────
+btnPrivacyGuard.addEventListener('click', async () => {
+  privacyGuardActive = !privacyGuardActive;
+  btnPrivacyGuard.classList.toggle('active', privacyGuardActive);
+  await chrome.storage.local.set({ answerlyPrivacyGuardActive: privacyGuardActive });
+  chrome.runtime.sendMessage({ type: 'PRIVACY_GUARD_TOGGLE', active: privacyGuardActive }).catch(() => {});
+  if (privacyGuardActive) {
+    await injectMainWorldScript('content/privacyGuard.js');
+  } else {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab  = tabs[0];
+    if (tab?.id) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          world: 'MAIN',
+          func: () => { window.__answerlyPGActive = false; },
+        });
+      } catch {}
+    }
+  }
+});
+
 // ── Review ────────────────────────────────────────────────────────────────────
 document.getElementById('btn-review').addEventListener('click', () => {
   chrome.tabs.create({ url: 'https://chromewebstore.google.com/detail/answerly-ai-%E2%80%94-canvas-home/gmekadimanglmacabjkmaigckocobnnc/reviews' });
+});
+
+document.getElementById('btn-discord').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'https://discord.gg/uxFXsMgqrE' });
 });
 
 // ── Customize ─────────────────────────────────────────────────────────────────
@@ -464,6 +681,124 @@ chrome.storage.onChanged.addListener((changes) => {
     screenshotActive = !!changes['answerlyScreenshotActive'].newValue;
     renderToolBtn(btnScreenshot, screenshotLabel, screenshotActive, 'SCREENSHOT TOOL');
   }
+
+  // Solve All finished and skipped image questions. Updating live matters:
+  // the student usually still has the popup open when the pass completes.
+  if (changes['answerlySkippedImages'] !== undefined) {
+    renderSkippedImages(changes['answerlySkippedImages'].newValue);
+  }
 });
 
 init();
+refreshSkippedImages();
+
+// ── Support / Report-a-Bug chat ───────────────────────────────────────────────
+(function initSupport() {
+  const thread   = document.getElementById('support-thread');
+  const input    = document.getElementById('support-input');
+  const sendBtn  = document.getElementById('support-send');
+  const backBtn  = document.getElementById('support-back');
+  const menuItem = document.getElementById('btn-report');
+  const menuDot  = document.getElementById('report-dot');
+  if (!thread || !menuItem) return;
+
+  let pollTimer = null;
+
+  function token() { return currentSession && currentSession.token; }
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function fmtTime(iso) {
+    try { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+    catch { return ''; }
+  }
+
+  function render(messages) {
+    if (!messages || !messages.length) {
+      thread.innerHTML = '<div class="support-empty">Something not working? Tell us what happened and we\u2019ll fix it fast. Only you can see this chat.</div>';
+      return;
+    }
+    thread.innerHTML = messages.map(m =>
+      `<div class="support-msg ${m.from === 'user' ? 'user' : 'owner'}">${esc(m.text)}<span class="support-ts">${fmtTime(m.ts)}</span></div>`
+    ).join('');
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  async function loadThread() {
+    if (!token()) return;
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/messages`, { headers: { 'Authorization': `Bearer ${token()}` } });
+      const data = await res.json();
+      render(data.thread && data.thread.messages);
+      if (menuDot) menuDot.classList.add('hidden');  // opening the chat clears the unread dot
+    } catch { /* offline — leave as-is */ }
+  }
+
+  async function send() {
+    const text = input.value.trim();
+    if (!text || !token()) return;
+    sendBtn.disabled = true;
+    // Attach the current page URL as context so the owner knows where the bug was.
+    let context = '';
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      context = tab && tab.url ? tab.url : '';
+    } catch {}
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}` },
+        body: JSON.stringify({ text, context }),
+      });
+      const data = await res.json();
+      if (data.thread) render(data.thread.messages);
+      input.value = '';
+      input.style.height = 'auto';
+    } catch {
+      /* keep the text so they can retry */
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  function openSupport() {
+    menuDropdown.classList.add('hidden');
+    showView('view-support');
+    loadThread();
+    input.focus();
+    clearInterval(pollTimer);
+    pollTimer = setInterval(loadThread, 15000);   // pull in owner replies while open
+  }
+  function closeSupport() {
+    clearInterval(pollTimer);
+    showView('view-main');
+  }
+
+  // Quietly check for an unseen owner reply and light up the menu dot.
+  async function checkUnread() {
+    if (!token()) return;
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/messages`, { headers: { 'Authorization': `Bearer ${token()}` } });
+      const data = await res.json();
+      const unseen = data.thread && data.thread.unreadForUser;
+      if (menuDot) menuDot.classList.toggle('hidden', !unseen);
+    } catch {}
+  }
+
+  menuItem.addEventListener('click', openSupport);
+  backBtn.addEventListener('click', closeSupport);
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 90) + 'px';
+  });
+
+  // Check for replies shortly after the popup opens, then every 60s it's open.
+  setTimeout(checkUnread, 2500);
+  setInterval(checkUnread, 60000);
+})();
