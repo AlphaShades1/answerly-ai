@@ -221,7 +221,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ error: data.error || 'Server error', limitReached: data.limitReached });
           } else {
             incrementLocalUsage(code, 'quiz', data.remaining);
-            sendResponse({ hint: data.hint, answer: data.answer, answerParts: data.answerParts, remaining: data.remaining });
+            // solveId must be forwarded or outcome reporting cannot work at
+            // all: the content script only reports on a solve it can name, so
+            // dropping the id here silently disabled the whole diagnostic —
+            // it read exactly zero, which looked like nobody had updated yet.
+            sendResponse({ hint: data.hint, answer: data.answer, answerParts: data.answerParts, remaining: data.remaining, solveId: data.solveId });
           }
         } catch (err) {
           sendResponse({ error: err?.name === 'AbortError' ? 'Timed out — try again.' : 'Network error — is the backend running?' });
@@ -251,7 +255,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ error: data.error || 'Server error', limitReached: data.limitReached });
           } else {
             incrementLocalUsage(code, 'quiz', data.remaining);
-            sendResponse({ answers: data.answers, remaining: data.remaining });
+            sendResponse({ answers: data.answers, remaining: data.remaining, solveId: data.solveId });
           }
         } catch (err) {
           sendResponse({ error: err?.name === 'AbortError' ? 'Timed out — try again.' : 'Network error — is the backend running?' });
@@ -282,7 +286,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ error: data.error || 'Server error', limitReached: data.limitReached });
           } else {
             incrementLocalUsage(code, 'screenshot', data.remaining);
-            sendResponse({ answer: data.answer, answerText: data.answerText, remaining: data.remaining });
+            sendResponse({ answer: data.answer, answerText: data.answerText, remaining: data.remaining, solveId: data.solveId });
           }
         } catch (err) {
           sendResponse({ error: err?.name === 'AbortError' ? 'Timed out — try again.' : 'Network error — is the backend running?' });
@@ -315,7 +319,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ error: data.error || 'Server error', limitReached: data.limitReached });
           } else {
             incrementLocalUsage(code, 'screenshot', data.remaining);
-            sendResponse({ response: data.response, remaining: data.remaining });
+            sendResponse({ response: data.response, remaining: data.remaining, solveId: data.solveId });
           }
         } catch (err) {
           sendResponse({ error: err?.name === 'AbortError' ? 'Timed out — try again.' : 'Network error — is the backend running?' });
