@@ -30,6 +30,8 @@ const hexHint      = document.getElementById('hex-hint');
 const opacitySlider = document.getElementById('opacity-slider');
 const opacityVal   = document.getElementById('opacity-val');
 const savedMsg     = document.getElementById('saved-msg');
+const keybindEnabled = document.getElementById('keybind-enabled');
+const keybindCapture = document.getElementById('keybind-capture');
 
 // Preview elements
 const previewCard      = document.getElementById('preview-card');
@@ -42,15 +44,63 @@ const previewBtnDemo   = document.getElementById('preview-btn-demo');
 const previewBtnLabel  = document.getElementById('preview-btn-label');
 
 // ── Load saved theme (keyed to the active code so each account has own theme) ─
-let themeKey = 'answerlyTheme';
+let themeKey   = 'answerlyTheme';
+let themeReady = false;   // guards against saving to the wrong key before load
 chrome.storage.local.get('answerlySession', (sess) => {
   const code = sess.answerlySession?.code;
   if (code) themeKey = 'answerlyTheme_' + code;
   chrome.storage.local.get(themeKey, (s) => {
     if (s[themeKey]) theme = { ...DEFAULTS, ...s[themeKey] };
+    themeReady = true;
     applyToUI();
     updatePreview();
   });
+});
+
+// ── Stealth keybind (global preference) ──────────────────────────────────────
+let keybind = { enabled: false, key: '' };
+function prettyKey(k) {
+  if (!k) return 'Not set';
+  if (k === ' ') return 'Space';
+  return k.length === 1 ? k.toUpperCase() : k;
+}
+let keybindReady = false; // guards against overwriting a saved keybind with the default
+chrome.storage.local.get('answerlyStealthKeybind', (s) => {
+  if (s.answerlyStealthKeybind) keybind = s.answerlyStealthKeybind;
+  keybindReady = true;
+  keybindEnabled.checked     = !!keybind.enabled;
+  keybindCapture.textContent = prettyKey(keybind.key);
+});
+keybindEnabled.addEventListener('change', () => { keybind.enabled = keybindEnabled.checked; });
+let capturingKey = false;
+keybindCapture.addEventListener('click', () => {
+  capturingKey = true;
+  keybindCapture.textContent = 'Press a key…';
+});
+// Keys that must never be bound. A bare modifier would make every single press
+// of it fire a solve (and burn usage); navigation keys break normal page use.
+const BAD_KEYBIND_KEYS = [
+  'Shift','Control','Alt','Meta','AltGraph','CapsLock','Tab','Enter',
+  'ContextMenu','OS','NumLock','ScrollLock','Dead','Unidentified','Process',
+  'ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End',
+];
+document.addEventListener('keydown', (e) => {
+  if (!capturingKey) return;
+  // Ignore (don't preventDefault) so these keys keep their normal behaviour and
+  // capture mode stays open for a real key.
+  if (BAD_KEYBIND_KEYS.includes(e.key)) return;
+  e.preventDefault();
+  capturingKey = false;
+  if (e.key !== 'Escape') keybind.key = e.key;
+  keybindCapture.textContent = prettyKey(keybind.key);
+});
+// Cancel capture if the user clicks away — otherwise the next keystroke typed
+// anywhere in the page gets silently swallowed and bound.
+document.addEventListener('mousedown', (e) => {
+  if (capturingKey && e.target !== keybindCapture) {
+    capturingKey = false;
+    keybindCapture.textContent = prettyKey(keybind.key);
+  }
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -151,9 +201,13 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 
 // ── Save ──────────────────────────────────────────────────────────────────────
 document.getElementById('btn-save').addEventListener('click', () => {
-  chrome.storage.local.set({
-    [themeKey]: theme,
-  }, () => {
+  // Only write values whose load has resolved — otherwise a save fired in the
+  // first milliseconds would blank the saved keybind or write the theme to the
+  // generic (non-account) key.
+  const payload = {};
+  if (themeReady)   payload[themeKey] = theme;
+  if (keybindReady) payload.answerlyStealthKeybind = keybind;
+  chrome.storage.local.set(payload, () => {
     savedMsg.style.display = 'block';
     setTimeout(() => { savedMsg.style.display = 'none'; }, 3000);
   });

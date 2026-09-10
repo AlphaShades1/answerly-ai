@@ -17,6 +17,14 @@
   --radius-pill: 50px;
 }
 
+html, body {
+  overflow: hidden;
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   width: 300px;
   min-height: 200px;
@@ -166,10 +174,20 @@ body {
 }
 .notice svg { flex-shrink: 0; color: var(--purple); }
 
+/* Amber variant — "we deliberately left something undone", which needs to read
+   differently from the purple informational notices sitting next to it. */
+.notice.notice-warn {
+  background: rgba(245, 158, 11, 0.10);
+  border-color: rgba(245, 158, 11, 0.35);
+  align-items: flex-start;
+}
+.notice.notice-warn svg { color: #f59e0b; margin-top: 1px; }
+.notice.notice-warn strong { color: #fbbf24; font-weight: 600; }
+
 /* ── Screenshot disclaimer ── */
 .screenshot-notice {
-  margin: 8px 12px 0;
-  padding: 7px 10px;
+  margin: 6px 12px 0;
+  padding: 6px 10px;
   background: rgba(124,92,252,0.1);
   border: 1px solid rgba(124,92,252,0.25);
   border-radius: 6px;
@@ -184,8 +202,8 @@ body {
 .tools-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 12px;
+  gap: 7px;
+  padding: 10px 12px;
 }
 
 .tool-btn {
@@ -194,7 +212,7 @@ body {
   justify-content: center;
   gap: 10px;
   width: 100%;
-  padding: 14px 18px;
+  padding: 10px 18px;
   border-radius: var(--radius-pill);
   border: 2px solid transparent;
   font-size: 12px;
@@ -241,8 +259,8 @@ body {
 .footer {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 14px 12px;
+  gap: 4px;
+  padding: 6px 14px 9px;
   border-top: 1px solid var(--border);
 }
 
@@ -281,6 +299,30 @@ body {
 }
 .stealth-tooltip b { color: var(--text); }
 .stealth-tip:hover .stealth-tooltip { display: block; }
+
+/* Screenshot Stealth is the bottom row — open its tooltip upward so it never
+   extends past the popup's bottom edge (which caused a scrollbar + hover-flicker loop). */
+#ss-stealth-row .stealth-tooltip {
+  top: auto;
+  bottom: -4px;
+  transform: none;
+}
+
+/* ── Privacy Guard ── */
+.privacy-guard-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 6px;
+  margin-bottom: 3px;
+  border-bottom: 1px solid var(--border);
+}
+.privacy-guard-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  flex: 1;
+}
 
 .stealth-group {
   display: flex;
@@ -346,6 +388,11 @@ body {
   color: var(--text);
 }
 
+/* Pushes Customize to the far right of the footer row */
+.footer-link {
+  margin-left: auto;
+}
+
 .review-btn {
   color: #f59e0b;
 }
@@ -383,6 +430,14 @@ body {
   color: var(--text-muted);
   text-align: center;
   margin-bottom: 2px;
+}
+
+.activate-spam-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  opacity: 0.85;
+  margin: 6px 0 0;
 }
 
 .code-input-wrap {
@@ -445,6 +500,117 @@ body {
   transform: none;
 }
 
+.btn-manage-sub {
+  width: 100%;
+  padding: 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-manage-sub:hover {
+  border-color: var(--purple);
+  color: var(--text);
+}
+
+.plan-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: linear-gradient(135deg, #7c5cfc, #4a3899);
+  padding: 2px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+#menu-upgrade {
+  color: #b9a6ff;
+  font-weight: 700;
+}
+
+/* ── Pro context-file uploader ── */
+.context-file-section {
+  padding: 6px 14px 0;
+}
+.context-file-section input[type="file"] { display: none; }
+.context-upload-btn {
+  width: 100%;
+  padding: 9px;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.context-upload-btn:hover { border-color: var(--purple); color: var(--text); }
+.ctx-pro-tag {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: linear-gradient(135deg, #7c5cfc, #4a3899);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+.context-file-active {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #1f1f2b;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.context-file-name {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.context-clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 2px;
+}
+.context-clear-btn:hover { color: #f05454; }
+.context-status {
+  font-size: 10.5px;
+  text-align: center;
+  margin-top: 5px;
+}
+.context-file-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.context-file-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.2px;
+}
+
 .activate-buy-hint {
   font-size: 12px;
   color: var(--text-muted);
@@ -460,6 +626,22 @@ body {
   text-decoration: none;
 }
 .activate-buy-hint .link-btn:hover { color: #9171fd; }
+
+.discord-activate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 2px;
+  transition: color 0.15s;
+}
+.discord-activate-btn:hover { color: #7c5cfc; }
 
 /* ── Logged-out view (keep for reference) ── */
 .logged-out-body {
@@ -581,11 +763,11 @@ body {
 
 /* ── Usage Bars ── */
 .usage-bars {
-  padding: 8px 14px 4px;
+  padding: 6px 14px 3px;
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 .usage-row {
   display: flex;
@@ -623,4 +805,69 @@ body {
   color: var(--text-muted);
   text-align: center;
   opacity: 0.6;
+}
+
+/* ── Support / Report-a-Bug chat ── */
+.report-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--red); margin-left: 4px; vertical-align: middle;
+}
+#view-support { padding: 0; }
+.support-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+}
+.support-back {
+  background: none; border: none; color: var(--text); cursor: pointer;
+  font-size: 26px; line-height: 1; padding: 0 4px; border-radius: 8px;
+}
+.support-back:hover { color: var(--purple); }
+.support-title-wrap { display: flex; flex-direction: column; }
+.support-title { font-size: 14px; font-weight: 700; }
+.support-sub { font-size: 11px; color: var(--text-muted); }
+.support-thread {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 14px; max-height: 300px; min-height: 140px; overflow-y: auto;
+}
+.support-empty {
+  color: var(--text-muted); font-size: 12.5px; line-height: 1.5;
+  text-align: center; padding: 18px 8px;
+}
+.support-msg {
+  max-width: 82%; padding: 8px 11px; border-radius: 12px;
+  font-size: 13px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word;
+}
+.support-msg.user {
+  align-self: flex-end; background: var(--purple); color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.support-msg.owner {
+  align-self: flex-start; background: var(--bg-card);
+  border: 1px solid var(--border); color: var(--text);
+  border-bottom-left-radius: 4px;
+}
+.support-msg .support-ts { display: block; font-size: 9.5px; opacity: 0.6; margin-top: 3px; }
+.support-input-row {
+  display: flex; gap: 8px; align-items: flex-end;
+  padding: 10px 12px; border-top: 1px solid var(--border);
+}
+#support-input {
+  flex: 1; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); padding: 8px 10px;
+  font-family: inherit; font-size: 13px; resize: none; max-height: 90px; outline: none;
+}
+#support-input:focus { border-color: var(--purple); }
+.support-send {
+  background: var(--purple); color: #fff; border: none; cursor: pointer;
+  border-radius: 10px; padding: 8px 14px; font-size: 13px; font-weight: 600;
+}
+.support-send:disabled { opacity: 0.5; cursor: default; }
+.support-sent-note { text-align: center; font-size: 11px; color: var(--green); padding: 4px; }
+
+/* Report button (standalone icon in the header, with unread badge) */
+.report-btn { position: relative; }
+.report-badge {
+  position: absolute; top: 3px; right: 3px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--red); border: 1.5px solid var(--bg);
 }

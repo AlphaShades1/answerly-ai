@@ -164,7 +164,12 @@ window.__answerlyScreenshotLoaded = true;
   function bindEvents() {
     document.getElementById('answerly-ss-close').addEventListener('click', () => {
       deactivate();
-      chrome.storage.local.set({ answerlyScreenshotActive: false });
+      // Clear the stealth flag too. Leaving it stranded `true` made invisible
+      // camera buttons keep appearing on later pages even though the toggle was off.
+      chrome.storage.local.set({
+        answerlyScreenshotActive: false,
+        answerlyScreenshotStealthActive: false,
+      });
     });
     document.getElementById('answerly-ss-topbar').addEventListener('mousedown', startWidgetDrag);
     document.getElementById('answerly-ss-capture').addEventListener('click', startCapture);
@@ -233,8 +238,18 @@ window.__answerlyScreenshotLoaded = true;
     overlay.id = 'answerly-select-overlay';
 
     const canvas = document.createElement('canvas');
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
+    // Backing store at DEVICE resolution so the captured screenshot — which
+    // captureVisibleTab returns at devicePixelRatio — renders 1:1 instead of being
+    // downscaled into a CSS-pixel canvas. That downscale is exactly what made the
+    // selection preview look blurry on high-DPI screens. The CSS size stays in CSS
+    // pixels and the context is scaled by dpr below, so every mouse coordinate and
+    // the selection/crop math further down are completely unchanged.
+    const dpr = window.devicePixelRatio || 1;
+    const W = window.innerWidth, H = window.innerHeight;
+    canvas.width  = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
     overlay.appendChild(canvas);
 
     const hint = document.createElement('div');
@@ -245,6 +260,7 @@ window.__answerlyScreenshotLoaded = true;
     document.body.appendChild(overlay);
 
     const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);   // draw in CSS-pixel coordinates at device resolution
     const img = new Image();
     let startX = 0, startY = 0, curX = 0, curY = 0, mouseX = 0, mouseY = 0, selecting = false, drawn = false;
 
@@ -271,16 +287,16 @@ window.__answerlyScreenshotLoaded = true;
     }
 
     function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, W, H);
 
       // Draw full screenshot as base
       if (img.complete && img.naturalWidth) {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, W, H);
       }
 
       // Dark overlay everywhere
       ctx.fillStyle = 'rgba(0, 0, 0, 0.50)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, W, H);
 
       if (drawn || selecting) {
         const x = Math.min(startX, curX);
@@ -296,7 +312,7 @@ window.__answerlyScreenshotLoaded = true;
           ctx.clip();
           ctx.clearRect(x, y, w, h);
           if (img.complete && img.naturalWidth) {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, W, H);
           }
           ctx.restore();
 
@@ -476,29 +492,122 @@ window.__answerlyScreenshotLoaded = true;
   function hideErr()  { const e = document.getElementById('answerly-ss-err'); if(e) e.style.display = 'none'; }
 
   // ── Activate / Deactivate ──────────────────────────────────────────────────
-  function activate()   { buildWidget(); }
+  // Desired state, mirrored from storage. The keeper below uses these to put the
+  // widget back if anything (Canvas re-rendering, a late script, a DOM reset)
+  // removes it — previously nothing did, so it stayed gone until a manual toggle.
+  // ── Desired state ──────────────────────────────────────────────────────────
+  // `toolActive` / `stealthOn` are ONLY ever written from a successful storage
+  // read. Everything else (messages, the X button) writes storage and lets the
+  // reconciler below follow. Earlier versions let an internal flag get stuck
+  // false, which stopped the recovery loop and left the widget gone until the
+  // user toggled the popup — the bug that kept coming back.
+  let toolActive = false;
+  let stealthOn  = false;
+  let keeperObs  = null;
+
+  function activate()   { toolActive = true;  reconcile(); }
   function deactivate() {
+    toolActive = false;
     document.getElementById('answerly-ss-widget')?.remove();
     document.getElementById('answerly-select-overlay')?.remove();
     widgetEl = null; capturedUrl = null;
   }
 
   function applyStealthState(hidden) {
-    document.getElementById('answerly-ss-widget')?.classList.toggle('answerly-stealth-hidden', hidden);
+    stealthOn = !!hidden;
+    document.getElementById('answerly-ss-widget')?.classList.toggle('answerly-stealth-hidden', stealthOn);
   }
 
+  // ── Reconciler — makes the DOM match the desired state, every second ────────
+  // Deliberately has NO start/stop: the timer runs for the life of the page, so
+  // there is no state in which recovery is switched off. If the tool is on and
+  // the widget is missing (Canvas re-rendered, a script removed it, injection
+  // raced the page), it comes straight back.
+  function reconcile() {
+    if (!document.body) return;
+    if (!chrome.runtime?.id) { deactivate(); return; }
+    if (toolActive) {
+      if (!document.getElementById('answerly-ss-widget')) buildWidget();
+      document.getElementById('answerly-ss-widget')
+        ?.classList.toggle('answerly-stealth-hidden', stealthOn);
+    } else if (document.getElementById('answerly-ss-widget')) {
+      document.getElementById('answerly-ss-widget').remove();
+      widgetEl = null;
+    }
+    // React instantly to Canvas swapping page content, too.
+    if (!keeperObs) {
+      keeperObs = new MutationObserver(() => {
+        if (toolActive && !document.getElementById('answerly-ss-widget')) reconcile();
+      });
+      keeperObs.observe(document.body, { childList: true });
+    }
+  }
+  setInterval(reconcile, 1000);
+  // Keep the background worker awake while the tool is on, so a capture or send
+  // after a quiet period is never dropped waking it up.
+  setInterval(() => {
+    if (!toolActive) return;
+    try { chrome.runtime.sendMessage({ type: 'PING' }, () => void chrome.runtime.lastError); } catch {}
+  }, 20000);
+  // Independently re-read storage on a slower beat, so even a wrong internal
+  // state cannot persist: storage always wins within a couple of seconds.
+  setInterval(() => syncFromStorage(), 3000);
+
   // ── Messages ───────────────────────────────────────────────────────────────
+  // Storage is the single source of truth — re-read it rather than trusting that
+  // a message arrived. This is what keeps the widget alive across Canvas's
+  // one-question-per-page "Next" navigations.
+  function syncFromStorage() {
+    // Permanently invalidated context (extension reloaded/updated): the runtime
+    // ID is gone and will never come back. Tear the widget down so it doesn't
+    // linger forever with a stale reconciler.
+    if (!chrome.runtime?.id) { deactivate(); return; }
+
+    chrome.storage.local.get(['answerlyScreenshotActive', 'answerlyScreenshotStealthActive'], (s) => {
+      // A transient service-worker restart returns lastError but the context is
+      // still alive (chrome.runtime.id is set). Don't tear down in that case —
+      // the next 3-second tick will succeed once the worker wakes.
+      if (chrome.runtime.lastError || !s || typeof s !== 'object') return;
+      // Storage is authoritative in BOTH directions; the reconciler applies it.
+      toolActive = !!s.answerlyScreenshotActive;
+      // Stealth only counts while the tool itself is on.
+      stealthOn  = toolActive && !!s.answerlyScreenshotStealthActive;
+      reconcile();
+    });
+  }
+
+  // The widget needs document.body. If this script is injected before the body
+  // exists (background injection can beat document_idle), wait for it instead of
+  // silently doing nothing — that produced "nothing appears until I re-toggle".
+  function bootWhenReady() {
+    if (document.body) { syncFromStorage(); return; }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => syncFromStorage(), { once: true });
+    } else {
+      setTimeout(bootWhenReady, 50);
+    }
+  }
+
   chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === 'ANSWERLY_SYNC')       syncFromStorage();
     if (msg.type === 'SCREENSHOT_TOOL_ON')  activate();
     if (msg.type === 'SCREENSHOT_TOOL_OFF') deactivate();
     if (msg.type === 'SS_STEALTH_ON')  applyStealthState(true);
     if (msg.type === 'SS_STEALTH_OFF') applyStealthState(false);
   });
 
-  chrome.storage.local.get(['answerlyScreenshotActive', 'answerlyScreenshotStealthActive'], (s) => {
-    if (s.answerlyScreenshotActive)        activate();
-    if (s.answerlyScreenshotStealthActive) applyStealthState(true);
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
+    const act = changes.answerlyScreenshotActive;
+    // An explicit switch-off is the ONLY passive path allowed to remove the
+    // widget — and only when the value genuinely transitioned to false.
+    if (act && act.newValue === false) { deactivate(); return; }
+    if (act !== undefined || changes.answerlyScreenshotStealthActive !== undefined) {
+      syncFromStorage();
+    }
   });
+
+  bootWhenReady();
 
 })();
 } // end guard
