@@ -1238,10 +1238,22 @@ window.__answerlyQuizSolverLoaded = true;
         .replace(/^(the\s+)?(correct\s+)?(answer|choice|option)\s*(is|:)?\s*/i, '')
         .replace(/[.)\]:]+$/, '')
         .trim();
+      // A bare "3" is ambiguous: it can POINT AT the third option, or it can BE
+      // the answer — "what is the length of the path A→B→C→D" answers 3, and a
+      // question about graph nodes answers D. The backend maps the model's
+      // letter to the option's TEXT before sending, so by the time it arrives a
+      // token that reads exactly like one of the options is the answer itself.
+      // Treating it as a position is what made the answer 3 tick the option 2
+      // on a four-choice question listed 5 / 4 / 2 / 3.
+      const refNorm = normalizeText(ref);
+      const isOwnOptionText = !!refNorm && radios.some(input =>
+        normalizeText(getOptionLabelText(input, qEl)) === refNorm);
       let idx = -1;
-      const lm = ref.match(/^\(?([a-e])\)?$/i);
-      if (lm) idx = lm[1].toLowerCase().charCodeAt(0) - 97;
-      if (idx < 0) { const nm = ref.match(/^\(?([1-9])\)?$/); if (nm) idx = parseInt(nm[1], 10) - 1; }
+      if (!isOwnOptionText) {
+        const lm = ref.match(/^\(?([a-e])\)?$/i);
+        if (lm) idx = lm[1].toLowerCase().charCodeAt(0) - 97;
+        if (idx < 0) { const nm = ref.match(/^\(?([1-9])\)?$/); if (nm) idx = parseInt(nm[1], 10) - 1; }
+      }
       if (idx >= 0 && radios[idx]) { radios[idx].click(); return true; }
     }
 
