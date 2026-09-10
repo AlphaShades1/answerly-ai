@@ -752,10 +752,40 @@ window.__answerlyQuizSolverLoaded = true;
    */
   function textWithMath(el, joiner) {
     if (!el) return '';
-    const base = el.innerText.trim();
+    // innerText is empty on a node that is not being rendered, which is exactly
+    // what stemWithoutSelectOptions() hands over, so fall back to textContent.
+    const base = (el.innerText || el.textContent || '').trim();
     const eqs = equationTexts(el);
     if (!eqs.length) return base;
     return base ? base + (joiner || ' ') + eqs.join(' ') : eqs.join(' ');
+  }
+
+  /**
+   * The stem, with each inline <select> reduced to a numbered blank.
+   *
+   * A dropdown renders its whole option list as text, so innerText turned
+   * "the Krebs cycle occurs in the ___" into "the Krebs cycle occurs in the
+   * [ Select ] cytoplasm nucleus mitochondrial matrix ribosome lysosome". Every
+   * candidate arrives as prose and the first one reads as the answer, so the
+   * model is handed a sentence asserting something false before it has chosen
+   * anything — on a four-blank question that is 400-odd characters of it.
+   *
+   * The options are not lost: each row still carries its own list, which is
+   * where the model is actually asked to choose. Returns null when the stem has
+   * no select, so every other question type keeps its existing text exactly.
+   */
+  function stemWithoutSelectOptions(textEl) {
+    if (!textEl || !textEl.querySelector || !textEl.querySelector('select')) return null;
+    try {
+      const clone = textEl.cloneNode(true);
+      clone.querySelectorAll('select').forEach((sel, i) => {
+        sel.replaceWith(document.createTextNode(` [blank ${i + 1}] `));
+      });
+      // Deliberately never inserted into the page: attaching it would trip the
+      // MutationObserver into a re-injection pass on every extract.
+      const out = textWithMath(clone, '\n');
+      return out && out.trim() ? out : null;
+    } catch { return null; }
   }
 
   function extractData(qEl) {
@@ -766,7 +796,7 @@ window.__answerlyQuizSolverLoaded = true;
     // innerText stays the base, untouched — appending rather than rebuilding the
     // string keeps every existing question behaving exactly as it did, and only
     // ADDS the maths that was previously dropped on the floor.
-    const questionText = textWithMath(textEl, '\n');
+    const questionText = stemWithoutSelectOptions(textEl) || textWithMath(textEl, '\n');
 
     // Build the options list from the INPUTS themselves, using the very same
     // getOptionLabelText() that auto-select uses to identify them later.

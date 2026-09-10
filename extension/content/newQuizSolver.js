@@ -60,7 +60,9 @@ window.__answerlyNQSolverLoaded = true;
   /** innerText plus any equations it dropped, appended in document order. */
   function nqStemText(stemContent) {
     if (!stemContent) return '';
-    const base = stemContent.innerText.trim();
+    // innerText is empty on a node that is not being rendered, which is what
+    // nqStemWithoutSelectOptions() passes in, so fall back to textContent.
+    const base = (stemContent.innerText || stemContent.textContent || '').trim();
     const eqs = [];
     stemContent.querySelectorAll('img').forEach(img => {
       if (!nqIsEquationImage(img)) return;
@@ -73,6 +75,39 @@ window.__answerlyNQSolverLoaded = true;
     });
     const uniq = eqs.filter((t, i, arr) => arr.indexOf(t) === i);
     return uniq.length ? (base ? base + '\n' : '') + uniq.join('\n') : base;
+  }
+
+  /**
+   * The stem, with each inline <select> reduced to a numbered blank.
+   *
+   * A dropdown renders its whole option list as text, so the stem reached the
+   * model as "Glycolysis occurs in the [ Select ] cytoplasm nucleus
+   * mitochondrion and yields [ Select ] ATP NADH water" — every candidate as
+   * prose, with the first of each list reading like the answer. Mirrors
+   * stemWithoutSelectOptions() in quizSolver.js; the two engines share no
+   * module, so this pair has to be kept in step.
+   *
+   * Each row still carries its own option list, which is where the model is
+   * actually asked to choose. Returns null when the stem holds no select, so
+   * every other question type keeps its existing text byte for byte.
+   *
+   * The clone is not rendered, so its text comes from textContent and any
+   * screen-reader-only label on a select is included. That is accepted: those
+   * labels name the blank they belong to, which helps rather than misleads,
+   * and it only ever applies to stems that contain a dropdown.
+   */
+  function nqStemWithoutSelectOptions(stemContent) {
+    if (!stemContent || !stemContent.querySelector || !stemContent.querySelector('select')) return null;
+    try {
+      const clone = stemContent.cloneNode(true);
+      clone.querySelectorAll('select').forEach((sel, i) => {
+        sel.replaceWith(document.createTextNode(` [blank ${i + 1}] `));
+      });
+      // Never inserted into the page: attaching it would trip the MutationObserver
+      // into a re-injection pass on every extract.
+      const out = nqStemText(clone);
+      return out && out.trim() ? out : null;
+    } catch { return null; }
   }
 
   // Structural maths markup whose meaning innerText cannot carry: a fraction bar
@@ -478,7 +513,7 @@ window.__answerlyNQSolverLoaded = true;
     const stemContent   = stemContainer
       ? stemContainer.querySelector('.user_content.enhanced')
       : qEl.querySelector('.user_content.enhanced');
-    const questionText = nqStemText(stemContent);
+    const questionText = nqStemWithoutSelectOptions(stemContent) || nqStemText(stemContent);
 
     // ── Question type ───────────────────────────────────────────────────────
     const typeEl       = qEl.querySelector('[data-automation="sdk-interaction-type-name-div"]');
@@ -1128,7 +1163,7 @@ window.__answerlyNQSolverLoaded = true;
       const stemContent   = stemContainer
         ? stemContainer.querySelector('.user_content.enhanced')
         : qEl.querySelector('.user_content.enhanced');
-      const questionText = nqStemText(stemContent);
+      const questionText = nqStemWithoutSelectOptions(stemContent) || nqStemText(stemContent);
       if (!questionText) return;
 
       const header = findNQHeader(qEl);
