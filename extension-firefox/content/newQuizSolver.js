@@ -162,8 +162,15 @@ window.__answerlyNQSolverLoaded = true;
   // solved that quiz or the student had merely opened an old results page, which
   // made quizzes the extension never touched look like Answerly failures.
   // Matches extractTitle() in scoreReporter.js so the two sides agree.
+  // Cached per URL path, not once per page session. A cache that never expired
+  // was wrong the moment a student moved from one quiz to the next without a full
+  // reload: every later solve kept the FIRST quiz's name, so the score for the
+  // quiz they actually took came back reading "Answerly did not solve this".
   let quizTitleCache = null;
+  let quizTitlePath  = null;
   function getQuizTitle() {
+    const path = location.pathname;
+    if (quizTitlePath !== path) quizTitleCache = null;   // different quiz — re-read
     if (quizTitleCache !== null) return quizTitleCache;
     let t = '';
     try {
@@ -178,7 +185,7 @@ window.__answerlyNQSolverLoaded = true;
     } catch { t = ''; }
     // Only cache a real hit — the header can mount after the first question on
     // a SPA-rendered page, and caching '' would lock in the miss for the attempt.
-    if (t) quizTitleCache = t;
+    if (t) { quizTitleCache = t; quizTitlePath = path; }
     return t;
   }
 

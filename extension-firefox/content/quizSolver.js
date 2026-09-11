@@ -319,8 +319,15 @@ window.__answerlyQuizSolverLoaded = true;
   // solved that quiz or the student had merely opened an old results page, which
   // made quizzes the extension never touched look like Answerly failures.
   // Matches extractTitle() in scoreReporter.js so the two sides agree.
+  // Cached per URL path, not once per page session. A cache that never expired
+  // was wrong the moment a student moved from one quiz to the next without a full
+  // reload: every later solve kept the FIRST quiz's name, so the score for the
+  // quiz they actually took came back reading "Answerly did not solve this".
   let quizTitleCache = null;
+  let quizTitlePath  = null;
   function getQuizTitle() {
+    const path = location.pathname;
+    if (quizTitlePath !== path) quizTitleCache = null;   // different quiz — re-read
     if (quizTitleCache !== null) return quizTitleCache;
     let t = '';
     try {
@@ -335,7 +342,7 @@ window.__answerlyQuizSolverLoaded = true;
     } catch { t = ''; }
     // Only cache a real hit — the header can mount after the first question on
     // a SPA-rendered page, and caching '' would lock in the miss for the attempt.
-    if (t) quizTitleCache = t;
+    if (t) { quizTitleCache = t; quizTitlePath = path; }
     return t;
   }
 
@@ -353,6 +360,19 @@ window.__answerlyQuizSolverLoaded = true;
         () => void chrome.runtime.lastError
       );
     } catch { /* extension context invalidated */ }
+  }
+
+  // WHY a selection failed, not merely that it did. A bare "no option matched"
+  // cannot tell a scrape that read no options at all from a page that
+  // re-rendered before the answer came back — two different bugs with the same
+  // symptom, and no way to pick between them after the fact.
+  function selectFailDetail(qEl, options, resp) {
+    try {
+      const radios = qEl.querySelectorAll('input[type="radio"]').length;
+      const cbs    = qEl.querySelectorAll('input[type="checkbox"]').length;
+      const parts  = Array.isArray(resp && resp.answerParts) ? resp.answerParts.length : 0;
+      return `no option matched | sent=${(options || []).length} radios=${radios} cbs=${cbs} parts=${parts}`;
+    } catch { return 'no option matched'; }
   }
 
   function sendSolve(msg, cb, attempt) {
@@ -1177,6 +1197,18 @@ window.__answerlyQuizSolverLoaded = true;
     // 4. Next sibling element
     const sib = input.nextElementSibling;
     if (sib) return textWithMath(sib);
+    // 5. Last resort — the nearest ancestor that carries its own text. A quiz
+    // whose choices sit in an unrecognised wrapper reached here with all four
+    // strategies empty, so extractData sent ZERO options; the backend then read
+    // a multiple-choice question as free text and returned an answer that could
+    // never match a radio. Stop at any ancestor holding more than one input, so
+    // this can only ever pick up ONE option's label, never the whole list.
+    let node = input.parentElement;
+    for (let up = 0; up < 3 && node; up++, node = node.parentElement) {
+      if (node.querySelectorAll('input[type="radio"], input[type="checkbox"]').length > 1) break;
+      const t = textWithMath(node).replace(input.value || '', '').trim();
+      if (t && t.length <= 300) return t;
+    }
     return '';
   }
 
@@ -1598,7 +1630,7 @@ window.__answerlyQuizSolverLoaded = true;
               clearInflight(qEl);
               if (!chrome.runtime.lastError && resp && !resp.error) {
                 const matched = autoSelectAnswer(qEl, resp.answer, resp.answerParts);
-                reportOutcome(resp, matched, matched ? undefined : 'no option matched the answer');
+                reportOutcome(resp, matched, matched ? undefined : selectFailDetail(qEl, options, resp));
                 if (matched) {
                   btn.dataset.opened = 'true'; // only mark done after confirmed match
                   markSolved(qEl);
@@ -2157,7 +2189,7 @@ window.__answerlyQuizSolverLoaded = true;
               clearInflight(qEl);
               if (!chrome.runtime.lastError && resp && !resp.error) {
                 const matched = autoSelectAnswer(qEl, resp.answer, resp.answerParts);
-                reportOutcome(resp, matched, matched ? undefined : 'solve-all: no option matched');
+                reportOutcome(resp, matched, matched ? undefined : 'solve-all: ' + selectFailDetail(qEl, options, resp));
                 if (matched) {
                   markSolved(qEl); if (btn) btn.dataset.opened = 'true';
                 }
@@ -2360,7 +2392,12 @@ window.__answerlyQuizSolverLoaded = true;
                   } catch { /* cross-origin iframe — skip */ }
                 }
               }
-              if (matched) triggerBtn.dataset.opened = 'true';
+              // Mark the question solved so Solve All leaves it alone. Without
+              // this the camera's answer was invisible to solveAllDirect(), which
+              // re-solved the same question from its text and overwrote a correct
+              // vision answer with a guess — including on its own automatic second
+              // pass, so it happened with no further click from the student.
+              if (matched) { triggerBtn.dataset.opened = 'true'; markSolved(qEl); }
             }
           );
         });
