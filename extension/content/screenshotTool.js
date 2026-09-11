@@ -467,6 +467,26 @@ window.__answerlyScreenshotLoaded = true;
     return html;
   }
 
+  // ── Quiz identity ──────────────────────────────────────────────────────────
+  // Mirrors extractTitle() in scoreReporter.js so the two sides agree on what a
+  // quiz is called. Without it every Screenshot Tool solve reached the backend
+  // untitled and could not be joined to the score the student later reported —
+  // so a quiz Answerly did answer came back reading "not used on this quiz".
+  // This script runs on every site, so off Canvas nothing matches and the field
+  // is simply omitted.
+  function getQuizTitle() {
+    try {
+      const el = document.querySelector('#quiz_title, .quiz-header h1, h1.quiz-header__title, #content h1, h1');
+      const t = el ? String(el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120) : '';
+      if (t) return t;
+      const crumbs = document.querySelectorAll('#breadcrumbs li a, nav[aria-label="breadcrumbs"] a');
+      if (crumbs.length) {
+        return String(crumbs[crumbs.length - 1].textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+      }
+    } catch { /* never let identity lookup break a solve */ }
+    return '';
+  }
+
   // ── Send to AI ─────────────────────────────────────────────────────────────
   function doSend() {
     if (!capturedUrl) return;
@@ -476,7 +496,11 @@ window.__answerlyScreenshotLoaded = true;
     btn.innerHTML = '<div class="answerly-ss-spinner"></div> Analyzing…';
     hideErr();
 
-    chrome.runtime.sendMessage({ type: 'SOLVE_SCREENSHOT', image: capturedUrl, context: ctx }, (resp) => {
+    const msg = { type: 'SOLVE_SCREENSHOT', image: capturedUrl, context: ctx };
+    const qt  = getQuizTitle();
+    if (qt) msg.quizTitle = qt;
+
+    chrome.runtime.sendMessage(msg, (resp) => {
       btn.disabled = false;
       btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Send`;
 
