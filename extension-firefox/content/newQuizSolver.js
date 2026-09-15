@@ -1187,13 +1187,49 @@ window.__answerlyNQSolverLoaded = true;
     }
   }
 
+  // ── Question identity ──────────────────────────────────────────────────────
+  // One-question-at-a-time quizzes (answer → Next → answer) can REUSE the same
+  // sdk-item-wrapper node for the next question instead of replacing it. When
+  // they do, our button survives but is bound to the previous question's text
+  // and carries its stale dataset.opened, so Solve All skips the new question
+  // and the camera sends the old stem. Both inject paths dedup on "does a button
+  // already exist here?", which is blind to that swap. Stamp each button with a
+  // signature of the question it was built for; when the wrapper's live content
+  // no longer matches, the buttons are torn down and rebuilt for the new one.
+  function nqStemSig(qEl) {
+    const sc = qEl.querySelector('div[tabindex="-1"] .user_content.enhanced') ||
+               qEl.querySelector('.user_content.enhanced');
+    const stem = (sc ? (sc.innerText || sc.textContent || '') : '')
+      .replace(/\s+/g, ' ').trim().slice(0, 160).toLowerCase();
+    const pos = (qEl.querySelector('[data-automation="sdk-position-box-text"]')?.textContent || '')
+      .replace(/\s+/g, ' ').trim();
+    return pos + '|' + stem;
+  }
+
+  function nqClearInjected(qEl) {
+    qEl.querySelectorAll(`.${INJECTED}, .answerly-nq-card`).forEach(el => el.remove());
+  }
+
+  // Returns true when this wrapper already carries buttons for the CURRENT
+  // question (skip it); false when it has none or they belong to a previous
+  // question — in the latter case the stale ones are removed first so the caller
+  // re-injects fresh.
+  function nqUpToDate(qEl, sig) {
+    const existing = qEl.querySelector(`.answerly-nq-btn.${INJECTED}`);
+    if (!existing) return false;
+    if (existing.dataset.qsig === sig) return true;
+    nqClearInjected(qEl);
+    return false;
+  }
+
   // ── Camera-only injection (screenshot stealth without quiz solver) ──────────
   function injectCameraOnlyButtons() {
     if (!screenshotStealthActive) return;
     injectStyles();
     const questions = findNQQuestions();
     questions.forEach(qEl => {
-      if (qEl.querySelector('.answerly-nq-cam-only')) return;
+      const sig = nqStemSig(qEl);
+      if (nqUpToDate(qEl, sig)) return;
       const stemContainer = qEl.querySelector('div[tabindex="-1"]');
       const stemContent   = stemContainer
         ? stemContainer.querySelector('.user_content.enhanced')
@@ -1206,6 +1242,7 @@ window.__answerlyNQSolverLoaded = true;
       camBtn.type      = 'button';
       camBtn.className = `answerly-nq-btn answerly-invisible answerly-nq-cam-btn answerly-nq-cam-only ${INJECTED}`;
       camBtn.title     = '';
+      camBtn.dataset.qsig = sig;
       camBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
       header.appendChild(camBtn);
 
@@ -1249,7 +1286,8 @@ window.__answerlyNQSolverLoaded = true;
     const questions = findNQQuestions();
 
     questions.forEach(qEl => {
-      if (qEl.querySelector(`.answerly-nq-btn.${INJECTED}`)) return; // already done
+      const sig = nqStemSig(qEl);
+      if (nqUpToDate(qEl, sig)) return; // already built for THIS question
 
       const { questionText, questionType, options, inputOptionPairs, textInputEls, dropdownRows } = extractNQData(qEl);
       if (!questionText) return;
@@ -1287,6 +1325,7 @@ window.__answerlyNQSolverLoaded = true;
       btn.type      = 'button';
       btn.className = `answerly-nq-btn ${INJECTED}`;
       btn.title     = 'Answerly AI — hint & answer';
+      btn.dataset.qsig = sig;
       btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
       btn.style.setProperty('background',  accent, 'important');
       btn.style.setProperty('box-shadow', `0 2px 8px ${accent}88`, 'important');
@@ -1434,6 +1473,7 @@ window.__answerlyNQSolverLoaded = true;
         camBtn.type      = 'button';
         camBtn.className = `answerly-nq-btn answerly-invisible answerly-nq-cam-btn ${INJECTED}`;
         camBtn.title     = '';
+        camBtn.dataset.qsig = sig;
         camBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
         header.insertBefore(camBtn, btn);
 
