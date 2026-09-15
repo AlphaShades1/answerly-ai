@@ -294,9 +294,9 @@ window.__answerlyScreenshotLoaded = true;
         ctx.drawImage(img, 0, 0, W, H);
       }
 
-      // Dark overlay everywhere
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.50)';
-      ctx.fillRect(0, 0, W, H);
+      // No dark overlay — the page stays at full brightness while selecting, so
+      // the capture looks transparent rather than dimmed. The selection is shown
+      // by the outline and handles below instead of by un-dimming a hole.
 
       if (drawn || selecting) {
         const x = Math.min(startX, curX);

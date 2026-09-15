@@ -1117,8 +1117,8 @@ window.__answerlyNQSolverLoaded = true;
     function draw() {
       ctx.clearRect(0, 0, W, H);
       if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, W, H);
-      ctx.fillStyle = 'rgba(0,0,0,0.50)';
-      ctx.fillRect(0, 0, W, H);
+      // No dark overlay — keep the page at full brightness while selecting; the
+      // selection is shown by the outline/handles below, not by dimming.
       if (drawn || selecting) {
         const x = Math.min(startX, curX), y = Math.min(startY, curY);
         const w = Math.abs(curX - startX),  h = Math.abs(curY - startY);
