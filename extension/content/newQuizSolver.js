@@ -39,6 +39,70 @@ window.__answerlyNQSolverLoaded = true;
   let currentCode             = null;
   const INJECTED    = 'answerly-nq-injected';
 
+  // ── Stealth solve keybind (customizable) ─────────────────────────────────────
+  // Mirrors quizSolver.js so the shortcut works on New Quizzes too. quizSolver's
+  // handler looks up the question with Classic selectors that do not exist here,
+  // so on a native New Quiz its keybind found nothing. This one keys off the New
+  // Quizzes wrapper instead, and only acts on a New Quizzes page so the two
+  // handlers never both fire for one press. Same as Classic: only in Quiz Stealth
+  // (the invisible ? button), never a bare modifier, never while typing, and it
+  // clears the done/opened marks so the key always forces a fresh (billed) solve.
+  let stealthKeybind = { enabled: false, key: '' };
+  let keybindMouseX  = -1, keybindMouseY = -1;
+  const KEYBIND_BLOCKED = [
+    'Shift','Control','Alt','Meta','AltGraph','CapsLock','Tab','Enter','Escape',
+    'ContextMenu','OS','NumLock','ScrollLock','Dead','Unidentified','Process',
+    'ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End',
+  ];
+  chrome.storage.local.get('answerlyStealthKeybind', (s) => {
+    if (s.answerlyStealthKeybind) stealthKeybind = s.answerlyStealthKeybind;
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area && area !== 'local') return;
+    if (changes.answerlyStealthKeybind) {
+      stealthKeybind = changes.answerlyStealthKeybind.newValue || { enabled: false, key: '' };
+    }
+  });
+  document.addEventListener('mousemove', (e) => {
+    keybindMouseX = e.clientX; keybindMouseY = e.clientY;
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    if (!stealthKeybind.enabled || !stealthKeybind.key) return;
+    if (!stealthHidden) return;                 // only in Quiz Stealth
+    if (!isNQPage()) return;                     // Classic pages are quizSolver's job
+    if (KEYBIND_BLOCKED.includes(stealthKeybind.key)) return;
+    if (e.repeat) return;
+    if (e.metaKey || (e.ctrlKey && !e.altKey) || (e.altKey && !e.ctrlKey)) return;
+    const want = stealthKeybind.key;
+    const hit  = want.length === 1
+      ? e.key.length === 1 && e.key.toLowerCase() === want.toLowerCase()
+      : e.key === want;
+    if (!hit) return;
+    const t = e.target;
+    if (t && (t.isContentEditable ||
+        (t.matches && t.matches('textarea, input[type="text"], input[type="number"], input[type="search"], input[type="email"], input[type="password"], input[type="tel"], input[type="url"], input:not([type])')))) return;
+
+    let qEl = null;
+    if (keybindMouseX >= 0) {
+      const el = document.elementFromPoint(keybindMouseX, keybindMouseY);
+      qEl = el && el.closest('[data-automation="sdk-item-wrapper"]');
+    }
+    if (!qEl) {
+      if (keybindMouseX >= 0) return;            // mouse moved but not over a question
+      const qs = findNQQuestions();
+      if (qs.length !== 1) return;               // only the one-question-per-page case
+      qEl = qs[0];
+    }
+    const trigger = qEl.querySelector(`.answerly-nq-btn.${INJECTED}:not(.answerly-nq-cam-btn)`);
+    if (trigger) {
+      e.preventDefault();
+      delete trigger.dataset.done;               // force a fresh solve, so usage still counts
+      delete trigger.dataset.opened;
+      qEl.querySelectorAll('.answerly-nq-card').forEach(c => { delete c.dataset.loaded; });
+      trigger.click();
+    }
+  }, true);
+
   // ── Maths recovery ──────────────────────────────────────────────────────────
   // Equations are rendered as pictures, not text: Canvas emits
   // <img class="equation_image" data-equation-content="\log_2 16 = x">, MathJax
