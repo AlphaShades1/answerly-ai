@@ -981,94 +981,6 @@ window.__answerlyNQSolverLoaded = true;
       .replace(/"/g, '&quot;');
   }
 
-  // ── Stealth region-selector overlay ───────────────────────────────────────
-  function showNQStealthOverlay(fullDataUrl, onSelect, onCancel) {
-    document.getElementById('answerly-nq-stealth-overlay')?.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'answerly-nq-stealth-overlay';
-
-    const canvas = document.createElement('canvas');
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-    overlay.appendChild(canvas);
-
-    const hint = document.createElement('div');
-    hint.id = 'answerly-nq-stealth-hint';
-    hint.textContent = 'Drag to select area  •  Esc to cancel';
-    overlay.appendChild(hint);
-
-    document.body.appendChild(overlay);
-
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    let startX = 0, startY = 0, curX = 0, curY = 0;
-    let mouseX = 0, mouseY = 0, selecting = false, drawn = false;
-
-    function drawCrosshair(x, y) {
-      const size = 12, gap = 4;
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 3;
-      ctx.strokeStyle = '#ff3b3b'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(x - size, y); ctx.lineTo(x - gap, y); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x + gap,  y); ctx.lineTo(x + size, y); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x, y - gap); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x, y + gap);  ctx.lineTo(x, y + size); ctx.stroke();
-      ctx.fillStyle = '#ff3b3b'; ctx.shadowBlur = 0;
-      ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'rgba(0,0,0,0.50)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      if (drawn || selecting) {
-        const x = Math.min(startX, curX), y = Math.min(startY, curY);
-        const w = Math.abs(curX - startX),  h = Math.abs(curY - startY);
-        if (w > 2 && h > 2) {
-          ctx.save();
-          ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
-          ctx.clearRect(x, y, w, h);
-          if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          ctx.restore();
-          ctx.strokeStyle = '#7c5cfc'; ctx.lineWidth = 2;
-          ctx.strokeRect(x, y, w, h);
-          const hs = 7; ctx.fillStyle = '#7c5cfc';
-          [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([hx,hy]) => ctx.fillRect(hx-hs/2,hy-hs/2,hs,hs));
-        }
-      }
-      drawCrosshair(mouseX, mouseY);
-    }
-
-    img.onload = () => draw();
-    img.src = fullDataUrl;
-
-    overlay.addEventListener('mousemove', (e) => {
-      mouseX = e.clientX; mouseY = e.clientY;
-      if (selecting) { curX = e.clientX; curY = e.clientY; drawn = true; }
-      draw();
-    });
-    overlay.addEventListener('mousedown', (e) => {
-      startX = e.clientX; startY = e.clientY; curX = e.clientX; curY = e.clientY;
-      selecting = true; drawn = false; e.preventDefault();
-    });
-    overlay.addEventListener('mouseup', (e) => {
-      if (!selecting) return;
-      selecting = false; curX = e.clientX; curY = e.clientY;
-      const x = Math.min(startX, curX), y = Math.min(startY, curY);
-      const w = Math.abs(curX - startX), h = Math.abs(curY - startY);
-      overlay.remove(); removeEsc();
-      if (w < 10 || h < 10) { onCancel(); return; }
-      onSelect({ x, y, w, h });
-    });
-
-    function escHandler(e) { if (e.key === 'Escape') { overlay.remove(); removeEsc(); onCancel(); } }
-    function removeEsc() { document.removeEventListener('keydown', escHandler); }
-    document.addEventListener('keydown', escHandler);
-  }
-
   // ── Crop helper ─────────────────────────────────────────────────────────────
   // viewportWidth/viewportHeight are the PARENT frame's dimensions (passed back
   // with the postMessage region), NOT the iframe's dimensions.
@@ -1093,70 +1005,186 @@ window.__answerlyNQSolverLoaded = true;
     });
   }
 
+  // ── Stealth selection overlay (New Quizzes rendered in the main page) ───────
+  function showNQStealthOverlay(fullDataUrl, onSelect, onCancel) {
+    document.getElementById('answerly-nq-stealth-overlay')?.remove();
+    injectStyles();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'answerly-nq-stealth-overlay';
+
+    // Device-resolution backing store so the capture (taken at devicePixelRatio)
+    // renders 1:1; the context is scaled so all coordinates stay in CSS pixels.
+    const canvas = document.createElement('canvas');
+    const dpr = window.devicePixelRatio || 1;
+    const W = window.innerWidth, H = window.innerHeight;
+    canvas.width  = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    overlay.appendChild(canvas);
+
+    const hint = document.createElement('div');
+    hint.id = 'answerly-nq-stealth-hint';
+    hint.textContent = 'Drag to select area  •  Esc to cancel';
+    overlay.appendChild(hint);
+    document.body.appendChild(overlay);
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const img = new Image();
+    let startX = 0, startY = 0, curX = 0, curY = 0;
+    let mouseX = 0, mouseY = 0, selecting = false, drawn = false;
+
+    function drawCrosshair(x, y) {
+      const size = 12, gap = 4;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 3;
+      ctx.strokeStyle = '#ff3b3b'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x - size, y); ctx.lineTo(x - gap, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + gap,  y); ctx.lineTo(x + size, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x, y - gap); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y + gap);  ctx.lineTo(x, y + size); ctx.stroke();
+      ctx.fillStyle = '#ff3b3b'; ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, W, H);
+      ctx.fillStyle = 'rgba(0,0,0,0.50)';
+      ctx.fillRect(0, 0, W, H);
+      if (drawn || selecting) {
+        const x = Math.min(startX, curX), y = Math.min(startY, curY);
+        const w = Math.abs(curX - startX),  h = Math.abs(curY - startY);
+        if (w > 2 && h > 2) {
+          ctx.save();
+          ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+          ctx.clearRect(x, y, w, h);
+          if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, W, H);
+          ctx.restore();
+          ctx.strokeStyle = '#7c5cfc'; ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, w, h);
+          const hs = 7; ctx.fillStyle = '#7c5cfc';
+          [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([hx,hy]) => ctx.fillRect(hx-hs/2,hy-hs/2,hs,hs));
+        }
+      }
+      drawCrosshair(mouseX, mouseY);
+    }
+
+    img.onload = () => draw();
+    img.src = fullDataUrl;
+
+    overlay.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX; mouseY = e.clientY;
+      if (selecting) { curX = e.clientX; curY = e.clientY; drawn = true; }
+      draw();
+    });
+    overlay.addEventListener('mousedown', (e) => {
+      startX = e.clientX; startY = e.clientY; curX = e.clientX; curY = e.clientY;
+      selecting = true; drawn = false; e.preventDefault();
+    });
+    overlay.addEventListener('mouseup', (e) => {
+      if (!selecting) return;
+      selecting = false;
+      curX = e.clientX; curY = e.clientY;
+      const x = Math.min(startX, curX), y = Math.min(startY, curY);
+      const w = Math.abs(curX - startX),  h = Math.abs(curY - startY);
+      overlay.remove(); removeEsc();
+      if (w < 10 || h < 10) { onCancel(); return; }
+      onSelect({ x, y, w, h });
+    });
+
+    function escHandler(e) { if (e.key === 'Escape') { overlay.remove(); removeEsc(); onCancel(); } }
+    function removeEsc() { document.removeEventListener('keydown', escHandler); }
+    document.addEventListener('keydown', escHandler);
+  }
+
   // ── Camera capture flow ────────────────────────────────────────────────────
-  // The overlay CANNOT be shown inside the iframe — position:fixed is clipped to
-  // the iframe's viewport and the screenshot (full tab) looks zoomed-out/tiny.
-  // Instead we relay to the parent Canvas frame (quizSolver.js) via postMessage:
-  //   iframe → postMessage(ANSWERLY_NQ_SHOW_OVERLAY) → parent shows full overlay
-  //   parent → postMessage(ANSWERLY_NQ_REGION_SELECTED, {x,y,w,h,vw,vh}) → iframe crops
+  // New Quizzes now renders in the main Canvas page, so the overlay is drawn
+  // right here. The parent-frame relay below exists only for a quiz still
+  // hosted in the quiz-lti iframe, where position:fixed is clipped to the
+  // iframe; quizSolver.js accepts that relay from the quiz-lti origin only,
+  // which is why the relay alone did nothing at all on a native New Quiz.
   function doCameraCapture(camBtn, qEl, questionText) {
+    // A dropped callback must never leave this button locked for good.
+    const watchdog = setTimeout(() => { camBtn.dataset.busy = ''; }, 90000);
+    const done = () => { clearTimeout(watchdog); camBtn.dataset.busy = ''; };
+
     sendSolve({ type: 'CAPTURE_SCREENSHOT' }, (captResp) => {
-      if (chrome.runtime.lastError || !captResp || captResp.error) {
-        camBtn.dataset.busy = ''; return;
+      if (chrome.runtime.lastError || !captResp || captResp.error) { done(); return; }
+
+      const onRegion = ({ x, y, w, h, viewportWidth, viewportHeight }) => {
+        cropNQStealthImage(captResp.dataUrl, x, y, w, h, viewportWidth, viewportHeight)
+          .then(solveCropped, done);
+      };
+
+      if (window.top === window.self) {
+        showNQStealthOverlay(
+          captResp.dataUrl,
+          (r) => onRegion({ ...r, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight }),
+          done
+        );
+        return;
       }
 
-      // Ask parent frame to show the full-screen selection overlay
       window.parent.postMessage({
         type:   'ANSWERLY_NQ_SHOW_OVERLAY',
         dataUrl: captResp.dataUrl,
       }, '*');
-
       function onParentMsg(e) {
         if (!e.data) return;
         if (e.data.type === 'ANSWERLY_NQ_REGION_SELECTED') {
           window.removeEventListener('message', onParentMsg);
-          const { x, y, w, h, viewportWidth, viewportHeight } = e.data;
-          cropNQStealthImage(captResp.dataUrl, x, y, w, h, viewportWidth, viewportHeight)
-            .then(cropped => {
-              sendSolve(
-                { type: 'SOLVE_SCREENSHOT_STEALTH', image: cropped, questionText: questionText.slice(0, 200) },
-                (r) => {
-                  camBtn.dataset.busy = '';
-                  if (chrome.runtime.lastError || !r || r.error) return;
-
-                  const answerLetter = (r.answer || '').toLowerCase().trim();
-                  let   answerText   = (r.answerText || '').trim();
-
-                  if (/^\s*\{.*"answer"\s*:/.test(answerText)) answerText = '';
-                  if (answerText && questionText) {
-                    const atN = answerText.toLowerCase().replace(/\s+/g,' ').trim();
-                    const qtN = questionText.toLowerCase().replace(/\s+/g,' ').trim();
-                    if (qtN.length > 20 && atN.slice(0,60) === qtN.slice(0,60)) answerText = '';
-                  }
-                  if (!answerText && !answerLetter) return;
-
-                  const { inputOptionPairs, textInputEls } = extractNQData(qEl);
-                  const textParts = answerText
-                    ? answerText.split('|').map(p => p.trim()).filter(Boolean)
-                    : [];
-
-                  let matched = false;
-                  if (textParts.length > 0) matched = autoSelectNQAnswer(qEl, textParts.join(', '), inputOptionPairs);
-                  if (!matched && answerLetter && /^[a-e](,\s*[a-e])*$/.test(answerLetter))
-                    matched = autoSelectNQAnswer(qEl, answerLetter, inputOptionPairs);
-                  if (!matched && textParts.length > 0 && textInputEls.length > 0)
-                    matched = autoFillNQText(textInputEls, textParts[0]);
-                  if (matched) camBtn.dataset.opened = 'true';
-                }
-              );
-            });
+          onRegion(e.data);
         } else if (e.data.type === 'ANSWERLY_NQ_REGION_CANCELLED') {
           window.removeEventListener('message', onParentMsg);
-          camBtn.dataset.busy = '';
+          done();
         }
       }
       window.addEventListener('message', onParentMsg);
     });
+
+    function solveCropped(cropped) {
+      sendSolve(
+        { type: 'SOLVE_SCREENSHOT_STEALTH', image: cropped, questionText: questionText.slice(0, 200) },
+        (r) => {
+          done();
+          if (chrome.runtime.lastError || !r || r.error) return;
+
+          const answerLetter = (r.answer || '').toLowerCase().trim();
+          let   answerText   = (r.answerText || '').trim();
+
+          if (/^\s*\{.*"answer"\s*:/.test(answerText)) answerText = '';
+          if (answerText && questionText) {
+            const atN = answerText.toLowerCase().replace(/\s+/g,' ').trim();
+            const qtN = questionText.toLowerCase().replace(/\s+/g,' ').trim();
+            if (qtN.length > 20 && atN.slice(0,60) === qtN.slice(0,60)) answerText = '';
+          }
+          if (!answerText && !answerLetter) return;
+
+          const { inputOptionPairs, textInputEls } = extractNQData(qEl);
+          const textParts = answerText
+            ? answerText.split('|').map(p => p.trim()).filter(Boolean)
+            : [];
+
+          let matched = false;
+          if (textParts.length > 0) matched = autoSelectNQAnswer(qEl, textParts.join(', '), inputOptionPairs);
+          if (!matched && answerLetter && /^[a-e](,\s*[a-e])*$/.test(answerLetter))
+            matched = autoSelectNQAnswer(qEl, answerLetter, inputOptionPairs);
+          if (!matched && textParts.length > 0 && textInputEls.length > 0)
+            matched = autoFillNQText(textInputEls, textParts[0]);
+          if (matched) {
+            camBtn.dataset.opened = 'true';
+            // Solve All skips a question only when its ? button is marked done;
+            // without this it re-answered the question the camera just filled.
+            const solveBtn = qEl.querySelector(`.answerly-nq-btn.${INJECTED}:not(.answerly-nq-cam-btn)`);
+            if (solveBtn) solveBtn.dataset.opened = 'true';
+          }
+        }
+      );
+    }
   }
 
   // ── Camera-only injection (screenshot stealth without quiz solver) ──────────
@@ -1638,10 +1666,11 @@ window.__answerlyNQSolverLoaded = true;
     for (const r of records) {
       for (const n of [...r.addedNodes, ...r.removedNodes]) {
         if (n.nodeType !== 1) continue;
+        if (n.id === 'answerly-nq-stealth-overlay') continue;
         const cl = n.classList;
         if (!cl) return false;
         if (!(cl.contains(INJECTED) || cl.contains('answerly-nq-card') ||
-              cl.contains('answerly-nq-btn') || cl.contains('answerly-cam-tooltip'))) {
+              cl.contains('answerly-nq-btn') || cl.contains('answerly-nq-cam-tooltip'))) {
           return false;
         }
       }
