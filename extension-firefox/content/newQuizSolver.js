@@ -195,6 +195,43 @@ window.__answerlyNQSolverLoaded = true;
    * question and is confidently wrong — a Classic partial-fractions quiz scored
    * 0/2 exactly this way before the same guard was added there.
    */
+  // ── Image-dependent questions ──────────────────────────────────────────────
+  // A question whose answer lives in a picture cannot be solved from its text.
+  // Sending it anyway does not fail loudly: the model just picks an option, which
+  // looks exactly like a normal answer and is right about a quarter of the time.
+  // quizSolver.js has refused these for a long time; this engine did not, so on
+  // New Quizzes every diagram question was answered blind — including in stealth,
+  // where the wrong option was auto-selected with nothing shown to the student.
+  const NQ_NEEDS_SCREENSHOT_RE = /refer to|see (the |figure|diagram|image|graph|chart|table|packet|trace|capture|exhibit)|based on (the |figure|diagram|image|above)|shown (in|below|above)|in the (figure|diagram|image|graph|chart|table|packet|capture)/i;
+
+  function nqStemEl(qEl) {
+    const stemContainer = qEl.querySelector('div[tabindex="-1"]');
+    return (stemContainer
+      ? stemContainer.querySelector('.user_content.enhanced')
+      : qEl.querySelector('.user_content.enhanced')) || qEl;
+  }
+
+  function nqQuestionHasImage(qEl) {
+    const stemContent = nqStemEl(qEl);
+    if (!stemContent) return false;
+    return [...stemContent.querySelectorAll('img')].some(img => {
+      const src = img.getAttribute('src');
+      if (src === '') return false;
+      // An EQUATION image whose LaTeX came back is readable — treating it as an
+      // opaque picture would skip every maths question and hand the student a
+      // blank paper. One with no recoverable LaTeX is as opaque as a photo.
+      if (nqIsEquationImage(img)) return !nqEquationLatex(img);
+      return true;
+    });
+  }
+
+  // The single gate, mirroring quizSolver.js's needsScreenshotFor().
+  function nqNeedsScreenshotFor(qEl, questionText) {
+    return nqQuestionHasImage(qEl)
+        || NQ_NEEDS_SCREENSHOT_RE.test(questionText || '')
+        || nqMathIsLossy(qEl);
+  }
+
   function nqMathIsLossy(qEl) {
     try {
       const stemContainer = qEl.querySelector('div[tabindex="-1"]');
@@ -1039,11 +1076,16 @@ window.__answerlyNQSolverLoaded = true;
     // opts.label is the real question type read off the New Quizzes header
     // ("Categorization", "Ordering", "Hot Spot"), so the toast never mislabels
     // a drag-and-drop question as an essay.
-    const what = opts.label ? esc(opts.label) : 'This question';
+    // opts.count is the Solve All case: N questions were skipped, so name the
+    // number rather than a single question type.
+    const what = opts.count
+      ? (opts.count === 1 ? '1 question' : opts.count + ' questions')
+      : (opts.label ? esc(opts.label) : 'This question');
+    const them = (opts.count && opts.count > 1) ? 'them' : 'it';
     msg.innerHTML =
       '<div style="font-weight:' + (dim ? '600' : '700') + ';margin-bottom:3px">' +
       '📸 Screenshot needed</div>' +
-      what + ' can’t be auto-answered — use the screenshot tool on it.';
+      what + ' can’t be auto-answered — use the screenshot tool on ' + them + '.';
 
     const x = document.createElement('button');
     x.type = 'button';
@@ -1264,7 +1306,36 @@ window.__answerlyNQSolverLoaded = true;
             const qtN = questionText.toLowerCase().replace(/\s+/g,' ').trim();
             if (qtN.length > 20 && atN.slice(0,60) === qtN.slice(0,60)) answerText = '';
           }
-          if (!answerText && !answerLetter) return;
+          // Essay fallback, mirroring quizSolver.js. A screenshot of an essay
+          // question comes back with nothing selectable; if the question has a
+          // rich-text editor, solve it as text and write the answer into that
+          // editor rather than dropping the solve on the floor.
+          if (!answerText && !answerLetter) {
+            const richIframes = Array.from(qEl.querySelectorAll('iframe')).filter(fr => {
+              try { const d = fr.contentDocument || fr.contentWindow?.document; return !!(d?.body); }
+              catch { return false; }
+            });
+            if (richIframes.length) {
+              sendSolve(
+                { type: 'SOLVE_QUESTION', question: questionText, options: [], isMultiSelect: false },
+                (r2) => {
+                  if (!chrome.runtime.lastError && r2 && !r2.error && r2.answer) {
+                    try {
+                      const doc = richIframes[0].contentDocument || richIframes[0].contentWindow?.document;
+                      if (doc?.body) {
+                        doc.body.focus();
+                        doc.body.innerText = r2.answer;
+                        ['input', 'change'].forEach(t =>
+                          doc.body.dispatchEvent(new Event(t, { bubbles: true })));
+                        camBtn.dataset.opened = 'true';
+                      }
+                    } catch { /* cross-origin iframe */ }
+                  }
+                }
+              );
+            }
+            return;
+          }
 
           const { inputOptionPairs, textInputEls } = extractNQData(qEl);
           const textParts = answerText
@@ -1403,7 +1474,10 @@ window.__answerlyNQSolverLoaded = true;
       // same way as an essay: routed to the screenshot tool, which reads the
       // rendered equation rather than a flattened string.
       const mathLossy      = nqMathIsLossy(qEl);
-      const isFreeText     = (!hasChoices && !hasDropdowns && !isFillInBlank) || mathLossy;
+      // A picture question, or one that says "refer to the figure", cannot be
+      // answered from its text either — same treatment as lossy maths.
+      const needsShot      = nqNeedsScreenshotFor(qEl, questionText);
+      const isFreeText     = (!hasChoices && !hasDropdowns && !isFillInBlank) || needsShot;
       const showCamBtn     = screenshotStealthActive;
 
       // Everything with no input we can drive lands in the isFreeText branch —
@@ -1416,9 +1490,13 @@ window.__answerlyNQSolverLoaded = true;
       // stealth toast, which wrap it in different sentences.
       const unsupportedLabel = mathLossy
         ? 'Equation question'
-        : (/essay/i.test(questionType) || !questionType
-            ? 'Essay question'
-            : `${questionType} question`);
+        : (needsShot && (hasChoices || hasDropdowns || isFillInBlank)
+            // It has inputs we could drive — the blocker is the picture, not the
+            // question type, so say so rather than calling it an essay.
+            ? 'Image-based question'
+            : (/essay/i.test(questionType) || !questionType
+                ? 'Essay question'
+                : `${questionType} question`));
 
       const header = findNQHeader(qEl);
 
@@ -1682,6 +1760,7 @@ window.__answerlyNQSolverLoaded = true;
   // is never burned on free-text/essay questions that can't be auto-selected.
   function _solveAllPass() {
     let delay = 0;
+    let skippedImages = 0;   // picture / lossy-maths questions left for the screenshot tool
     findNQQuestions().forEach(qEl => {
       // Skip questions already answered by a previous pass
       const btn = qEl.querySelector(`.answerly-nq-btn.${INJECTED}:not(.answerly-nq-cam-btn)`);
@@ -1695,10 +1774,12 @@ window.__answerlyNQSolverLoaded = true;
       const isFillInBlank = textInputEls.length > 0 && !hasChoices && !hasDropdowns;
       // Skip free-text / essay — no auto-select possible, don't burn usage
       if (!hasChoices && !hasDropdowns && !isFillInBlank) return;
-      // Skip maths whose notation did not survive extraction. The inputs look
-      // ordinary, so nothing above catches it, and answering a flattened
-      // equation means guessing which reading was meant.
-      if (nqMathIsLossy(qEl)) return;
+      // Skip maths whose notation did not survive extraction, and questions
+      // whose answer lives in a picture. The inputs look ordinary, so nothing
+      // above catches either one, and answering them means guessing — which
+      // reads as a normal answer and is wrong most of the time. Counted so the
+      // caller can tell the student why some questions were left blank.
+      if (nqNeedsScreenshotFor(qEl, questionText)) { skippedImages++; return; }
       // Skip already-filled text inputs
       if (isFillInBlank && textInputEls[0].value?.trim()) return;
       // Skip dropdown questions where every select already has a real choice
@@ -1733,7 +1814,7 @@ window.__answerlyNQSolverLoaded = true;
       }, delay);
       delay += 1200;
     });
-    return delay; // total time this pass will take
+    return { delay, skippedImages }; // time this pass takes, and what it refused
   }
 
   // The popup fires Solve All TWO ways so it reaches every frame: a runtime
@@ -1750,7 +1831,13 @@ window.__answerlyNQSolverLoaded = true;
     nqSolveAllRunning = true;
     injectStyles();
     injectButtons(); // ensure buttons exist so they can be marked done
-    const firstPassDuration = _solveAllPass();
+    const { delay: firstPassDuration, skippedImages } = _solveAllPass();
+    // Only the first pass reports skips. The retry re-walks the same questions
+    // and would skip them again, popping a second toast ~8s later.
+    if (skippedImages > 0) {
+      try { chrome.storage.local.set({ answerlySkippedImages: { ts: Date.now(), count: skippedImages } }); } catch {}
+      showNQScreenshotToast({ count: skippedImages });
+    }
     // Retry pass — catches questions that failed to match on the first attempt
     const retryIn = Math.max(firstPassDuration + 6000, 8000);
     setTimeout(_solveAllPass, retryIn);
