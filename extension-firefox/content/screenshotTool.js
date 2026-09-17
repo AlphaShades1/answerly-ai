@@ -6,7 +6,11 @@ window.__answerlyScreenshotLoaded = true;
   'use strict';
 
   let widgetEl    = null;
-  let capturedUrl = null; // the cropped selection data URL
+  // Cropped selections for ONE question, in the order they were taken. More than
+  // one lets a student send a passage on one screen and its choices on the next.
+  const MAX_CAPTURES = 3;
+  let captures    = [];
+  let answered    = false; // last send succeeded: the next capture starts a new question
   let isDragging  = false;
   let dragStartX = 0, dragStartY = 0, widgetStartX = 0, widgetStartY = 0;
 
@@ -49,6 +53,20 @@ window.__answerlyScreenshotLoaded = true;
       .answerly-ss-preview:hover { border-color:#4a4a60; }
       .answerly-ss-preview img { width:100%; height:100%; object-fit:contain; border-radius:7px; }
       .answerly-ss-placeholder { display:flex; flex-direction:column; align-items:center; gap:6px; color:#555570; font-size:11px; }
+      .answerly-ss-thumbs { display:none; width:100%; height:100%; gap:6px; padding:6px; box-sizing:border-box; cursor:default; }
+      .answerly-ss-thumb { position:relative; flex:1; min-width:0; background:#111118; border:1px solid #2e2e3e; border-radius:6px; overflow:hidden; }
+      .answerly-ss-thumb img { width:100%; height:100%; object-fit:contain; border-radius:0; }
+      .answerly-ss-thumb-n {
+        position:absolute; top:4px; left:4px; min-width:16px; height:16px; padding:0 4px; box-sizing:border-box;
+        border-radius:8px; background:#7c5cfc; color:#fff; font-size:10px; font-weight:700;
+        display:flex; align-items:center; justify-content:center;
+      }
+      .answerly-ss-thumb-x {
+        position:absolute; top:3px; right:3px; width:18px; height:18px; border-radius:50%;
+        border:none; background:rgba(0,0,0,.7); color:#fff; font-size:12px; line-height:1;
+        cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;
+      }
+      .answerly-ss-thumb-x:hover { background:#f05454; }
       .answerly-ss-placeholder svg { opacity:.4; }
 
       .answerly-ss-response {
@@ -132,6 +150,7 @@ window.__answerlyScreenshotLoaded = true;
           Drag to select an area
         </div>
         <img id="answerly-ss-img" src="" style="display:none" alt="Screenshot selection" />
+        <div class="answerly-ss-thumbs" id="answerly-ss-thumbs"></div>
       </div>
 
       <div class="answerly-ss-response" id="answerly-ss-resp">
@@ -173,7 +192,14 @@ window.__answerlyScreenshotLoaded = true;
     });
     document.getElementById('answerly-ss-topbar').addEventListener('mousedown', startWidgetDrag);
     document.getElementById('answerly-ss-capture').addEventListener('click', startCapture);
-    document.getElementById('answerly-ss-preview').addEventListener('click', startCapture);
+    // An empty preview is a big "take a screenshot" target. Once something is
+    // captured it shows the selections instead, and clicking it must not start
+    // a new capture on top of them.
+    document.getElementById('answerly-ss-preview').addEventListener('click', (e) => {
+      const x = e.target.closest('.answerly-ss-thumb-x');
+      if (x) { e.stopPropagation(); removeCapture(Number(x.dataset.i)); return; }
+      if (captures.length === 0 || answered) startCapture();
+    });
     document.getElementById('answerly-ss-send').addEventListener('click', doSend);
   }
 
@@ -202,6 +228,9 @@ window.__answerlyScreenshotLoaded = true;
 
   // ── Capture + Selection overlay ────────────────────────────────────────────
   function startCapture() {
+    // A new capture after an answer is a new question, not another page of the old one.
+    if (answered) { captures = []; answered = false; }
+    if (captures.length >= MAX_CAPTURES) return;
     const btn = document.getElementById('answerly-ss-capture');
     btn.disabled = true;
     btn.textContent = 'Capturing…';
@@ -212,18 +241,16 @@ window.__answerlyScreenshotLoaded = true;
     setTimeout(() => {
       chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' }, (resp) => {
         widgetEl.style.visibility = 'visible';
-        btn.disabled = false;
-        btn.innerHTML = `
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          Select Area`;
+        renderCaptureButton();
 
         if (!resp || resp.error) { showErr(resp?.error || 'Capture failed.'); return; }
 
         // Show selection overlay on top of page
         showSelectionOverlay(resp.dataUrl, (region) => {
           cropImage(resp.dataUrl, region.x, region.y, region.w, region.h).then(cropped => {
-            capturedUrl = cropped;
-            showPreview(cropped);
+            if (captures.length >= MAX_CAPTURES) return;
+            captures.push(cropped);
+            showPreview();
           });
         }, () => {
           // User pressed Esc — nothing captured
@@ -431,14 +458,97 @@ window.__answerlyScreenshotLoaded = true;
   }
 
   // ── Show preview ───────────────────────────────────────────────────────────
-  function showPreview(dataUrl) {
-    document.getElementById('answerly-ss-ph').style.display = 'none';
-    const imgEl = document.getElementById('answerly-ss-img');
-    imgEl.src = dataUrl; imgEl.style.display = 'block';
+  // One selection shows large, exactly as before. Two or three show side by side,
+  // numbered in the order they will be read, each with its own remove button.
+  function showPreview() {
+    const n      = captures.length;
+    const ph     = document.getElementById('answerly-ss-ph');
+    const imgEl  = document.getElementById('answerly-ss-img');
+    const thumbs = document.getElementById('answerly-ss-thumbs');
+    ph.style.display     = n === 0 ? 'flex'  : 'none';
+    imgEl.style.display  = n === 1 ? 'block' : 'none';
+    thumbs.style.display = n > 1   ? 'flex'  : 'none';
+    if (n === 1) imgEl.src = captures[0];
+    thumbs.innerHTML = '';
+    if (n > 1) {
+      captures.forEach((url, i) => {
+        const t = document.createElement('div');
+        t.className = 'answerly-ss-thumb';
+        const im = document.createElement('img');
+        im.src = url; im.alt = 'Screenshot ' + (i + 1);
+        const num = document.createElement('span');
+        num.className = 'answerly-ss-thumb-n'; num.textContent = String(i + 1);
+        const x = document.createElement('button');
+        x.type = 'button'; x.className = 'answerly-ss-thumb-x'; x.dataset.i = String(i);
+        x.title = 'Remove'; x.textContent = '×';
+        t.append(im, num, x);
+        thumbs.appendChild(t);
+      });
+    }
     document.getElementById('answerly-ss-resp').style.display = 'none';
     document.getElementById('answerly-ss-preview').style.display = 'flex';
-    document.getElementById('answerly-ss-send').disabled = false;
+    document.getElementById('answerly-ss-send').disabled = n === 0;
+    renderCaptureButton();
     hideErr();
+  }
+
+  function removeCapture(i) {
+    if (!(i >= 0 && i < captures.length)) return;
+    captures.splice(i, 1);
+    showPreview();
+  }
+
+  // "Select Area" until something is captured, then "Add another (n/3)".
+  function renderCaptureButton() {
+    const btn = document.getElementById('answerly-ss-capture');
+    if (!btn) return;
+    const n = answered ? 0 : captures.length;
+    btn.title = '';
+    if (n === 0) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Select Area';
+    } else if (n < MAX_CAPTURES) {
+      btn.disabled = false;
+      btn.innerHTML = '+ Add another (' + n + '/' + MAX_CAPTURES + ')';
+      btn.title = 'Add another screenshot of the same question';
+    } else {
+      btn.disabled = true;
+      btn.innerHTML = 'Max ' + MAX_CAPTURES + ' screenshots';
+    }
+  }
+
+  // Several full-resolution crops can outgrow the request size limit, so when
+  // more than one is sent each is scaled down to a size that still reads text
+  // cleanly. A single screenshot is never touched and goes up exactly as before.
+  const MULTI_MAX_SIDE  = 1600;
+  const MULTI_MAX_TOTAL = 7 * 1024 * 1024; // base64 characters across all images
+  function downscale(dataUrl, maxSide) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+        if (k >= 1) { resolve(dataUrl); return; }
+        const c = document.createElement('canvas');
+        c.width  = Math.max(1, Math.round(img.naturalWidth  * k));
+        c.height = Math.max(1, Math.round(img.naturalHeight * k));
+        const g = c.getContext('2d');
+        g.imageSmoothingQuality = 'high';
+        g.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+  async function prepareForSend(list) {
+    if (list.length < 2) return list;
+    let side = MULTI_MAX_SIDE;
+    let out  = await Promise.all(list.map(u => downscale(u, side)));
+    while (out.reduce((a, u) => a + u.length, 0) > MULTI_MAX_TOTAL && side > 700) {
+      side = Math.round(side * 0.75);
+      out  = await Promise.all(list.map(u => downscale(u, side)));
+    }
+    return out;
   }
 
   // ── Markdown → HTML (safe subset) ─────────────────────────────────────────
@@ -488,24 +598,39 @@ window.__answerlyScreenshotLoaded = true;
   }
 
   // ── Send to AI ─────────────────────────────────────────────────────────────
-  function doSend() {
-    if (!capturedUrl) return;
+  async function doSend() {
+    if (!captures.length || answered) return;
     const btn = document.getElementById('answerly-ss-send');
+    const cap = document.getElementById('answerly-ss-capture');
     const ctx = document.getElementById('answerly-ss-ctx').value.trim();
     btn.disabled = true;
+    if (cap) cap.disabled = true;
     btn.innerHTML = '<div class="answerly-ss-spinner"></div> Analyzing…';
     hideErr();
 
-    const msg = { type: 'SOLVE_SCREENSHOT', image: capturedUrl, context: ctx };
+    const toSend = await prepareForSend(captures.slice());
+    // A single capture sends the exact request it always has. Several go as
+    // `images` only — repeating the first one as `image` too added a whole extra
+    // screenshot to every request (6.4 MB instead of 4.8 MB in testing).
+    const msg = toSend.length > 1
+      ? { type: 'SOLVE_SCREENSHOT', images: toSend, context: ctx }
+      : { type: 'SOLVE_SCREENSHOT', image: toSend[0], context: ctx };
     const qt  = getQuizTitle();
     if (qt) msg.quizTitle = qt;
 
     chrome.runtime.sendMessage(msg, (resp) => {
-      btn.disabled = false;
       btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Send`;
 
-      if (!resp || resp.error) { showErr(resp?.error || 'AI request failed.'); return; }
+      if (!resp || resp.error) {
+        btn.disabled = false;
+        renderCaptureButton();
+        showErr(resp?.error || 'AI request failed.');
+        return;
+      }
 
+      answered = true;
+      btn.disabled = true;     // re-sending the same set would spend another solve
+      renderCaptureButton();   // back to "Select Area" for the next question
       document.getElementById('answerly-ss-preview').style.display = 'none';
       document.getElementById('answerly-ss-resp-text').innerHTML = renderMarkdown(resp.response);
       document.getElementById('answerly-ss-resp').style.display = 'block';
@@ -534,7 +659,7 @@ window.__answerlyScreenshotLoaded = true;
     toolActive = false;
     document.getElementById('answerly-ss-widget')?.remove();
     document.getElementById('answerly-select-overlay')?.remove();
-    widgetEl = null; capturedUrl = null;
+    widgetEl = null; captures = []; answered = false;
   }
 
   function applyStealthState(hidden) {

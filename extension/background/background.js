@@ -312,7 +312,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`,
             },
-            body: JSON.stringify({ image: message.image, context: message.context, fileContext, quizTitle: message.quizTitle }),
+            body: JSON.stringify({ image: message.image, images: message.images, context: message.context, fileContext, quizTitle: message.quizTitle }),
           });
           const data = await res.json();
           if (!res.ok) {

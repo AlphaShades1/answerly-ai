@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Multi screenshot harness</title>
+<style>
+  html,body{margin:0;background:#fff;font-family:system-ui}
+  .shot{position:absolute;left:20px;display:block}
+  #a{top:16px} #b{top:150px}
+  #status{position:fixed;left:20px;bottom:8px;font:12px ui-monospace,monospace;color:#555}
+</style>
+</head>
+<body>
+<!-- A New Quizzes wrapper is present so both engines' page detection would fire;
+     the screenshot tool must not care. -->
+<div data-automation="sdk-item-wrapper" style="display:none"></div>
+<img id="a" class="shot" src="img/c1_a.png" width="430" height="110">
+<img id="b" class="shot" src="img/c1_b.png" width="430" height="146">
+<div id="status">harness ready</div>
+<script>
+  // ?set=2 swaps in the three-part passage question
+  if (new URLSearchParams(location.search).get('set') === '2') {
+    document.getElementById('a').remove(); document.getElementById('b').remove();
+    [['c2_a.png', 16, 75], ['c2_b.png', 110, 56], ['c2_c.png', 185, 110]].forEach(([f, top, h]) => {
+      const i = document.createElement('img'); i.className = 'shot'; i.src = 'img/' + f;
+      i.width = 430; i.height = h; i.style.top = top + 'px'; i.id = f.slice(0, 4);
+      document.body.appendChild(i);
+    });
+  }
+</script>
+
+<script>
+// ── knobs ─────────────────────────────────────────────────────────────────
+const params   = new URLSearchParams(location.search);
+window.CAPTURE_SCALE = Number(params.get('scale') || 1);   // simulate a high-DPI capture
+window.FAIL_NEXT_SOLVE = false;                              // simulate a backend error
+window.sent = [];                                           // every SOLVE_SCREENSHOT message
+
+// Build the "captureVisibleTab" image from what is actually on screen, at scale.
+async function fakeCapture() {
+  const k = window.CAPTURE_SCALE;
+  const c = document.createElement('canvas');
+  c.width = Math.round(innerWidth * k); c.height = Math.round(innerHeight * k);
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  if (params.get('noise')) {                       // incompressible worst case for PNG size
+    const d = g.getImageData(0, 0, c.width, c.height);
+    for (let i = 0; i < d.data.length; i += 4) { d.data[i] = Math.random()*255; d.data[i+1] = Math.random()*255; d.data[i+2] = Math.random()*255; d.data[i+3] = 255; }
+    g.putImageData(d, 0, 0);
+  }
+  for (const el of document.querySelectorAll('img.shot')) {
+    if (!el.complete) await new Promise(r => el.onload = r);
+    const r = el.getBoundingClientRect();
+    g.drawImage(el, r.left * k, r.top * k, r.width * k, r.height * k);
+  }
+  return c.toDataURL('image/png');
+}
+
+let TOKEN = null;
+const store = { answerlyScreenshotActive: true, answerlyScreenshotStealthActive: false };
+window.chrome = {
+  runtime: {
+    id: 'harness', lastError: null,
+    onMessage: { addListener() {} },
+    sendMessage(msg, cb) {
+      cb = cb || (() => {});
+      if (msg.type === 'PING') return cb({});
+      if (msg.type === 'CAPTURE_SCREENSHOT') { fakeCapture().then(dataUrl => cb({ dataUrl })); return; }
+      if (msg.type === 'SOLVE_SCREENSHOT') {
+        window.sent.push(msg);
+        document.getElementById('status').textContent = 'sent ' + (msg.images ? msg.images.length + ' images' : '1 image');
+        if (window.FAIL_NEXT_SOLVE) { window.FAIL_NEXT_SOLVE = false; setTimeout(() => cb({ error: 'The AI service is busy. Please try again.' }), 300); return; }
+        // Same body background.js builds, sent to the sandboxed real backend.
+        (async () => {
+          if (!TOKEN) TOKEN = (await (await fetch('http://localhost:3999/token')).json()).token;
+          const body = JSON.stringify({ image: msg.image, images: msg.images, context: msg.context, quizTitle: msg.quizTitle });
+          window.lastBodyBytes = body.length;
+          const r = await fetch('http://localhost:3999/api/solve-screenshot', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN }, body });
+          const j = await r.json();
+          cb(r.ok ? { response: j.response, solveId: j.solveId } : { error: j.error || ('HTTP ' + r.status) });
+        })().catch(e => cb({ error: String(e) }));
+        return;
+      }
+      cb({});
+    },
+  },
+  storage: {
+    local: { get(keys, cb) { cb({ ...store }); }, set(o, cb) { Object.assign(store, o); cb && cb(); } },
+    onChanged: { addListener() {} },
+  },
+};
+
+// Decode a data URL's pixel size (for the downscale checks).
+window.dims = u => new Promise(r => { const i = new Image(); i.onload = () => r([i.naturalWidth, i.naturalHeight]); i.src = u; });
+</script>
+<script src="/extension/content/screenshotTool.js?v=2"></script>
+</body>
+</html>
