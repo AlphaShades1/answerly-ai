@@ -1804,18 +1804,23 @@ window.__answerlyNQSolverLoaded = true;
 
   // Ignore batches that only describe our own injected nodes — reacting to those
   // re-enters injection and re-triggers the observer in a tight loop.
+  function isOurNode(n) {
+    if (n.nodeType !== 1) return false;
+    if (n.id === 'answerly-nq-stealth-overlay') return true;
+    const cl = n.classList;
+    return !!cl && (cl.contains(INJECTED) || cl.contains('answerly-nq-card') ||
+                    cl.contains('answerly-nq-btn') || cl.contains('answerly-nq-cam-tooltip'));
+  }
+
+  // Only our own ADDITIONS are safe to ignore — that is what stops the injection
+  // loop. A REMOVAL must always trigger a re-check, including a removal of our
+  // own nodes: when React drops an injected button, that batch is byte-identical
+  // to one of our own teardowns, and calling it "ours" is what left the ? button
+  // gone for good. Re-injection is idempotent, so reacting costs nothing.
   function isSelfMutation(records) {
     for (const r of records) {
-      for (const n of [...r.addedNodes, ...r.removedNodes]) {
-        if (n.nodeType !== 1) continue;
-        if (n.id === 'answerly-nq-stealth-overlay') continue;
-        const cl = n.classList;
-        if (!cl) return false;
-        if (!(cl.contains(INJECTED) || cl.contains('answerly-nq-card') ||
-              cl.contains('answerly-nq-btn') || cl.contains('answerly-nq-cam-tooltip'))) {
-          return false;
-        }
-      }
+      for (const n of r.removedNodes) if (n.nodeType === 1) return false;
+      for (const n of r.addedNodes)   if (n.nodeType === 1 && !isOurNode(n)) return false;
     }
     return true;
   }
@@ -1967,6 +1972,30 @@ window.__answerlyNQSolverLoaded = true;
       }
     });
   }
+
+  // ── Recovery timer ─────────────────────────────────────────────────────────
+  // quizSolver.js and screenshotTool.js have had one of these for a long time;
+  // this engine had none, which is why a vanished button came back on Classic
+  // within ~2s but stayed gone on New Quizzes until a reload. The observer can
+  // still miss a removal (a coalesced batch, a detached subtree), and React
+  // re-renders here constantly, so a timer is the only reliable backstop.
+  //
+  // Purely additive, per the state rules: injectButtons() and
+  // injectCameraOnlyButtons() skip any wrapper that already carries a current
+  // button, so this can never tear down a good one — it only fills gaps.
+  let nqRecheckPending = false;
+  setInterval(() => {
+    if (!isNQPage()) return;
+    if (solverActive)                 { injectStyles(); injectButtons(); startObserver(); }
+    else if (screenshotStealthActive) { injectStyles(); injectCameraOnlyButtons(); startObserver(); }
+    else if (!nqRecheckPending) {
+      // Nothing should be on the page. Re-verify against storage now and then so
+      // one bad read can never leave it permanently bare.
+      nqRecheckPending = true;
+      setTimeout(() => { nqRecheckPending = false; syncFromStorage(); }, 3000);
+    }
+  }, 2000);
+
   syncFromStorage();
 
 })();

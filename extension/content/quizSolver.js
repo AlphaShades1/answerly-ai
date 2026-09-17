@@ -2466,19 +2466,24 @@ window.__answerlyQuizSolverLoaded = true;
   // True when a mutation batch only describes nodes we injected ourselves.
   // Reacting to those re-enters injection and re-triggers the observer, which is
   // how the page ended up scanning in a tight loop and starving itself of CPU.
+  function isOurNode(n) {
+    if (n.nodeType !== 1) return false;
+    if (n.id === 'answerly-stealth-tip' || n.id === 'answerly-stealth-overlay') return true;
+    const cl = n.classList;
+    return !!cl && (cl.contains(INJECTED) || cl.contains('answerly-card') ||
+                    cl.contains('answerly-btn') || cl.contains('answerly-cam-tooltip'));
+  }
+
+  // Only our own ADDITIONS are safe to ignore — that is what stops the injection
+  // loop. A REMOVAL always triggers a re-check, including of our own nodes: a
+  // batch where Canvas dropped an injected button is byte-identical to one of
+  // our own teardowns, so treating it as "ours" leaves the button gone. The 2s
+  // timer below used to paper over that here; New Quizzes has no such timer and
+  // the button stayed gone until a reload. Re-injection is idempotent.
   function isSelfMutation(records) {
     for (const r of records) {
-      const nodes = [...r.addedNodes, ...r.removedNodes];
-      for (const n of nodes) {
-        if (n.nodeType !== 1) continue;
-        const cl = n.classList;
-        if (!cl) return false;
-        if (!(cl.contains(INJECTED) || cl.contains('answerly-card') ||
-              cl.contains('answerly-btn') || cl.contains('answerly-cam-tooltip') ||
-              n.id === 'answerly-stealth-tip' || n.id === 'answerly-stealth-overlay')) {
-          return false;
-        }
-      }
+      for (const n of r.removedNodes) if (n.nodeType === 1) return false;
+      for (const n of r.addedNodes)   if (n.nodeType === 1 && !isOurNode(n)) return false;
     }
     return true;
   }
