@@ -683,29 +683,67 @@ window.__answerlyNQSolverLoaded = true;
   }
 
   // ── Auto-select the answer in a NQ question ────────────────────────────────
-  function autoSelectNQAnswer(qEl, answer, inputOptionPairs) {
+  // Finds the ONE option best matching a single answer string. Mirrors the
+  // Classic engine's matchOptionIndex: exact → length-guarded includes (both
+  // directions) → bare letter indicator. Returns -1 when nothing is a confident
+  // match, so a vague part never sweeps in the wrong box.
+  function matchNQOptionIndex(inputOptionPairs, ansStr) {
+    const a = String(ansStr || '').trim();
+    if (!a) return -1;
+    const aNorm  = normalizeText(a);
+    const labels = inputOptionPairs.map(p => normalizeText(p.labelText));
+    for (let i = 0; i < labels.length; i++) if (labels[i] && labels[i] === aNorm) return i;
+    for (let i = 0; i < labels.length; i++) {
+      const L = labels[i]; if (!L) continue;
+      if ((aNorm.length >= 2 && L.includes(aNorm)) || (L.length >= 2 && aNorm.includes(L))) return i;
+    }
+    const ref = a.toLowerCase()
+      .replace(/^(the\s+)?(correct\s+)?(answer|choice|option)\s*(is|:)?\s*/i, '')
+      .replace(/[.)\]:]+$/, '').trim();
+    const lm = ref.match(/^\(?([a-e])\)?$/i);
+    if (lm) { const i = lm[1].toLowerCase().charCodeAt(0) - 97; if (inputOptionPairs[i]) return i; }
+    return -1;
+  }
+
+  // `parts` is the backend's answerParts — the exact option strings it chose.
+  // Preferring it is what stops an option that legitimately CONTAINS a comma
+  // ("Short, terse") being split into fragments that match nothing.
+  function autoSelectNQAnswer(qEl, answer, inputOptionPairs, parts) {
     if (!inputOptionPairs || inputOptionPairs.length === 0) return false;
 
     const answerNorm  = normalizeText(answer);
     const answerLower = answer.trim().toLowerCase();
+    const usableParts = Array.isArray(parts) && parts.length > 0 &&
+                        parts.every(p => typeof p === 'string' && p.trim());
     const targets     = answer.split(',').map(a => normalizeText(a)).filter(Boolean);
     const rawTargets  = answer.split(',').map(a => a.trim().toLowerCase()).filter(Boolean);
 
     // ── Multi-select (checkboxes) ─────────────────────────────────────────
     const isCheckbox = inputOptionPairs[0]?.input.type === 'checkbox';
     if (isCheckbox) {
-      const toCheck = [];
-      for (const { input, labelText } of inputOptionPairs) {
-        const lNorm = normalizeText(labelText);
-        const lLow  = labelText.toLowerCase();
-        const exactMatch = targets.some(t => t === lNorm) || rawTargets.some(t => t === lLow);
-        const revMatch   = lNorm.length > 12 &&
-          (answerNorm.includes(lNorm) || answerLower.includes(lLow));
-        if ((exactMatch || revMatch) && !input.checked) toCheck.push(input);
+      // Match EACH chosen string to ONE box. Splitting only on separators that
+      // cannot appear inside an option (newline / semicolon, and a comma not
+      // inside brackets) keeps comma-bearing options whole when answerParts is
+      // missing; with answerParts there is no splitting at all.
+      const partList = (usableParts
+        ? parts.map(p => String(p).trim())
+        : answer.split(/[\n;]+|,(?![^)]*\))/).map(s => s.trim())).filter(Boolean);
+
+      const chosen = new Set();
+      for (const part of partList) {
+        const i = matchNQOptionIndex(inputOptionPairs, part);
+        if (i >= 0) chosen.add(i);
       }
-      if (toCheck.length > 0 && toCheck.length < inputOptionPairs.length) {
-        toCheck.forEach(i => clickNQInput(i));
-        return true;
+      if (chosen.size > 0) {
+        // Deliberately NOT capped below the option count: a select-all whose
+        // options are all true must be able to tick every box. The old guard
+        // (toCheck.length < inputOptionPairs.length) made that case select
+        // nothing at all.
+        let any = false;
+        inputOptionPairs.forEach((p, i) => {
+          if (chosen.has(i) && !p.input.checked) { clickNQInput(p.input); any = true; }
+        });
+        if (any || [...chosen].every(i => inputOptionPairs[i] && inputOptionPairs[i].input.checked)) return true;
       }
       return false;
     }
@@ -1234,7 +1272,7 @@ window.__answerlyNQSolverLoaded = true;
             : [];
 
           let matched = false;
-          if (textParts.length > 0) matched = autoSelectNQAnswer(qEl, textParts.join(', '), inputOptionPairs);
+          if (textParts.length > 0) matched = autoSelectNQAnswer(qEl, textParts.join(', '), inputOptionPairs, textParts);
           if (!matched && answerLetter && /^[a-e](,\s*[a-e])*$/.test(answerLetter))
             matched = autoSelectNQAnswer(qEl, answerLetter, inputOptionPairs);
           if (!matched && textParts.length > 0 && textInputEls.length > 0)
@@ -1460,7 +1498,7 @@ window.__answerlyNQSolverLoaded = true;
             { type: 'SOLVE_QUESTION', question: questionText, options, isMultiSelect },
             (resp) => {
               if (!chrome.runtime.lastError && resp && !resp.error) {
-                const matched = autoSelectNQAnswer(qEl, resp.answer, inputOptionPairs);
+                const matched = autoSelectNQAnswer(qEl, resp.answer, inputOptionPairs, resp.answerParts);
                 reportOutcome(resp, matched, matched ? undefined : 'no option matched the answer');
                 if (matched) btn.dataset.opened = 'true';
                 else         btn.dataset.done   = ''; // allow retry
@@ -1687,7 +1725,7 @@ window.__answerlyNQSolverLoaded = true;
             if (chrome.runtime.lastError || !resp || resp.error) return;
             const matched = isFillInBlank
               ? autoFillNQText(textInputEls, resp.answer, resp.answerParts)
-              : autoSelectNQAnswer(qEl, resp.answer, inputOptionPairs);
+              : autoSelectNQAnswer(qEl, resp.answer, inputOptionPairs, resp.answerParts);
             reportOutcome(resp, matched, matched ? undefined : (isFillInBlank ? 'solve-all: no input filled' : 'solve-all: no option matched'));
             if (matched && btn) btn.dataset.opened = 'true';
           }
