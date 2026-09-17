@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "promo",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "serve",
+        "-l",
+        "5555",
+        "."
+      ],
+      "port": 5555
+    },
+    {
+      "name": "test-quiz",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8000",
+        "--directory",
+        "test-canvas"
+      ],
+      "port": 8000,
+      "url": "http://localhost:8000"
+    }
+  ]
+}

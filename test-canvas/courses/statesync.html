@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>NQ state sync parity</title>
+<style>body{font-family:system-ui;padding:20px}
+#log{font-family:ui-monospace,monospace;font-size:13px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}</style>
+</head>
+<body>
+<h3>New Quizzes state-sync parity harness</h3>
+
+<!-- Minimal New Quizzes question markup -->
+<div data-automation="sdk-item-wrapper">
+  <div data-automation="sdk-position-box-text">Question 1</div>
+  <div tabindex="-1"><div class="user_content enhanced"><p>What is 2 + 2?</p></div></div>
+  <div role="radiogroup">
+    <label><input type="radio" name="q1"><span class="user_content enhanced">3</span></label>
+    <label><input type="radio" name="q1"><span class="user_content enhanced">4</span></label>
+  </div>
+</div>
+
+<div id="log">running…</div>
+
+<script>
+// ── chrome stub ───────────────────────────────────────────────────────────
+const store = {};
+const changeListeners = [];
+const msgListeners = [];
+const sendSync = () => msgListeners.forEach(fn => fn({ type: 'ANSWERLY_SYNC' }, {}, () => {}));
+let failNextRead = false;   // simulates a service-worker restart / blank read
+
+window.chrome = {
+  runtime: {
+    lastError: null,
+    onMessage: { addListener(fn) { msgListeners.push(fn); } },
+    sendMessage(){},
+    getURL: p => p,
+  },
+  storage: {
+    local: {
+      get(keys, cb) {
+        if (failNextRead) {
+          failNextRead = false;
+          chrome.runtime.lastError = { message: 'context invalidated' };
+          cb({});
+          chrome.runtime.lastError = null;
+          return;
+        }
+        const list = Array.isArray(keys) ? keys : [keys];
+        const out = {};
+        list.forEach(k => { if (k in store) out[k] = store[k]; });
+        if (list.some(k => String(k).startsWith('answerlyTheme'))) {
+          console.log('THEME READ', JSON.stringify(list), '->', JSON.stringify(out));
+        }
+        cb(out);
+      },
+      set(obj, cb) {
+        const changes = {};
+        Object.keys(obj).forEach(k => {
+          changes[k] = { oldValue: store[k], newValue: obj[k] };
+          store[k] = obj[k];
+        });
+        changeListeners.forEach(fn => fn(changes, 'local'));
+        if (cb) cb();
+      },
+      remove(keys, cb) {
+        const list = Array.isArray(keys) ? keys : [keys];
+        const changes = {};
+        list.forEach(k => { changes[k] = { oldValue: store[k], newValue: undefined }; delete store[k]; });
+        changeListeners.forEach(fn => fn(changes, 'local'));
+        if (cb) cb();
+      },
+    },
+    onChanged: { addListener(fn) { changeListeners.push(fn); } },
+  },
+};
+
+// ── helpers ───────────────────────────────────────────────────────────────
+const results = [];
+const camCount = () => document.querySelectorAll('.answerly-nq-cam-btn, [class*="cam"]').length;
+const btnCount = () => document.querySelectorAll('.answerly-nq-btn').length;
+const tick = ms => new Promise(r => setTimeout(r, ms));
+function check(name, cond, detail) {
+  results.push({ name, ok: !!cond, detail: detail || '' });
+}
+</script>
+
+<script src="/extension/content/newQuizSolver.js?cb=3"></script>
+
+<script>
+(async function run() {
+  await tick(400);
+
+  // ── T1: stranded stealth flag must NOT produce camera buttons ────────────
+  // answerlyScreenshotStealthActive true, but the parent tool is OFF.
+  store.answerlyScreenshotStealthActive = true;
+  store.answerlyScreenshotActive = false;
+  store.answerlySession = { code: 'ANS-TEST' };
+  chrome.storage.local.set({ answerlySession: { code: 'ANS-TEST' } });
+  await tick(600);
+  check('T1 stranded stealth flag does not show camera buttons (parent off)',
+        btnCount() === 0, 'buttons=' + btnCount());
+
+  // ── T2: parent ON + stealth ON  → camera buttons appear ──────────────────
+  chrome.storage.local.set({ answerlyScreenshotActive: true });
+  await tick(600);
+  const t2 = btnCount();
+  check('T2 parent on + stealth on shows camera buttons', t2 > 0, 'buttons=' + t2);
+
+  // ── T3: turning the PARENT off removes them ──────────────────────────────
+  chrome.storage.local.set({ answerlyScreenshotActive: false });
+  await tick(600);
+  check('T3 turning screenshot tool off removes camera buttons',
+        btnCount() === 0, 'buttons=' + btnCount());
+
+  // ── T4: solver on, then a blank read must NOT wipe the buttons ───────────
+  chrome.storage.local.set({ answerlyQuizActive: true });
+  await tick(700);
+  const before = btnCount();
+  check('T4a solver on renders buttons', before > 0, 'buttons=' + before);
+
+  failNextRead = true;
+  sendSync();                 // ANSWERLY_SYNC lands while the read comes back blank
+  await tick(300);
+  const after = btnCount();
+  check('T4b blank read does not wipe a working page',
+        after > 0, 'before=' + before + ' after=' + after);
+  check('T4c the blank read was actually consumed', failNextRead === false,
+        'failNextRead=' + failNextRead);
+
+  // ── T5: session change re-syncs (currentCode follows the new code) ───────
+  store['answerlyTheme_ANS-OTHER'] = { accentColor: '#ff0000' };
+  chrome.storage.local.set({ answerlySession: { code: 'ANS-OTHER' } });
+  await tick(400);
+  const btn = document.querySelector('.answerly-nq-btn');
+  const bg = btn ? getComputedStyle(btn).backgroundColor : '';
+  check('T5 session switch reloads that user\'s theme',
+        bg.includes('255, 0, 0'), 'button bg=' + bg);
+
+  // ── render ──────────────────────────────────────────────────────────────
+  const el = document.getElementById('log');
+  el.innerHTML = results.map(r =>
+    `<span class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</span>  ${r.name}\n       ${r.detail}`
+  ).join('\n') + `\n\n${results.filter(r => r.ok).length}/${results.length} passed`;
+  window.__done = true;
+  window.__results = results;
+})();
+</script>
+</body>
+</html>

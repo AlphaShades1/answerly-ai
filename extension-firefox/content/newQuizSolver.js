@@ -37,6 +37,9 @@ window.__answerlyNQSolverLoaded = true;
   let screenshotStealthActive = false;
   let observer                = null;
   let currentCode             = null;
+  // True once a real state read has landed, so a later blank read can be told
+  // apart from a genuine "user turned everything off". Mirrors quizSolver.js.
+  let stateReady              = false;
   const INJECTED    = 'answerly-nq-injected';
 
   // ── Stealth solve keybind (customizable) ─────────────────────────────────────
@@ -1971,11 +1974,33 @@ window.__answerlyNQSolverLoaded = true;
       if (solverActive) { removeAll(); injectButtons(); startObserver(); }
     }
 
-    if (changes.answerlyScreenshotStealthActive !== undefined) {
-      screenshotStealthActive = !!changes.answerlyScreenshotStealthActive.newValue;
+    // Either half of the screenshot pair can change on its own, and the stealth
+    // flag alone does not mean the tool is on, so re-read both rather than
+    // trusting the one key that fired.
+    if (changes.answerlyScreenshotStealthActive !== undefined ||
+        changes.answerlyScreenshotActive !== undefined) {
+      chrome.storage.local.get(
+        ['answerlyScreenshotActive', 'answerlyScreenshotStealthActive'],
+        (s) => {
+          if (chrome.runtime.lastError || !s) return;
+          screenshotStealthActive = !!(s.answerlyScreenshotActive && s.answerlyScreenshotStealthActive);
+          removeAll();
+          if (solverActive) { injectButtons(); startObserver(); }
+          else if (screenshotStealthActive) { injectStyles(); injectCameraOnlyButtons(); startObserver(); }
+        }
+      );
+    }
+
+    // Sign-in, sign-out or a code switch changes which answerlyTheme_<code> key
+    // is ours. Without this the engine kept the old code and silently rendered
+    // the previous user's colours until the page was reloaded.
+    if (changes.answerlySession !== undefined) {
+      // Buttons already on the page carry the OLD user's accent inline, and
+      // injectButtons() deliberately skips a wrapper that already has a current
+      // button — so without clearing first, the reloaded theme never repaints.
       removeAll();
-      if (solverActive) { injectButtons(); startObserver(); }
-      else if (screenshotStealthActive) { injectCameraOnlyButtons(); startObserver(); }
+      syncFromStorage();
+      return;
     }
 
     // Solve All trigger — popup sets answerlyNQSolveAll to a timestamp.
@@ -2043,11 +2068,21 @@ window.__answerlyNQSolverLoaded = true;
   function syncFromStorage() {
     chrome.storage.local.get([
       'answerlyQuizActive', 'answerlyQuizStealthActive',
-      'answerlyScreenshotStealthActive', 'answerlySession'
+      'answerlyScreenshotActive', 'answerlyScreenshotStealthActive', 'answerlySession'
     ], (s) => {
+      // A failed read (worker restart / invalidated context) comes back empty.
+      // quizSolver.js has bailed out here for a long time; this engine did not,
+      // so a blank read tore the buttons off a working page. Keep what is up.
+      if (chrome.runtime.lastError || !s || typeof s !== 'object') return;
+      if (stateReady && currentCode && !s.answerlySession) return;
+      stateReady              = true;
       currentCode             = s.answerlySession?.code || null;
       stealthHidden           = !!s.answerlyQuizStealthActive;
-      screenshotStealthActive = !!s.answerlyScreenshotStealthActive;
+      // A stealth flag is only meaningful while its PARENT tool is on. The
+      // screenshot widget's own X button clears answerlyScreenshotActive but
+      // leaves the stealth flag stranded `true`, which made camera buttons
+      // show up on a fresh quiz with the toggle off. Classic gates on both.
+      screenshotStealthActive = !!(s.answerlyScreenshotActive && s.answerlyScreenshotStealthActive);
       if (s.answerlyQuizActive) {
         activate(); // handles camera buttons too via injectButtons()
       } else if (screenshotStealthActive) {
