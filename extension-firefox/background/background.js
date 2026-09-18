@@ -214,7 +214,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`,
             },
-            body: JSON.stringify({ question: message.question, options: message.options, blankContext: message.blankContext, isMultiSelect: message.isMultiSelect, blankCount: message.blankCount, fileContext, quizTitle: message.quizTitle }),
+            body: JSON.stringify({ question: message.question, options: message.options, blankContext: message.blankContext, isMultiSelect: message.isMultiSelect, blankCount: message.blankCount, fileContext, quizTitle: message.quizTitle, relatedQuestions: message.relatedQuestions }),
           });
           const data = await res.json();
           if (!res.ok) {
@@ -248,7 +248,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const res = await fetchWithTimeout(`${BACKEND_URL}/api/solve-matching`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ question: message.question, rows: message.rows, fileContext, quizTitle: message.quizTitle }),
+            body: JSON.stringify({ question: message.question, rows: message.rows, fileContext, quizTitle: message.quizTitle, relatedQuestions: message.relatedQuestions }),
           });
           const data = await res.json();
           if (!res.ok) {

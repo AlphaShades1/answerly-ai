@@ -309,6 +309,176 @@ window.__answerlyNQSolverLoaded = true;
     } catch { /* extension context invalidated */ }
   }
 
+
+  // ── Cross-question context ───────────────────────────────────────────────────
+  // Every question visible on the quiz, plus any seen earlier on a one-question-
+  // at-a-time quiz, sent along with each solve. Quizzes answer each other: on a
+  // real ASL quiz one question's choices said "31 schools in 13 African
+  // countries" and the next question, solved alone, came back "13-17 schools".
+  //
+  // Remembered questions live in chrome.storage.local, never in the page's own
+  // sessionStorage/localStorage: anything written there is readable by Canvas
+  // and by proctoring scripts, and stealth users must leave no trace.
+  const QUIZ_DIGEST_LIMIT  = 10000;  // characters sent (backend caps at the same)
+  const QUIZ_DIGEST_MAX_Q  = 60;     // questions remembered per quiz
+  const QUIZ_DIGEST_TTL_MS = 12 * 3600 * 1000;
+  const QUIZ_DIGEST_STORE  = 'answerlyQuizDigests';
+  const quizDigestKey = (() => {
+    const m = location.pathname.match(/\/courses\/\d+\/(?:quizzes|assignments)\/\d+/);
+    return location.host + (m ? m[0] : location.pathname);
+  })();
+  const quizDigestSeen = new Map();   // insertion order = order first seen
+  let quizDigestCache = { at: 0, text: '' };
+  let quizDigestSig   = '';        // what the page looked like at the last scan
+  let quizDigestSaveTimer = null;
+
+  try {
+    chrome.storage.local.get(QUIZ_DIGEST_STORE, (s) => {
+      if (chrome.runtime.lastError || !s) return;
+      const entry = (s[QUIZ_DIGEST_STORE] || {})[quizDigestKey];
+      if (!entry || !Array.isArray(entry.list) || Date.now() - entry.at > QUIZ_DIGEST_TTL_MS) return;
+      // Earlier questions go first, keeping the list in quiz order.
+      const current = [...quizDigestSeen.entries()];
+      quizDigestSeen.clear();
+      entry.list.forEach(e => { if (e && e.k) quizDigestSeen.set(e.k, e); });
+      current.forEach(([k, v]) => quizDigestSeen.set(k, v));
+      quizDigestCache.at = 0;
+      quizDigestSig = '';
+    });
+  } catch { /* extension context gone — nothing to restore */ }
+
+  function saveQuizDigest() {
+    clearTimeout(quizDigestSaveTimer);
+    quizDigestSaveTimer = setTimeout(() => {
+      try {
+        chrome.storage.local.get(QUIZ_DIGEST_STORE, (s) => {
+          if (chrome.runtime.lastError) return;
+          const all = (s && s[QUIZ_DIGEST_STORE]) || {};
+          all[quizDigestKey] = { at: Date.now(), list: [...quizDigestSeen.values()].slice(-QUIZ_DIGEST_MAX_Q) };
+          // Keep only recent quizzes so this never grows without bound.
+          const keep = Object.entries(all)
+            .filter(([, v]) => v && Date.now() - v.at < QUIZ_DIGEST_TTL_MS)
+            .sort((a, b) => b[1].at - a[1].at).slice(0, 20);
+          chrome.storage.local.set({ [QUIZ_DIGEST_STORE]: Object.fromEntries(keep) }, () => void chrome.runtime.lastError);
+        });
+      } catch { /* ignore */ }
+    }, 1000);
+  }
+
+  // Called on every recovery tick as well as on each solve, so a question the
+  // student only LOOKED at on a one-at-a-time quiz is still remembered. Re-reads
+  // the questions only when the page changed, so a static 60-question page is
+  // not re-parsed every two seconds.
+  function getRelatedQuestions() {
+    const qEls = findNQQuestions();
+    const sig  = qEls.length + ':' + qEls.map(q => (q.textContent || '').length).join(',');
+    if (sig === quizDigestSig && quizDigestCache.at) return quizDigestCache.text;
+    quizDigestSig = sig;
+    let grew = false;
+    for (const qEl of qEls) {
+      let d;
+      try { d = extractNQData(qEl); } catch { continue; }
+      const q = String((d && d.questionText) || '').replace(/\s+/g, ' ').trim();
+      if (!q) continue;
+      const k = q.slice(0, 200).toLowerCase();
+      const o = ((d && d.options) || [])
+        .map(x => String(x).replace(/\s+/g, ' ').trim().slice(0, 120)).filter(Boolean).slice(0, 10);
+      if (!quizDigestSeen.has(k)) grew = true;
+      quizDigestSeen.set(k, { k, q: q.slice(0, 300), o });
+    }
+    while (quizDigestSeen.size > QUIZ_DIGEST_MAX_Q) quizDigestSeen.delete(quizDigestSeen.keys().next().value);
+    if (grew) saveQuizDigest();
+    const list = [...quizDigestSeen.values()];
+    // A single question has nothing to cross-reference.
+    let text = list.length < 2 ? '' : list
+      .map((e, i) => `Q${i + 1}. ${e.q}` + (e.o.length ? `\n   Choices: ${e.o.join(' | ')}` : ''))
+      .join('\n');
+    if (text.length > QUIZ_DIGEST_LIMIT) text = text.slice(0, QUIZ_DIGEST_LIMIT);
+    quizDigestCache = { at: Date.now(), text };
+    return text;
+  }
+
+
+  // ── "Upload your material" prompt ────────────────────────────────────────────
+  // A quiz about one specific film, lecture or reading tests what THAT source
+  // said, and general knowledge can only guess at it. Two real quizzes lost most
+  // of their points exactly this way — a film quiz, and an ASL quiz asking for
+  // strategies "as listed in the text" — with no notes uploaded, because the
+  // students had no idea it mattered. Shown once per quiz, in normal mode only:
+  // stealth must stay invisible, so it never appears there.
+  const NOTES_NUDGE_RE = new RegExp([
+    '\\b(film|video|documentary|movie|lecture|podcast)\\b',
+    '\\b(listed|stated|described|discussed|mentioned|shown|explained|defined) in (the|your|this) (text|textbook|reading|article|chapter|lecture|video|film|book|notes)\\b',
+    '\\baccording to (the|your|this) (text|textbook|reading|article|author|chapter|lecture|video|film|book|notes|professor|instructor)\\b',
+    '\\bin (the|your) (textbook|reading|assigned reading)\\b',
+  ].join('|'), 'i');
+  const NOTES_NUDGE_STORE = 'answerlyNotesNudgeShown';
+  let notesNudgeState = 'pending';   // 'pending' → 'checking' → 'done'
+  let notesNudgeTries = 0;
+
+  function notesNudgeSource(match) {
+    const w = String(match).toLowerCase();
+    if (/film|video|documentary|movie/.test(w)) return 'a specific film or video';
+    if (/lecture|podcast|professor|instructor/.test(w)) return 'a specific lecture';
+    return 'a specific reading or textbook';
+  }
+
+  function maybeShowNotesNudge() {
+    if (notesNudgeState !== 'pending' || !solverActive || stealthHidden) return;
+    if (!(isNQPage())) return;
+    // Questions can render late, so keep looking for ~20s, then stop for good.
+    if (++notesNudgeTries > 10) { notesNudgeState = 'done'; return; }
+    try { getRelatedQuestions(); } catch {}
+    const texts = [getQuizTitle(), ...[...quizDigestSeen.values()].map(e => e.q)];
+    try { texts.push(getNQQuizContext()); } catch {}
+    const m = texts.join('\n').match(NOTES_NUDGE_RE);
+    if (!m) return;
+    notesNudgeState = 'checking';
+    try {
+      chrome.storage.local.get(['answerlyContextFile', NOTES_NUDGE_STORE], (s) => {
+        if (chrome.runtime.lastError || !s) { notesNudgeState = 'pending'; return; }
+        notesNudgeState = 'done';
+        if (s.answerlyContextFile && s.answerlyContextFile.context) return;  // already uploaded
+        const shown = s[NOTES_NUDGE_STORE] || {};
+        if (shown[quizDigestKey]) return;                                   // once per quiz
+        if (!solverActive || stealthHidden) return;                         // mode changed meanwhile
+        shown[quizDigestKey] = Date.now();
+        const keep = Object.entries(shown).sort((a, b) => b[1] - a[1]).slice(0, 200);
+        chrome.storage.local.set({ [NOTES_NUDGE_STORE]: Object.fromEntries(keep) }, () => void chrome.runtime.lastError);
+        showNotesNudge(notesNudgeSource(m[0]));
+      });
+    } catch { notesNudgeState = 'done'; }
+  }
+
+  function showNotesNudge(source) {
+    if (document.getElementById('answerly-notes-nudge')) return;
+    const accent = (theme && theme.accentColor) || DEFAULT_THEME.accentColor;
+    const box = document.createElement('div');
+    box.id = 'answerly-notes-nudge';
+    box.className = INJECTED;
+    box.setAttribute('role', 'status');
+    box.style.cssText = [
+      'position:fixed', 'left:16px', 'bottom:16px', 'z-index:2147483646', 'max-width:320px',
+      'background:#0f0f12', 'color:#f0f0f5', 'border:1px solid #2e2e3e', 'border-left:4px solid ' + accent,
+      'border-radius:10px', 'padding:12px 34px 12px 14px', 'box-shadow:0 8px 28px rgba(0,0,0,.45)',
+      "font:13px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", 'text-align:left',
+    ].map(r => r + ' !important').join(';');
+    const title = document.createElement('div');
+    title.textContent = 'Better answers for this quiz';
+    title.style.cssText = 'font-weight:700 !important;margin-bottom:4px !important;color:' + accent + ' !important';
+    const body = document.createElement('div');
+    body.textContent = 'This quiz looks like it is based on ' + source + '. Answerly is more accurate on quizzes like this when you upload your notes, transcript or reading. Click the Answerly icon, then Upload notes.';
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.setAttribute('aria-label', 'Dismiss');
+    x.textContent = '×';
+    x.style.cssText = 'position:absolute !important;top:6px !important;right:8px !important;background:none !important;border:none !important;color:#8a8aa0 !important;font-size:18px !important;line-height:1 !important;cursor:pointer !important;padding:2px 4px !important';
+    x.addEventListener('click', () => box.remove());
+    box.append(title, body, x);
+    document.body.appendChild(box);
+    setTimeout(() => box.remove(), 15000);
+  }
+
   function sendSolve(msg, cb, attempt) {
     attempt = attempt || 1;
     // Attach the quiz's own description / shared stimulus on the FIRST send only
@@ -319,6 +489,14 @@ window.__answerlyNQSolverLoaded = true;
       let qc = '';
       try { qc = getNQQuizContext(); } catch {}
       if (qc) msg.quizContext = qc;
+    }
+    // Cross-question context: the rest of the quiz, for consistency between
+    // questions. Only for text solves; nothing is attached on a one-question page.
+    if (msg && (msg.type === 'SOLVE_QUESTION' || msg.type === 'SOLVE_MATCHING') &&
+        !('relatedQuestions' in msg)) {
+      let rq = '';
+      try { rq = getRelatedQuestions(); } catch {}
+      if (rq) msg.relatedQuestions = rq;
     }
     // Quiz identity — attached to every solve type, including screenshots.
     if (msg && !('quizTitle' in msg)) {
@@ -2108,7 +2286,7 @@ window.__answerlyNQSolverLoaded = true;
   let nqRecheckPending = false;
   setInterval(() => {
     if (!isNQPage()) return;
-    if (solverActive)                 { injectStyles(); injectButtons(); startObserver(); }
+    if (solverActive)                 { injectStyles(); injectButtons(); startObserver(); try { getRelatedQuestions(); } catch {} maybeShowNotesNudge(); }
     else if (screenshotStealthActive) { injectStyles(); injectCameraOnlyButtons(); startObserver(); }
     else if (!nqRecheckPending) {
       // Nothing should be on the page. Re-verify against storage now and then so
