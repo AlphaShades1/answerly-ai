@@ -32,7 +32,7 @@ window.sent = [];
 window.chrome = {
   runtime: {
     id: 'harness', lastError: null, getURL: p => p,
-    onMessage: { addListener() {} },
+    onMessage: { addListener(f) { (window.msgListeners = window.msgListeners || []).push(f); } },
     sendMessage(msg, cb) {
       cb = cb || (() => {});
       if (msg.type === 'SOLVE_QUESTION' || msg.type === 'SOLVE_MATCHING') {
@@ -61,6 +61,8 @@ window.chrome = {
   },
 };
 window.harnessStore = store;
+// Deliver a runtime message (e.g. SOLVE_ALL from the popup) to every listener.
+window.deliver = (msg) => (window.msgListeners || []).forEach(f => { try { f(msg, {}, () => {}); } catch (e) { console.error(e); } });
 
 // ── New Quizzes: one question at a time, React-style in-place swap ──────────
 const NQ_QUESTIONS = [
@@ -93,7 +95,7 @@ window.nqShow = (i) => {
   }
   // Both engines are loaded on every Canvas course page, exactly as the manifest does.
   for (const f of ['newQuizSolver.js', 'quizSolver.js']) {
-    await new Promise(r => { const s = document.createElement('script'); s.src = '/extension/content/' + f + '?v=' + Date.now(); s.onload = r; document.body.appendChild(s); });
+    await new Promise(r => { const s = document.createElement('script'); s.src = (P.get('code') === 'old' ? '/test-canvas/old138/' : '/extension/content/') + f + '?v=' + Date.now(); s.onload = r; document.body.appendChild(s); });
   }
   window.__loaded = true;
 })();
