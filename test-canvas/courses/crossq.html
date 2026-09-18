@@ -35,6 +35,21 @@ window.chrome = {
     onMessage: { addListener(f) { (window.msgListeners = window.msgListeners || []).push(f); } },
     sendMessage(msg, cb) {
       cb = cb || (() => {});
+      if ((msg.type === 'SOLVE_QUESTION' || msg.type === 'SOLVE_MATCHING') && P.get('live') === '1') {
+        // Same body background.js builds, sent to the sandboxed real backend.
+        window.sent.push(msg);
+        (async () => {
+          window.__tok = window.__tok || (await (await fetch('http://localhost:3999/token')).json()).token;
+          const route = msg.type === 'SOLVE_MATCHING' ? 'solve-matching' : 'solve-question';
+          const body = msg.type === 'SOLVE_MATCHING'
+            ? { question: msg.question, rows: msg.rows, relatedQuestions: msg.relatedQuestions }
+            : { question: msg.question, options: msg.options, blankContext: msg.blankContext, isMultiSelect: msg.isMultiSelect, blankCount: msg.blankCount, relatedQuestions: msg.relatedQuestions };
+          const r = await fetch('http://localhost:3999/api/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window.__tok }, body: JSON.stringify(body) });
+          const j = await r.json(); (window.replies = window.replies || []).push({ q: msg.question, j });
+          cb(r.ok ? j : { error: j.error || 'HTTP ' + r.status });
+        })().catch(e => cb({ error: String(e) }));
+        return;
+      }
       if (msg.type === 'SOLVE_QUESTION' || msg.type === 'SOLVE_MATCHING') {
         window.sent.push(msg);
         const first = (msg.options && msg.options[0]) || 'x';
@@ -85,11 +100,23 @@ window.nqShow = (i) => {
 
 <script>
 (async () => {
+  const LINE_Q = 'On which line does fTog go to true? Line fPb fPbz 1 0 0 2 0 0 3 0 0 4 0 0 5 1 0 6 1 1 7 1 1 8 0 1 9 0 0';
   if (ENGINE === 'classic') {
     // Real Classic markup: the 11-question compatibility quiz.
     const html = await (await fetch('quiz.html')).text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
     doc.querySelectorAll('.question_holder').forEach(h => document.getElementById('quiz').appendChild(document.importNode(h, true)));
+    if (P.get('fillin') === '1') {
+      // The real HW 06 fill-in, in Classic short-answer markup.
+      document.getElementById('quiz').insertAdjacentHTML('beforeend', `<div class="question_holder"><div class="question display_question" id="question_line" data-question-type="short_answer_question">
+        <div class="question_name"><span>Question 12</span><span>1 pts</span></div>
+        <div class="question_text">${LINE_Q} <input type="text" name="qline" size="10"></div></div></div>`);
+    }
+  } else if (P.get('fillin') === '1') {
+    document.getElementById('quiz').innerHTML = `<div data-automation="sdk-item-wrapper">
+      <div data-automation="sdk-position-box-text">Question 1</div>
+      <div tabindex="-1"><div class="user_content enhanced"><p>${LINE_Q}</p></div></div>
+      <input type="text" aria-label="answer" style="width:120px"></div>`;
   } else {
     nqShow(Number(P.get('q') || 0));
   }
