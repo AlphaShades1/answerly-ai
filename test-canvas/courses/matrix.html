@@ -83,13 +83,37 @@ function renderNQ(b, n) {
   }
 }
 
-document.getElementById('quiz').innerHTML = BANK.map((b, i) => ENGINE === 'classic' ? renderClassic(b, i + 1) : renderNQ(b, i + 1)).join('');
+// ?oqaat=1 — one question at a time.
+//   New Quizzes: "Next" swaps the question IN PLACE. With &reuse=1 React keeps the
+//   same wrapper node and only its contents change (the harder case); otherwise
+//   the wrapper is replaced.  Classic: every question is its own page (&only=N).
+const OQAAT = P.get('oqaat') === '1';
+if (OQAAT && ENGINE === 'nq') {
+  window.showQ = (i) => {
+    const html = renderNQ(BANK[i], i + 1);
+    const old = document.querySelector('[data-automation="sdk-item-wrapper"]');
+    if (old && P.get('reuse') === '1') {
+      const tmp = document.createElement('div'); tmp.innerHTML = html; const fresh = tmp.firstElementChild;
+      old.setAttribute('data-qid', fresh.getAttribute('data-qid'));
+      old.innerHTML = fresh.innerHTML;          // same node, new question inside
+    } else {
+      document.getElementById('quiz').innerHTML = html;
+    }
+  };
+  window.showQ(0);
+} else if (P.get('only') != null) {
+  const i = Number(P.get('only'));
+  document.getElementById('quiz').innerHTML = renderClassic(BANK[i], i + 1);
+} else {
+  document.getElementById('quiz').innerHTML = BANK.map((b, i) => ENGINE === 'classic' ? renderClassic(b, i + 1) : renderNQ(b, i + 1)).join('');
+}
+window.gradeOne = (id) => window.grade().find(r => r.id === id);
 
 // ── grading: read what is actually on the page ───────────────────────────────
 const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ').replace(/\.$/, '');
 function labelOf(inp) { return (inp.closest('label')?.innerText || document.querySelector(`label[for="${inp.id}"]`)?.innerText || '').trim(); }
 window.grade = function () {
-  return BANK.map(b => {
+  return BANK.filter(b => document.querySelector(`[data-qid="${b.id}"]`)).map(b => {
     const el = document.querySelector(`[data-qid="${b.id}"]`);
     let got, ok;
     if (['mc', 'tf'].includes(b.kind)) { got = [...el.querySelectorAll('input[type=radio]:checked')].map(labelOf); ok = got.length === 1 && norm(got[0]) === norm(b.want); }
