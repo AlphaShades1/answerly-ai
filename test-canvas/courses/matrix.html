@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Question-type x mode matrix</title>
+<style>
+  body{font-family:system-ui;margin:16px;max-width:900px}
+  .question{border:1px solid #ddd;margin:10px 0;padding:10px}
+  [data-automation="sdk-item-wrapper"]{border:1px solid #cbd;margin:10px 0;padding:10px}
+  textarea{width:95%;height:60px} td{padding:2px 8px}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+<h1 id="quiz_title">Unit 5 Mixed Review Quiz</h1>
+<div id="quiz"></div>
+<script>
+// ?engine=classic|nq  &mode=normal|stealth|shot
+const P = new URLSearchParams(location.search);
+const ENGINE = P.get('engine') || 'classic';
+const MODE = P.get('mode') || 'normal';
+
+// ── the question bank: each with a known answer ──────────────────────────────
+// kind: mc | tf | ma | short | multi | num | ddInline | ddSingle | ddShared | ddTable | match | matchReuse | essay
+const BANK = [
+  { id: 'mc1',  kind: 'mc',    label: 'Multiple choice',            q: 'Which planet is known as the Red Planet?', opts: ['Venus', 'Mars', 'Jupiter', 'Saturn'], want: 'Mars' },
+  { id: 'mc2',  kind: 'mc',    label: 'Multiple choice (formula)',  q: 'What is the chemical formula for table salt?', opts: ['KCl', 'H2O', 'NaCl', 'CO2'], want: 'NaCl' },
+  { id: 'tf1',  kind: 'tf',    label: 'True / False',               q: 'The Great Wall of China is located in Japan.', opts: ['True', 'False'], want: 'False' },
+  { id: 'ma1',  kind: 'ma',    label: 'Select all that apply',      q: 'Which of the following are primary colors of light? (Select all that apply)', opts: ['Red', 'Yellow', 'Green', 'Purple', 'Blue'], want: ['Red', 'Green', 'Blue'] },
+  { id: 'sa1',  kind: 'short', label: 'Fill-in (1 blank)',          q: 'The largest ocean on Earth is the', tail: 'Ocean.', want: ['pacific'] },
+  { id: 'mb1',  kind: 'multi', label: 'Fill-in (2 blanks)',         parts: ['The chemical symbol for gold is', 'and the chemical symbol for iron is', '.'], want: ['au', 'fe'] },
+  { id: 'nu1',  kind: 'num',   label: 'Numerical',                  q: 'What is 12 multiplied by 12?', want: ['144'] },
+  { id: 'dd1',  kind: 'ddInline', label: 'Dropdowns in a sentence', parts: ['The capital of France is', 'and the capital of Japan is', '.'], sel: [['Berlin', 'Paris', 'Madrid'], ['Seoul', 'Beijing', 'Tokyo']], want: ['Paris', 'Tokyo'] },
+  { id: 'dd2',  kind: 'ddSingle', label: 'Single dropdown',         parts: ['At sea level, pure water freezes at', 'degrees Celsius.'], sel: [['32', '0', '100']], want: ['0'] },
+  { id: 'dd3',  kind: 'ddShared', label: 'Dropdowns, shared choices', parts: ['In the sentence "She sings beautifully", the word "sings" is a', 'and the word "beautifully" is an', '.'], sel: [['noun', 'verb', 'adverb', 'adjective'], ['noun', 'verb', 'adverb', 'adjective']], want: ['verb', 'adverb'] },
+  { id: 'dd4',  kind: 'ddTable', label: 'Dropdowns in a table',     q: 'Complete the statements about photosynthesis.', rows: [['Plants absorb', ['oxygen', 'carbon dioxide', 'nitrogen']], ['and release', ['hydrogen', 'methane', 'oxygen']]], want: ['carbon dioxide', 'oxygen'] },
+  { id: 'mt1',  kind: 'match', label: 'Matching',                   q: 'Match each element to its chemical symbol.', rows: ['Gold', 'Iron', 'Sodium', 'Potassium'], pool: ['Ag', 'Au', 'Fe', 'K', 'Na'], want: ['Au', 'Fe', 'Na', 'K'] },
+  { id: 'mt2',  kind: 'matchReuse', label: 'Matching (answers reused)', q: 'Classify each animal.', rows: ['Dog', 'Eagle', 'Snake', 'Whale'], pool: ['Bird', 'Mammal', 'Reptile'], want: ['Mammal', 'Bird', 'Reptile', 'Mammal'] },
+  { id: 'es1',  kind: 'essay', label: 'Essay / writing',            q: 'In two or three sentences, explain why Earth has seasons.', want: null },
+];
+window.BANK = BANK;
+
+const sel = (name, opts) => `<select name="${name}"><option>[ Select ]</option>${opts.map(o => `<option>${o}</option>`).join('')}</select>`;
+
+function renderClassic(b, n) {
+  const head = `<div class="question_name"><span>Question ${n}</span><span>10 pts</span></div>`;
+  const wrap = (type, inner) => `<div class="question_holder"><div class="question display_question" id="question_${b.id}" data-qid="${b.id}" data-question-type="${type}">${head}${inner}</div></div>`;
+  const choices = (t) => `<div class="answers">${b.opts.map((o, i) => `<div class="answer"><input type="${t}" name="${b.id}" id="${b.id}_${i}"><label class="answer_label" for="${b.id}_${i}">${o}</label></div>`).join('')}</div>`;
+  switch (b.kind) {
+    case 'mc': case 'tf': return wrap(b.kind === 'tf' ? 'true_false_question' : 'multiple_choice_question', `<div class="question_text">${b.q}</div>${choices('radio')}`);
+    case 'ma': return wrap('multiple_answers_question', `<div class="question_text">${b.q}</div>${choices('checkbox')}`);
+    case 'short': return wrap('short_answer_question', `<div class="question_text">${b.q} <input type="text" name="${b.id}" size="12"> ${b.tail}</div>`);
+    case 'multi': return wrap('fill_in_multiple_blanks_question', `<div class="question_text">${b.parts[0]} <input type="text" name="${b.id}a" size="6"> ${b.parts[1]} <input type="text" name="${b.id}b" size="6">${b.parts[2]}</div>`);
+    case 'num': return wrap('numerical_question', `<div class="question_text">${b.q}</div><div class="answers"><input type="text" name="${b.id}" size="10"></div>`);
+    case 'ddInline': case 'ddSingle': case 'ddShared': {
+      let h = ''; b.sel.forEach((o, i) => { h += `${b.parts[i]} ${sel(b.id + i, o)} `; }); h += b.parts[b.sel.length] || '';
+      return wrap('multiple_dropdowns_question', `<div class="question_text">${h}</div>`);
+    }
+    case 'ddTable': return wrap('multiple_dropdowns_question', `<div class="question_text">${b.q}</div><table>${b.rows.map((r, i) => `<tr><td>${r[0]}</td><td>${sel(b.id + i, r[1])}</td></tr>`).join('')}</table>`);
+    case 'match': case 'matchReuse': return wrap('matching_question', `<div class="question_text">${b.q}</div><table>${b.rows.map((r, i) => `<tr><td>${r}</td><td>${sel(b.id + i, b.pool)}</td></tr>`).join('')}</table>`);
+    case 'essay': return wrap('essay_question', `<div class="question_text">${b.q}</div><textarea name="${b.id}"></textarea>`);
+  }
+}
+
+function renderNQ(b, n) {
+  const typeName = { mc: 'Multiple Choice', tf: 'True or False', ma: 'Multiple Answer', short: 'Fill in the Blank', multi: 'Fill in the Blank', num: 'Numeric', ddInline: 'Fill in the Blank', ddSingle: 'Fill in the Blank', ddShared: 'Fill in the Blank', ddTable: 'Fill in the Blank', match: 'Matching', matchReuse: 'Matching', essay: 'Essay' }[b.kind];
+  const wrap = (stem, body) => `<div data-automation="sdk-item-wrapper" data-qid="${b.id}">
+    <div data-automation="sdk-position-box-text">Question ${n}</div>
+    <div data-automation="sdk-interaction-type-name-div">${typeName}</div>
+    <div tabindex="-1"><div class="user_content enhanced"><p>${stem}</p></div></div>${body}</div>`;
+  const choices = (t) => `<div role="${t === 'radio' ? 'radiogroup' : 'group'}">${b.opts.map(o => `<label style="display:block"><input type="${t}" name="${b.id}"><span class="user_content enhanced">${o}</span></label>`).join('')}</div>`;
+  switch (b.kind) {
+    case 'mc': case 'tf': return wrap(b.q, choices('radio'));
+    case 'ma': return wrap(b.q, choices('checkbox'));
+    case 'short': return wrap(`${b.q} ______ ${b.tail}`, `<input type="text" aria-label="blank" style="width:140px">`);
+    case 'multi': return wrap(`${b.parts[0]} ______ ${b.parts[1]} ______${b.parts[2]}`, `<input type="text" aria-label="blank 1" style="width:80px"> <input type="text" aria-label="blank 2" style="width:80px">`);
+    case 'num': return wrap(b.q, `<input type="text" aria-label="answer" style="width:120px">`);
+    case 'ddInline': case 'ddSingle': case 'ddShared': {
+      let h = ''; b.sel.forEach((o, i) => { h += `${b.parts[i]} ${sel(b.id + i, o)} `; }); h += b.parts[b.sel.length] || '';
+      return wrap(h, '');
+    }
+    case 'ddTable': return wrap(b.q, `<table>${b.rows.map((r, i) => `<tr><td>${r[0]}</td><td>${sel(b.id + i, r[1])}</td></tr>`).join('')}</table>`);
+    case 'match': case 'matchReuse': return wrap(b.q, `<table>${b.rows.map((r, i) => `<tr><td>${r}</td><td>${sel(b.id + i, b.pool)}</td></tr>`).join('')}</table>`);
+    case 'essay': return wrap(b.q, `<textarea aria-label="essay"></textarea>`);
+  }
+}
+
+document.getElementById('quiz').innerHTML = BANK.map((b, i) => ENGINE === 'classic' ? renderClassic(b, i + 1) : renderNQ(b, i + 1)).join('');
+
+// ── grading: read what is actually on the page ───────────────────────────────
+const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ').replace(/\.$/, '');
+function labelOf(inp) { return (inp.closest('label')?.innerText || document.querySelector(`label[for="${inp.id}"]`)?.innerText || '').trim(); }
+window.grade = function () {
+  return BANK.map(b => {
+    const el = document.querySelector(`[data-qid="${b.id}"]`);
+    let got, ok;
+    if (['mc', 'tf'].includes(b.kind)) { got = [...el.querySelectorAll('input[type=radio]:checked')].map(labelOf); ok = got.length === 1 && norm(got[0]) === norm(b.want); }
+    else if (b.kind === 'ma') { got = [...el.querySelectorAll('input[type=checkbox]:checked')].map(labelOf); ok = JSON.stringify(got.map(norm).sort()) === JSON.stringify(b.want.map(norm).sort()); }
+    else if (['short', 'multi', 'num'].includes(b.kind)) { got = [...el.querySelectorAll('input[type=text]')].map(i => i.value); ok = got.length === b.want.length && got.every((v, i) => norm(v) === b.want[i]); }
+    else if (b.kind === 'essay') { got = [el.querySelector('textarea').value]; ok = got[0].trim().length > 40; }
+    else { got = [...el.querySelectorAll('select')].map(s => s.selectedIndex > 0 ? s.options[s.selectedIndex].text : '—'); ok = JSON.stringify(got.map(norm)) === JSON.stringify(b.want.map(norm)); }
+    const card = el.querySelector('.answerly-card, .answerly-nq-card');
+    const cardText = card ? card.innerText.replace(/\s+/g, ' ') : '';
+    const wantList = b.want == null ? [] : [].concat(b.want);
+    const cardOk = b.kind === 'essay' ? cardText.length > 60 : wantList.length > 0 && wantList.every(w => norm(cardText).includes(norm(w)));
+    return { id: b.id, label: b.label, filledOk: ok, got, cardOk, cardText: cardText.slice(0, 160) };
+  });
+};
+
+// ── chrome stub → real sandbox backend ───────────────────────────────────────
+const store = {
+  answerlySession: { code: 'ANS-SANDBOX-TEST', token: 't' },
+  answerlyQuizActive: MODE !== 'shot',
+  answerlyQuizStealthActive: MODE === 'stealth',
+  answerlyScreenshotActive: MODE === 'shot',
+  answerlyScreenshotStealthActive: MODE === 'shot',
+};
+const changeListeners = [];
+window.pending = 0; window.calls = [];
+let TOK = null;
+async function backend(route, body) {
+  if (!TOK) TOK = (await (await fetch('http://localhost:3999/token?code=' + (P.get('code') || 'ANS-SANDBOX-TEST'))).json()).token;
+  const r = await fetch('http://localhost:3999/api/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOK }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  window.calls.push({ route, q: String(body.question || body.context || '').slice(0, 60), status: r.status, j });
+  return r.ok ? j : { error: j.error || 'HTTP ' + r.status };
+}
+window.chrome = {
+  runtime: {
+    id: 'matrix', lastError: null, getURL: p => p,
+    onMessage: { addListener(f) { (window.msgListeners = window.msgListeners || []).push(f); } },
+    sendMessage(msg, cb) {
+      cb = cb || (() => {});
+      const relay = (p) => { window.pending++; p.then(v => { window.pending--; cb(v); }, e => { window.pending--; cb({ error: String(e) }); }); };
+      switch (msg.type) {
+        case 'SOLVE_QUESTION': return relay(backend('solve-question', { question: msg.question, options: msg.options, blankContext: msg.blankContext, isMultiSelect: msg.isMultiSelect, blankCount: msg.blankCount, relatedQuestions: msg.relatedQuestions }));
+        case 'SOLVE_MATCHING': return relay(backend('solve-matching', { question: msg.question, rows: msg.rows, relatedQuestions: msg.relatedQuestions }));
+        case 'SOLVE_SCREENSHOT_STEALTH': return relay(backend('solve-screenshot', { image: msg.image, context: msg.questionText, stealth: true }));
+        case 'CAPTURE_SCREENSHOT': return relay(html2canvas(document.documentElement, { x: scrollX, y: scrollY, width: innerWidth, height: innerHeight, windowWidth: innerWidth, windowHeight: innerHeight, scale: devicePixelRatio, logging: false }).then(c => ({ dataUrl: c.toDataURL('image/png') })));
+        default: return cb({});
+      }
+    },
+  },
+  storage: {
+    local: {
+      get(keys, cb) { const l = keys == null ? Object.keys(store) : [].concat(keys); const o = {}; l.forEach(k => { if (k in store) o[k] = JSON.parse(JSON.stringify(store[k])); }); setTimeout(() => cb(o), 0); },
+      set(obj, cb) { const ch = {}; Object.keys(obj).forEach(k => { ch[k] = { oldValue: store[k], newValue: obj[k] }; store[k] = obj[k]; }); changeListeners.forEach(f => f(ch, 'local')); cb && setTimeout(cb, 0); },
+      remove(keys, cb) { [].concat(keys).forEach(k => delete store[k]); cb && cb(); },
+    },
+    onChanged: { addListener(f) { changeListeners.push(f); } },
+  },
+};
+window.deliver = (msg) => (window.msgListeners || []).forEach(f => { try { f(msg, {}, () => {}); } catch (e) { console.error(e); } });
+window.idle = async (quietMs = 5000, maxMs = 120000) => {
+  const t0 = Date.now(); let quietSince = Date.now(), lastCalls = -1;
+  while (Date.now() - t0 < maxMs) {
+    await new Promise(r => setTimeout(r, 250));
+    if (window.pending > 0 || window.calls.length !== lastCalls) { quietSince = Date.now(); lastCalls = window.calls.length; }
+    else if (Date.now() - quietSince > quietMs) return true;
+  }
+  return false;
+};
+</script>
+<script>
+(async () => {
+  for (const f of ['newQuizSolver.js', 'quizSolver.js']) {
+    await new Promise(r => { const s = document.createElement('script'); s.src = '/extension/content/' + f + '?v=' + Date.now(); s.onload = r; document.body.appendChild(s); });
+  }
+  window.__loaded = true;
+})();
+</script>
+</body>
+</html>

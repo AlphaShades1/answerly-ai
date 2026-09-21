@@ -1139,6 +1139,33 @@ window.__answerlyNQSolverLoaded = true;
           }
         }
         if (!label) {
+          // A dropdown inside a sentence: its label is the words just before it,
+          // stopping at the previous dropdown (then the words after it), as
+          // quizSolver.js does. The ancestor fallback below took the WHOLE
+          // sentence, every other dropdown's option list included — "The capital
+          // of France is Berlin Paris Madrid and the capital of Japan is Seoul
+          // Beijing Tokyo" — which went to the model as prose and was printed on
+          // the student's answer card. If the select is wrapped on its own, look
+          // beside the wrapper instead.
+          const hasSelect = (n) => n.nodeType === 1 && (n.tagName === 'SELECT' || !!n.querySelector('select'));
+          const beside = (start, back) => {
+            let text = '';
+            for (let n = start; n && !hasSelect(n); n = back ? n.previousSibling : n.nextSibling) {
+              const t = n.nodeType === 3 ? n.textContent : n.nodeType === 1 ? elText(n) : '';
+              text = back ? t + text : text + t;
+              if (text.trim().length > 100) break;
+            }
+            return clean(back ? text.slice(-80) : text.slice(0, 80));
+          };
+          let anchor = sel;
+          for (let hops = 0; hops < 3 && !label; hops++) {
+            label = beside(anchor.previousSibling, true) || beside(anchor.nextSibling, false);
+            const up = anchor.parentElement;
+            if (!up || up.querySelectorAll('select').length !== 1) break;
+            anchor = up;
+          }
+        }
+        if (!label) {
           // Nearest ancestor that holds more than just this select.
           let node = sel.parentElement;
           for (let hops = 0; node && hops < 4; hops++, node = node.parentElement) {
@@ -1518,17 +1545,39 @@ window.__answerlyNQSolverLoaded = true;
             return;
           }
 
-          const { inputOptionPairs, textInputEls } = extractNQData(qEl);
+          const { inputOptionPairs, textInputEls, dropdownRows } = extractNQData(qEl);
           const textParts = answerText
             ? answerText.split('|').map(p => p.trim()).filter(Boolean)
             : [];
 
           let matched = false;
-          if (textParts.length > 0) matched = autoSelectNQAnswer(qEl, textParts.join(', '), inputOptionPairs, textParts);
+          // Dropdowns and matching. The stealth prompt returns one answer per
+          // dropdown, top to bottom, joined by " | ". This path never handled
+          // <select> at all, so every dropdown and matching question came back
+          // correctly answered and was then left blank (0/6 in testing, while
+          // quizSolver.js fills the same questions). Mirrors that engine: one part
+          // per dropdown when the counts agree, otherwise each part is tried
+          // against the dropdowns still empty.
+          if (dropdownRows.length > 0 && textParts.length > 0) {
+            let set = 0;
+            if (textParts.length === dropdownRows.length) {
+              dropdownRows.forEach((r, i) => { if (autoSelectNQDropdown(r.selectEl, textParts[i])) set++; });
+            } else {
+              textParts.forEach(part => {
+                const row = dropdownRows.find(r => r.selectEl.selectedIndex <= 0 &&
+                  r.options.some(o => o.trim().toLowerCase() === part.toLowerCase()));
+                if (row && autoSelectNQDropdown(row.selectEl, part)) set++;
+              });
+            }
+            matched = set > 0;
+          }
+          if (!matched && textParts.length > 0) matched = autoSelectNQAnswer(qEl, textParts.join(', '), inputOptionPairs, textParts);
           if (!matched && answerLetter && /^[a-e](,\s*[a-e])*$/.test(answerLetter))
             matched = autoSelectNQAnswer(qEl, answerLetter, inputOptionPairs);
+          // Every part, not just the first: with two or more blanks only box 1
+          // was ever filled ("Au" typed, "Fe" dropped).
           if (!matched && textParts.length > 0 && textInputEls.length > 0)
-            matched = autoFillNQText(textInputEls, textParts[0]);
+            matched = autoFillNQText(textInputEls, textParts.join('; '), textParts);
           if (matched) {
             camBtn.dataset.opened = 'true';
             // Solve All skips a question only when its ? button is marked done;
