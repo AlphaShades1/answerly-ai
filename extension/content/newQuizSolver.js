@@ -412,6 +412,13 @@ window.__answerlyNQSolverLoaded = true;
     '\\baccording to (the|your|this) (text|textbook|reading|article|author|chapter|lecture|video|film|book|notes|professor|instructor)\\b',
     '\\bin (the|your) (textbook|reading|assigned reading)\\b',
   ].join('|'), 'i');
+  // A weekly or chapter quiz is drawn from that week's assigned material even
+  // when no question says so out loud. "Week 12 Quiz" cost one student ~33
+  // points on two textbook definitions ("consultant", "How?") that every model
+  // we tested answers from general knowledge instead - both flip to correct
+  // once the chapter is uploaded. Title only: a question body that happens to
+  // mention a chapter number is not the same signal.
+  const NOTES_NUDGE_TITLE_RE = /\b(week|chapter|ch\.?|module|unit|lesson)\s*#?\s*\d{1,2}\b/i;
   const NOTES_NUDGE_STORE = 'answerlyNotesNudgeShown';
   let notesNudgeState = 'pending';   // 'pending' → 'checking' → 'done'
   let notesNudgeTries = 0;
@@ -432,7 +439,9 @@ window.__answerlyNQSolverLoaded = true;
     const texts = [getQuizTitle(), ...[...quizDigestSeen.values()].map(e => e.q)];
     try { texts.push(getNQQuizContext()); } catch {}
     const m = texts.join('\n').match(NOTES_NUDGE_RE);
-    if (!m) return;
+    let source = m ? notesNudgeSource(m[0]) : '';
+    if (!source && NOTES_NUDGE_TITLE_RE.test(String(getQuizTitle() || ''))) source = 'one week or chapter of your course';
+    if (!source) return;
     notesNudgeState = 'checking';
     try {
       chrome.storage.local.get(['answerlyContextFile', NOTES_NUDGE_STORE], (s) => {
@@ -445,7 +454,7 @@ window.__answerlyNQSolverLoaded = true;
         shown[quizDigestKey] = Date.now();
         const keep = Object.entries(shown).sort((a, b) => b[1] - a[1]).slice(0, 200);
         chrome.storage.local.set({ [NOTES_NUDGE_STORE]: Object.fromEntries(keep) }, () => void chrome.runtime.lastError);
-        showNotesNudge(notesNudgeSource(m[0]));
+        showNotesNudge(source);
       });
     } catch { notesNudgeState = 'done'; }
   }

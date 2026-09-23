@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Notes-upload nudge</title>
+<style>body{font-family:system-ui;padding:20px}
+#log{font-family:ui-monospace,monospace;font-size:13px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}</style>
+</head>
+<body>
+<script>
+// ?engine=nq|classic  &title=Week+12+Quiz  &mode=normal|stealth  &notes=0|1
+const P = new URLSearchParams(location.search);
+// localStorage wins over the query string: the preview pane drops query strings,
+// so the runner sets this, reloads, and reads window.__result.
+let CFG = {};
+try { CFG = JSON.parse(localStorage.getItem('ANSWERLY_TEST_CFG') || '{}'); } catch {}
+const ENGINE = CFG.engine || P.get('engine') || 'nq';
+const TITLE  = CFG.title  || P.get('title')  || 'Week 12 Quiz';
+const MODE   = CFG.mode   || P.get('mode')   || 'normal';
+const NOTES  = CFG.notes !== undefined ? !!CFG.notes : P.get('notes') === '1';
+const QTEXT  = CFG.qtext || 'Which organization spearheaded informatics competencies?';
+document.title = TITLE;
+document.write('<h1>' + TITLE.replace(/[<>]/g, '') + '</h1>');
+// Question markup for whichever engine is under test. The question text is
+// deliberately generic — nothing in it should trip the old content regex, so a
+// nudge here can only have come from the title.
+if (ENGINE === 'nq') {
+  document.write(
+    '<div data-automation="sdk-item-wrapper">' +
+    '  <div data-automation="sdk-position-box-text">Question 1</div>' +
+    '  <div tabindex="-1"><div class="user_content enhanced"><p>' + QTEXT + '</p></div></div>' +
+    '  <div role="radiogroup">' +
+    '    <label><input type="radio" name="q1"><span class="user_content enhanced">TIGER</span></label>' +
+    '    <label><input type="radio" name="q1"><span class="user_content enhanced">HIMSS</span></label>' +
+    '  </div>' +
+    '</div>');
+} else {
+  document.write(
+    '<div class="question display_question" id="question_1">' +
+    '  <div class="questionName">Question 1</div>' +
+    '  <div class="question_text user_content"><p>' + QTEXT + '</p></div>' +
+    '  <div class="answers"><div class="answers_wrapper">' +
+    '    <div class="answer"><input type="radio" name="q1" id="a1"><label for="a1"><div class="answer_text">TIGER</div></label></div>' +
+    '    <div class="answer"><input type="radio" name="q1" id="a2"><label for="a2"><div class="answer_text">HIMSS</div></label></div>' +
+    '  </div></div>' +
+    '</div>');
+}
+document.write('<div id="log">running…</div>');
+</script>
+
+<script>
+// -- chrome stub ----------------------------------------------------------
+const store = {
+  answerlySession: { code: 'ANS-TEST' },
+  answerlyQuizActive: true,
+  answerlyQuizStealthActive: MODE === 'stealth',
+};
+if (NOTES) store.answerlyContextFile = { name: 'chapter30.pdf', context: 'The consultant advocates for the needs of users...' };
+const changeListeners = [], msgListeners = [];
+window.chrome = {
+  runtime: { lastError: null, onMessage: { addListener(fn){ msgListeners.push(fn); } }, sendMessage(){}, getURL: p => p },
+  storage: {
+    local: {
+      get(keys, cb) {
+        const list = Array.isArray(keys) ? keys : [keys];
+        const out = {};
+        list.forEach(k => { if (k in store) out[k] = store[k]; });
+        cb(out);
+      },
+      set(obj, cb) {
+        const changes = {};
+        Object.keys(obj).forEach(k => { changes[k] = { oldValue: store[k], newValue: obj[k] }; store[k] = obj[k]; });
+        changeListeners.forEach(fn => fn(changes, 'local'));
+        if (cb) cb();
+      },
+      remove(keys, cb) {
+        const list = Array.isArray(keys) ? keys : [keys];
+        list.forEach(k => delete store[k]);
+        if (cb) cb();
+      },
+    },
+    onChanged: { addListener(fn) { changeListeners.push(fn); } },
+  },
+};
+const tick = ms => new Promise(r => setTimeout(r, ms));
+</script>
+
+<script>
+document.write('<scr' + 'ipt src="/extension/content/'
+  + (ENGINE === 'nq' ? 'newQuizSolver.js' : 'quizSolver.js') + '?cb=' + Date.now() + '"></scr' + 'ipt>');
+</script>
+
+<script>
+(async function run() {
+  // The nudge retries on a ~2s tick for up to ~20s; three ticks is plenty.
+  await tick(7000);
+  const box = document.getElementById('answerly-notes-nudge');
+  const shown = !!box;
+  const body = box ? String(box.textContent || '') : '';
+  const stored = store.answerlyNotesNudgeShown ? Object.keys(store.answerlyNotesNudgeShown).length : 0;
+  window.__result = {
+    engine: ENGINE, title: TITLE, mode: MODE, notes: NOTES,
+    shown, stored,
+    text: body.replace(/\s+/g, ' ').slice(0, 160),
+    injected: document.querySelectorAll('.answerly-nq-btn, .answerly-btn').length,
+  };
+  document.getElementById('log').textContent = JSON.stringify(window.__result, null, 1);
+  window.__done = true;
+})();
+</script>
+</body>
+</html>
