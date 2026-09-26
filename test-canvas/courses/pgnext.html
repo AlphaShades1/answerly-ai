@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Privacy Guard across question navigation</title>
+<style>body{font-family:system-ui;padding:20px;max-width:900px}
+#log{font-family:ui-monospace,monospace;font-size:13px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}</style>
+</head>
+<body>
+<h3>Does the guard survive one-question-at-a-time navigation?</h3>
+<p>Quizzes that show one question per "Next" click change the page in three ways.
+This checks the guard still blocks after each, inside the same document.</p>
+<div id="quiz"></div>
+<div id="log">running…</div>
+
+<!-- Installed once, at load, exactly as the registered content script does. -->
+<script src="/extension/content/privacyGuard.js"></script>
+
+<script>
+const results = [];
+const check = (n, ok, d) => results.push({ n, ok: !!ok, d: d || '' });
+const EVENT_URL = '/api/v1/courses/1/quizzes/5/submissions/9/events';
+
+// A blocked call is answered by the guard with an empty 200 and never reaches
+// the network. The static server has no such route, so an unguarded call 404s.
+async function stillBlocked(label) {
+  const r = await fetch(EVENT_URL);
+  const b = await r.text();
+  const guarded = r.status === 200 && b.trim() === '{}';
+  check(label, guarded, 'status=' + r.status + ' body=' + JSON.stringify(b.slice(0, 16)));
+  return guarded;
+}
+
+// Same shape as an XHR beacon, which Canvas also uses for event logging.
+function xhrBlocked(label) {
+  return new Promise(resolve => {
+    const x = new XMLHttpRequest();
+    x.open('POST', EVENT_URL);
+    x.onload = () => {
+      const guarded = x.status === 200 && String(x.responseText).trim() === '{}';
+      check(label, guarded, 'status=' + x.status + ' body=' + JSON.stringify(String(x.responseText).slice(0, 16)));
+      resolve(guarded);
+    };
+    x.onerror = () => { check(label, false, 'network error — went out unguarded'); resolve(false); };
+    x.send('{}');
+  });
+}
+
+(async () => {
+  await stillBlocked('1. blocked on the first question (baseline)');
+  await xhrBlocked('2. XHR beacon blocked on the first question');
+
+  // (a) React-style remount: the question subtree is replaced wholesale.
+  for (let i = 2; i <= 4; i++) {
+    document.getElementById('quiz').innerHTML =
+      '<div data-automation="sdk-item-wrapper"><div data-automation="sdk-position-box-text">Question ' + i +
+      '</div><div tabindex="-1"><div class="user_content enhanced"><p>Question ' + i + ' body</p></div></div></div>';
+    await new Promise(r => setTimeout(r, 120));
+  }
+  await stillBlocked('3. still blocked after 3 question remounts');
+
+  // (b) SPA route change — what New Quizzes does on Next without reloading.
+  // Stay on this document — the preview pane follows a path change and reloads.
+  history.pushState({}, '', location.pathname + '?q=7#question-7');
+  await new Promise(r => setTimeout(r, 120));
+  await stillBlocked('4. still blocked after a pushState route change');
+  await xhrBlocked('5. XHR still blocked after a pushState route change');
+
+  // (c) A late-created element making the call, as a re-rendered widget would.
+  const late = document.createElement('div');
+  document.body.appendChild(late);
+  await stillBlocked('6. still blocked for a late-created element');
+
+  // (d) sendBeacon, used on question change and unload.
+  let beaconBlocked = null;
+  try { beaconBlocked = navigator.sendBeacon(EVENT_URL, '{}'); } catch (e) { beaconBlocked = 'threw'; }
+  check('7. sendBeacon intercepted (returns true without sending)', beaconBlocked === true, 'returned ' + beaconBlocked);
+
+  // Control: a normal request must still work after all of the above.
+  const ok = await fetch('/test-canvas/courses/quiz.html');
+  check('8. normal requests unaffected throughout', ok.ok, 'status=' + ok.status);
+
+  document.getElementById('log').innerHTML = results.map(r =>
+    `<span class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</span>  ${r.n}\n       ${r.d}`
+  ).join('\n') + `\n\n${results.filter(r => r.ok).length}/${results.length} passed`;
+  window.__results = results; window.__done = true;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>NQ stealth buttons across Next</title>
+<style>body{font-family:system-ui;padding:20px;max-width:900px}
+[data-automation="sdk-item-wrapper"]{border:1px solid #cbd;margin:14px 0;padding:10px}
+#log{font-family:ui-monospace,monospace;font-size:12px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}</style>
+</head>
+<body>
+<h1 id="quiz_title">Module 5 Quiz</h1>
+<p>One question at a time. Each "Next" is simulated two ways, because New Quizzes
+does both: React reusing the same wrapper node with new content, and replacing
+the wrapper outright. Both stealth buttons must come back on every question.</p>
+<div id="quiz"></div>
+<div id="log">running…</div>
+
+<script>
+const QUESTIONS = [
+  { t: 'Which dependency is inherent in the nature of the work?', o: ['Mandatory', 'Discretionary'], kind: 'radio' },
+  { t: 'Which technique compresses a schedule for the least cost?', o: ['Crashing', 'Fast-tracking'], kind: 'radio' },
+  { t: 'A kanban board includes To Do, In Progress and Done.', o: ['True', 'False'], kind: 'radio' },
+  { t: 'Agile teams use _____ estimates by comparing user stories.', o: [], kind: 'text' },
+  { t: 'Select every dimension of health IT governance.', o: ['Managing information', 'Cost control', 'Clinical documentation'], kind: 'checkbox' },
+  { t: 'Activity ____ determines dependencies between activities.', o: [], kind: 'text' },
+];
+function inner(q, n) {
+  const body = q.kind === 'text'
+    ? '<div><input type="text" name="q' + n + '"></div>'
+    : '<div role="' + (q.kind === 'radio' ? 'radiogroup' : 'group') + '">' +
+      q.o.map(o => '<label style="display:block"><input type="' + q.kind + '" name="q' + n + '"><span class="user_content enhanced">' + o + '</span></label>').join('') +
+      '</div>';
+  return '<div data-automation="sdk-position-box-text">Question ' + n + '</div>' +
+         '<div data-automation="sdk-interaction-type-name-div">' + (q.kind === 'text' ? 'Fill in the Blank' : 'Multiple Choice') + '</div>' +
+         '<div tabindex="-1"><div class="user_content enhanced"><p>' + q.t + '</p></div></div>' + body;
+}
+function showFirst() {
+  document.getElementById('quiz').innerHTML =
+    '<div data-automation="sdk-item-wrapper">' + inner(QUESTIONS[0], 1) + '</div>';
+}
+showFirst();
+
+const store = {
+  answerlySession: { code: 'ANS-TEST' },
+  answerlyQuizActive: true,
+  answerlyQuizStealthActive: true,        // stealth quiz solver
+  answerlyScreenshotActive: true,
+  answerlyScreenshotStealthActive: true,  // stealth screenshot
+};
+const changeListeners = [];
+window.chrome = {
+  runtime: { lastError: null, onMessage: { addListener() {} }, sendMessage() {}, getURL: p => p },
+  storage: {
+    local: {
+      get(keys, cb) { const l = Array.isArray(keys) ? keys : [keys]; const o = {}; l.forEach(k => { if (k in store) o[k] = store[k]; }); cb(o); },
+      set(obj, cb) { Object.assign(store, obj); if (cb) cb(); },
+      remove(keys, cb) { (Array.isArray(keys) ? keys : [keys]).forEach(k => delete store[k]); if (cb) cb(); },
+    },
+    onChanged: { addListener(fn) { changeListeners.push(fn); } },
+  },
+};
+</script>
+
+<script src="/extension/content/newQuizSolver.js"></script>
+
+<script>
+const results = [];
+const check = (n, ok, d) => results.push({ n, ok: !!ok, d: d || '' });
+
+function inspect() {
+  const q = document.querySelector('[data-automation="sdk-item-wrapper"]');
+  if (!q) return { ok: false, why: 'no question on page' };
+  const box = q.getBoundingClientRect();
+  const trig = q.querySelector('.answerly-nq-btn:not(.answerly-nq-cam-btn)');
+  const cam  = q.querySelector('.answerly-nq-cam-btn');
+  const pos = el => el ? { dx: Math.round(el.getBoundingClientRect().left - box.left),
+                           dy: Math.round(el.getBoundingClientRect().top - box.top) } : null;
+  return { ok: !!trig && !!cam, trigger: pos(trig), camera: pos(cam),
+           trigInvisible: trig ? getComputedStyle(trig).opacity === '0' : null,
+           camInvisible: cam ? getComputedStyle(cam).opacity === '0' : null };
+}
+
+// "Next" the way React does it: same node, new innards.
+function nextReuse(i) {
+  const wrap = document.querySelector('[data-automation="sdk-item-wrapper"]');
+  wrap.innerHTML = inner(QUESTIONS[i], i + 1);
+}
+// "Next" the way a full remount does it: wrapper thrown away and rebuilt.
+function nextRemount(i) {
+  document.getElementById('quiz').innerHTML =
+    '<div data-automation="sdk-item-wrapper">' + inner(QUESTIONS[i], i + 1) + '</div>';
+}
+
+(async () => {
+  await new Promise(r => setTimeout(r, 4000));   // initial injection
+  const first = inspect();
+  check('Q1 both stealth buttons present on load', first.ok, JSON.stringify(first));
+
+  const seen = [];
+  if (first.ok) seen.push(first.trigger);
+
+  for (let i = 1; i < QUESTIONS.length; i++) {
+    const mode = i % 2 ? 'reuse' : 'remount';
+    (mode === 'reuse' ? nextReuse : nextRemount)(i);
+    // The recovery tick runs about every 2s; give it room plus margin.
+    await new Promise(r => setTimeout(r, 3000));
+    const s = inspect();
+    check(`Q${i + 1} both buttons returned after Next (${mode})`, s.ok, JSON.stringify(s));
+    if (s.ok) seen.push(s.trigger);
+  }
+
+  const dxs = [...new Set(seen.map(p => p.dx))];
+  const dys = [...new Set(seen.map(p => p.dy))];
+  check('trigger sits at the same spot on every question',
+        dxs.length === 1 && dys.length === 1, 'dx=' + JSON.stringify(dxs) + ' dy=' + JSON.stringify(dys));
+
+  const last = inspect();
+  check('buttons stayed invisible throughout (stealth intact)',
+        last.trigInvisible === true && last.camInvisible === true,
+        'trigger opacity 0: ' + last.trigInvisible + ', camera opacity 0: ' + last.camInvisible);
+
+  document.getElementById('log').innerHTML = results.map(r =>
+    `<span class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</span>  ${r.n}\n       ${r.d}`
+  ).join('\n') + `\n\n${results.filter(r => r.ok).length}/${results.length} passed`;
+  window.__results = results; window.__done = true;
+})();
+</script>
+</body>
+</html>
