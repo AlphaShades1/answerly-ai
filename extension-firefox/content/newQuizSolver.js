@@ -1649,14 +1649,13 @@ window.__answerlyNQSolverLoaded = true;
       const questionText = nqStemWithoutSelectOptions(stemContent) || nqStemText(stemContent);
       if (!questionText) return;
 
-      const header = findNQHeader(qEl);
       const camBtn = document.createElement('button');
       camBtn.type      = 'button';
       camBtn.className = `answerly-nq-btn answerly-invisible answerly-nq-cam-btn answerly-nq-cam-only ${INJECTED}`;
       camBtn.title     = '';
       camBtn.dataset.qsig = sig;
       camBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
-      header.appendChild(camBtn);
+      placeNQButton(qEl, camBtn, 'camera');
 
       camBtn.addEventListener('mouseenter', () => {
         document.getElementById('answerly-nq-stealth-tip')?.remove();
@@ -1681,16 +1680,36 @@ window.__answerlyNQSolverLoaded = true;
     });
   }
 
-  // ── Find the header row for button injection ───────────────────────────────
-  // The question header contains the position box ("Question 1") and type label.
-  function findNQHeader(qEl) {
-    const posBox  = qEl.querySelector('[data-automation="sdk-position-box-text"]');
-    const typeBox = qEl.querySelector('[data-automation="sdk-interaction-type-name-div"]');
-    // Prefer the common parent of posBox and typeBox if they share one level up
-    if (posBox && typeBox && posBox.parentElement === typeBox.parentElement) {
-      return posBox.parentElement;
-    }
-    return posBox?.parentElement || typeBox?.parentElement || qEl.firstElementChild || qEl;
+  // ── Put the button in the same place on every question ─────────────────────
+  // This used to append into whatever "header" the markup happened to expose,
+  // which is four different elements depending on how New Quizzes nested the
+  // position box and type label. Measured across those four shapes, the button
+  // landed 32px, 54px, 86px and 171px down the question — and at 171px it sits
+  // *below* the answer options. Invisible in stealth mode, that reads as the
+  // button simply not being there, which is what users reported.
+  //
+  // So anchor to the question wrapper itself and pin it, the way Classic's
+  // header row gives it a fixed spot. Camera keeps its own slot so the two
+  // never overlap and neither moves depending on whether the other is on.
+  const NQ_BTN_SLOTS = { trigger: 8, camera: 36 };   // px from the right edge
+
+  function placeNQButton(qEl, btn, slot) {
+    try {
+      // A positioned ancestor is required for the offsets below. position:
+      // relative does not move qEl, so this cannot disturb the Canvas layout.
+      if (getComputedStyle(qEl).position === 'static') {
+        qEl.style.setProperty('position', 'relative', 'important');
+      }
+    } catch { /* detached node — appendChild below still works */ }
+    btn.style.setProperty('position', 'absolute', 'important');
+    btn.style.setProperty('top', '8px', 'important');
+    btn.style.setProperty('right', (NQ_BTN_SLOTS[slot] || 8) + 'px', 'important');
+    btn.style.setProperty('left', 'auto', 'important');
+    // The shared .answerly-nq-btn rule carries margin-left for inline layout,
+    // which would shift a pinned button off its slot.
+    btn.style.setProperty('margin', '0', 'important');
+    btn.style.setProperty('z-index', '2147483000', 'important');
+    qEl.appendChild(btn);
   }
 
   // ── Inject buttons ─────────────────────────────────────────────────────────
@@ -1737,8 +1756,6 @@ window.__answerlyNQSolverLoaded = true;
                 ? 'Essay question'
                 : `${questionType} question`));
 
-      const header = findNQHeader(qEl);
-
       // ── ? trigger button ──────────────────────────────────────────────────
       const btn = document.createElement('button');
       btn.type      = 'button';
@@ -1749,7 +1766,7 @@ window.__answerlyNQSolverLoaded = true;
       btn.style.setProperty('background',  accent, 'important');
       btn.style.setProperty('box-shadow', `0 2px 8px ${accent}88`, 'important');
       if (stealthHidden) btn.classList.add('answerly-invisible');
-      header.appendChild(btn);
+      placeNQButton(qEl, btn, 'trigger');
 
       if (stealthHidden) {
         // ── STEALTH / AUTO-SELECT MODE ───────────────────────────────────────
@@ -1894,7 +1911,7 @@ window.__answerlyNQSolverLoaded = true;
         camBtn.title     = '';
         camBtn.dataset.qsig = sig;
         camBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
-        header.insertBefore(camBtn, btn);
+        placeNQButton(qEl, camBtn, 'camera');
 
         camBtn.addEventListener('mouseenter', () => {
           document.getElementById('answerly-nq-stealth-tip')?.remove();

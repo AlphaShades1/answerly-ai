@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>New Quizzes button placement</title>
+<style>body{font-family:system-ui;padding:20px;max-width:900px}
+[data-automation="sdk-item-wrapper"]{border:1px solid #cbd;margin:14px 0;padding:10px}
+#log{font-family:ui-monospace,monospace;font-size:13px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}
+/* Make the normally-invisible stealth buttons measurable without changing layout. */
+.answerly-invisible{opacity:.001 !important}
+</style>
+</head>
+<body>
+<h1 id="quiz_title">Module 5 Quiz</h1>
+<p>Four New Quizzes markup shapes. The button should land in the same place on
+every one — that is what "always in the same spot" means.</p>
+<div id="quiz"></div>
+<div id="log">running…</div>
+
+<script>
+// Four shapes findNQHeader() can hit:
+//  A  position box + type label sharing a parent header div  (header = that div)
+//  B  position box + type label as direct children of the wrapper (header = wrapper)
+//  C  position box only, nested                                   (header = its parent)
+//  D  neither box present                                          (header = firstElementChild)
+const VARIANTS = {
+  A: `<div data-automation="sdk-item-wrapper" data-v="A">
+        <div class="hdr"><div data-automation="sdk-position-box-text">Question 1</div>
+             <div data-automation="sdk-interaction-type-name-div">Multiple Choice</div></div>
+        <div tabindex="-1"><div class="user_content enhanced"><p>Which dependency is inherent in the nature of the work?</p></div></div>
+        <div role="radiogroup">
+          <label style="display:block"><input type="radio" name="a"><span class="user_content enhanced">Mandatory</span></label>
+          <label style="display:block"><input type="radio" name="a"><span class="user_content enhanced">Discretionary</span></label>
+        </div></div>`,
+  B: `<div data-automation="sdk-item-wrapper" data-v="B">
+        <div data-automation="sdk-position-box-text">Question 2</div>
+        <div data-automation="sdk-interaction-type-name-div">Multiple Choice</div>
+        <div tabindex="-1"><div class="user_content enhanced"><p>Which technique compresses a schedule for least cost?</p></div></div>
+        <div role="radiogroup">
+          <label style="display:block"><input type="radio" name="b"><span class="user_content enhanced">Crashing</span></label>
+          <label style="display:block"><input type="radio" name="b"><span class="user_content enhanced">Fast-tracking</span></label>
+        </div></div>`,
+  C: `<div data-automation="sdk-item-wrapper" data-v="C">
+        <div class="hdr"><div data-automation="sdk-position-box-text">Question 3</div></div>
+        <div tabindex="-1"><div class="user_content enhanced"><p>A kanban board usually includes To Do, In Progress and Done.</p></div></div>
+        <div role="radiogroup">
+          <label style="display:block"><input type="radio" name="c"><span class="user_content enhanced">True</span></label>
+          <label style="display:block"><input type="radio" name="c"><span class="user_content enhanced">False</span></label>
+        </div></div>`,
+  D: `<div data-automation="sdk-item-wrapper" data-v="D">
+        <div tabindex="-1"><div class="user_content enhanced"><p>Agile teams use _____ estimates by comparing user stories.</p></div></div>
+        <div><input type="text" name="d"></div></div>`,
+};
+document.getElementById('quiz').innerHTML = Object.values(VARIANTS).join('');
+
+// ── chrome stub ───────────────────────────────────────────────────────────
+const store = {
+  answerlySession: { code: 'ANS-TEST' },
+  answerlyQuizActive: true,
+  answerlyQuizStealthActive: true,       // stealth: the invisible buttons Sarah means
+  answerlyScreenshotActive: true,
+  answerlyScreenshotStealthActive: true, // camera button too
+};
+const changeListeners = [];
+window.chrome = {
+  runtime: { lastError: null, onMessage: { addListener() {} }, sendMessage() {}, getURL: p => p },
+  storage: {
+    local: {
+      get(keys, cb) { const l = Array.isArray(keys) ? keys : [keys]; const o = {}; l.forEach(k => { if (k in store) o[k] = store[k]; }); cb(o); },
+      set(obj, cb) { Object.assign(store, obj); if (cb) cb(); },
+      remove(keys, cb) { (Array.isArray(keys) ? keys : [keys]).forEach(k => delete store[k]); if (cb) cb(); },
+    },
+    onChanged: { addListener(fn) { changeListeners.push(fn); } },
+  },
+};
+</script>
+
+<script src="/extension/content/newQuizSolver.js"></script>
+
+<script>
+(async () => {
+  await new Promise(r => setTimeout(r, 6000));
+  const rows = [];
+  document.querySelectorAll('[data-automation="sdk-item-wrapper"]').forEach(q => {
+    const box = q.getBoundingClientRect();
+    const btn = q.querySelector('.answerly-nq-btn:not(.answerly-nq-cam-btn)');
+    const cam = q.querySelector('.answerly-nq-cam-btn');
+    const rel = (el) => {
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { dx: Math.round(r.left - box.left), dy: Math.round(r.top - box.top) };
+    };
+    rows.push({ v: q.getAttribute('data-v'), qBtn: rel(btn), cam: rel(cam), boxH: Math.round(box.height) });
+  });
+  const present = rows.filter(r => r.qBtn);
+  const ys = [...new Set(present.map(r => r.qBtn.dy))];
+  const xs = [...new Set(present.map(r => r.qBtn.dx))];
+  const consistent = ys.length === 1 && xs.length === 1 && present.length === rows.length;
+  const out = [
+    'button offset from each question box, in px:',
+    ...rows.map(r => `   variant ${r.v}:  ? btn ${r.qBtn ? `dx=${String(r.qBtn.dx).padStart(4)} dy=${String(r.qBtn.dy).padStart(4)}` : 'MISSING'.padStart(16)}` +
+                     `    camera ${r.cam ? `dx=${String(r.cam.dx).padStart(4)} dy=${String(r.cam.dy).padStart(4)}` : 'MISSING'.padStart(16)}` +
+                     `   (question is ${r.boxH}px tall)`),
+    '',
+    `distinct dy values: ${JSON.stringify(ys)}   distinct dx values: ${JSON.stringify(xs)}`,
+    `buttons injected: ${present.length}/${rows.length}`,
+  ].join('\n');
+  document.getElementById('log').innerHTML =
+    `<span class="${consistent ? 'pass' : 'fail'}">${consistent ? 'CONSISTENT' : 'INCONSISTENT'}</span>\n` + out;
+  window.__rows = rows; window.__consistent = consistent; window.__done = true;
+})();
+</script>
+</body>
+</html>
