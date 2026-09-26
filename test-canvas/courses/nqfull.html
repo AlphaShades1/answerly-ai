@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>NQ full feature sweep</title>
+<style>body{font-family:system-ui;padding:20px;max-width:1000px}
+[data-automation="sdk-item-wrapper"]{border:1px solid #cbd;margin:14px 0;padding:10px}
+#log{font-family:ui-monospace,monospace;font-size:12px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}</style>
+</head>
+<body>
+<h1 id="quiz_title">Module 5 Quiz</h1>
+<div id="quiz"></div>
+<div id="log">running…</div>
+
+<script>
+// ── The quiz: one of every type the engine claims to handle ────────────────
+const BANK = [
+  { id:'mc',  type:'Multiple Choice', q:'Which dependency is inherent in the nature of the work?',
+    opts:['Mandatory','Discretionary','External','Internal'], kind:'radio', key:'Mandatory' },
+  { id:'tf',  type:'True/False', q:'A kanban board usually includes To Do, In Progress and Done.',
+    opts:['True','False'], kind:'radio', key:'True' },
+  { id:'sa',  type:'Multiple Answer', q:'Which activities represent dimensions of health IT governance? (Select all that apply.)',
+    opts:['Clinical documentation','Managing information','Using business intelligence','Aligning business and informatics'],
+    kind:'checkbox', key:['Managing information','Using business intelligence','Aligning business and informatics'] },
+  { id:'fib', type:'Fill in the Blank', q:'Activity ____ determines the dependencies between activities.',
+    opts:[], kind:'text', key:'sequencing' },
+];
+
+function bodyFor(b) {
+  if (b.kind === 'text') return '<div><input type="text" name="' + b.id + '"></div>';
+  return '<div role="' + (b.kind === 'radio' ? 'radiogroup' : 'group') + '">' +
+    b.opts.map(o => '<label style="display:block"><input type="' + b.kind + '" name="' + b.id +
+      '"><span class="user_content enhanced">' + o + '</span></label>').join('') + '</div>';
+}
+function render() {
+  document.getElementById('quiz').innerHTML = BANK.map((b, i) =>
+    '<div data-automation="sdk-item-wrapper" data-id="' + b.id + '">' +
+      '<div data-automation="sdk-position-box-text">Question ' + (i + 1) + '</div>' +
+      '<div data-automation="sdk-interaction-type-name-div">' + b.type + '</div>' +
+      '<div tabindex="-1"><div class="user_content enhanced"><p>' + b.q + '</p></div></div>' +
+      bodyFor(b) + '</div>').join('');
+}
+render();
+
+// ── chrome stub: records every payload, answers from the key ───────────────
+const sent = [];          // everything the engine asked the backend
+const store = {
+  answerlySession: { code: 'ANS-TEST' },
+  answerlyQuizActive: true,
+  answerlyQuizStealthActive: false,      // start in NORMAL mode
+  answerlyScreenshotActive: false,
+  answerlyScreenshotStealthActive: false,
+  answerlyStealthKeybind: { enabled: true, key: 'q' },
+  answerlyTheme_ANS_TEST: null,
+};
+const changeListeners = [], msgListeners = [];
+function keyFor(question) {
+  const b = BANK.find(x => question && question.includes(x.q.slice(0, 40)));
+  if (!b) return null;
+  return Array.isArray(b.key) ? b.key : [b.key];
+}
+window.chrome = {
+  runtime: {
+    lastError: null,
+    onMessage: { addListener(fn) { msgListeners.push(fn); } },
+    getURL: p => p,
+    sendMessage(msg, cb) {
+      sent.push(JSON.parse(JSON.stringify(msg)));
+      if (typeof cb !== 'function') return;
+      const parts = keyFor(msg.question);
+      setTimeout(() => {
+        if (msg.type === 'SOLVE_QUESTION') {
+          if (!parts) return cb({ error: 'no key for that question' });
+          cb({ solveId: 'sid-' + sent.length, answer: parts.join(', '), answerParts: parts,
+               hint: 'because the textbook says so' });
+        } else { cb({ solveId: 'sid-' + sent.length, answer: 'ok' }); }
+      }, 30);
+    },
+  },
+  storage: {
+    local: {
+      get(keys, cb) { const l = Array.isArray(keys) ? keys : [keys]; const o = {};
+        l.forEach(k => { if (k in store && store[k] !== null) o[k] = store[k]; }); cb(o); },
+      set(obj, cb) {
+        const ch = {}; Object.keys(obj).forEach(k => { ch[k] = { oldValue: store[k], newValue: obj[k] }; store[k] = obj[k]; });
+        changeListeners.forEach(fn => fn(ch, 'local')); if (cb) cb();
+      },
+      remove(keys, cb) { (Array.isArray(keys) ? keys : [keys]).forEach(k => delete store[k]); if (cb) cb(); },
+    },
+    onChanged: { addListener(fn) { changeListeners.push(fn); } },
+  },
+};
+const post = m => msgListeners.forEach(fn => fn(m, {}, () => {}));
+const tick = ms => new Promise(r => setTimeout(r, ms));
+</script>
+
+<script src="/extension/content/newQuizSolver.js"></script>
+
+<script>
+const results = [];
+const check = (n, ok, d) => results.push({ n, ok: !!ok, d: d === undefined ? '' : String(d) });
+const qEl = id => document.querySelector('[data-id="' + id + '"]');
+const selected = id => [...qEl(id).querySelectorAll('input:checked')]
+  .map(i => i.closest('label').textContent.trim());
+const typed = id => { const t = qEl(id).querySelector('input[type="text"]'); return t ? t.value.trim() : null; };
+const cardText = id => { const c = qEl(id).querySelector('.answerly-nq-card, [class*="answerly"][class*="card"]');
+  return c ? c.textContent.replace(/\s+/g, ' ').trim() : null; };
+const clearAll = () => BANK.forEach(b => {
+  qEl(b.id).querySelectorAll('input').forEach(i => { i.checked = false; if (i.type === 'text') i.value = ''; });
+});
+
+(async () => {
+  await tick(3500);
+
+  // ── 1. NORMAL MODE: buttons visible, ? click produces an answer card ──────
+  const trig = qEl('mc').querySelector('.answerly-nq-btn:not(.answerly-nq-cam-btn)');
+  check('normal mode: ? button injected', !!trig);
+  check('normal mode: ? button is VISIBLE (not stealth)',
+        trig && getComputedStyle(trig).opacity !== '0', trig && getComputedStyle(trig).opacity);
+  sent.length = 0;
+  if (trig) trig.click();
+  await tick(1200);
+  const card = cardText('mc');
+  check('normal mode: ? renders the hint card first (answer hidden)',
+        !!card && /Hint/i.test(card) && !/Mandatory/.test(card), (card || '').slice(0, 90));
+  // The answer is deliberately behind a second click, so press it.
+  const showBtn = [...qEl('mc').querySelectorAll('button')].find(b => /show answer/i.test(b.textContent));
+  check('normal mode: a Show Answer button is offered', !!showBtn);
+  if (showBtn) showBtn.click();
+  await tick(600);
+  const revealed = cardText('mc');
+  check('normal mode: Show Answer reveals the answer', !!revealed && /Mandatory/.test(revealed), (revealed || '').slice(0, 90));
+
+  // ── 2. CAPTURE FIDELITY: what actually went to the backend ───────────────
+  const mcSend = sent.find(s => s.type === 'SOLVE_QUESTION');
+  check('capture: question text sent in full', mcSend && mcSend.question.includes('inherent in the nature of the work'),
+        mcSend && mcSend.question);
+  check('capture: every option sent, in order',
+        mcSend && JSON.stringify(mcSend.options) === JSON.stringify(BANK[0].opts),
+        mcSend && JSON.stringify(mcSend.options));
+  check('capture: quiz title attached', mcSend && mcSend.quizTitle === 'Module 5 Quiz', mcSend && mcSend.quizTitle);
+
+  // ── 3. STEALTH MODE: buttons invisible, auto-select instead of a card ─────
+  clearAll();
+  chrome.storage.local.set({ answerlyQuizStealthActive: true });
+  await tick(2500);
+  const strig = qEl('mc').querySelector('.answerly-nq-btn:not(.answerly-nq-cam-btn)');
+  check('stealth mode: ? button is INVISIBLE', strig && getComputedStyle(strig).opacity === '0',
+        strig && getComputedStyle(strig).opacity);
+  sent.length = 0;
+  if (strig) strig.click();
+  await tick(1200);
+  check('stealth mode: answer auto-selected on the page', JSON.stringify(selected('mc')) === '["Mandatory"]',
+        JSON.stringify(selected('mc')));
+  check('stealth mode: no visible answer card', !cardText('mc'), cardText('mc'));
+
+  // ── 4. SOLVE ALL (stealth): every question type answered ─────────────────
+  // Solve All deliberately skips questions already completed (that is what
+  // stops double-billing), and 'mc' was genuinely answered above. Reset the
+  // page the way a fresh attempt would, engine markers included.
+  clearAll();
+  document.querySelectorAll('.answerly-nq-btn').forEach(b => { delete b.dataset.opened; delete b.dataset.done; });
+  sent.length = 0;
+  post({ type: 'SOLVE_ALL' });
+  await tick(6000);
+  check('solve all: multiple choice selected', JSON.stringify(selected('mc')) === '["Mandatory"]', JSON.stringify(selected('mc')));
+  check('solve all: true/false selected', JSON.stringify(selected('tf')) === '["True"]', JSON.stringify(selected('tf')));
+  check('solve all: select-all ticked every correct box',
+        JSON.stringify(selected('sa').sort()) === JSON.stringify([...BANK[2].key].sort()), JSON.stringify(selected('sa')));
+  check('solve all: fill-in-the-blank typed in', typed('fib') === 'sequencing', typed('fib'));
+  const asked = sent.filter(s => s.type === 'SOLVE_QUESTION');
+  check('solve all: asked the backend once per question', asked.length === BANK.length, 'asked ' + asked.length + ' for ' + BANK.length);
+
+  // ── 5. KEYBIND (stealth only, question under the mouse) ──────────────────
+  clearAll();
+  sent.length = 0;
+  const r = qEl('tf').getBoundingClientRect();
+  document.dispatchEvent(new MouseEvent('mousemove', { clientX: Math.round(r.left + 20), clientY: Math.round(r.top + 20), bubbles: true }));
+  await tick(150);
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true }));
+  await tick(1500);
+  check('keybind: solved the question under the cursor', JSON.stringify(selected('tf')) === '["True"]', JSON.stringify(selected('tf')));
+  check('keybind: did not touch other questions', selected('mc').length === 0, JSON.stringify(selected('mc')));
+
+  // keybind must not fire while typing in a field
+  clearAll();
+  sent.length = 0;
+  const input = qEl('fib').querySelector('input[type="text"]');
+  input.focus();
+  input.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true }));
+  await tick(800);
+  check('keybind: ignored while typing in an input', sent.filter(s => s.type === 'SOLVE_QUESTION').length === 0,
+        'requests fired: ' + sent.filter(s => s.type === 'SOLVE_QUESTION').length);
+
+  // ── 6. CUSTOMIZATION: theme applies to the injected UI ───────────────────
+  chrome.storage.local.set({ answerlyQuizStealthActive: false });
+  await tick(2000);
+  chrome.storage.local.set({ 'answerlyTheme_ANS-TEST': { accentColor: '#ff0000', cardBg: '#003300', cardBorder: '#ff0000', answerColor: '#ffffff', hintColor: '#cccccc', opacity: 100 } });
+  await tick(2500);
+  const themed = qEl('mc').querySelector('.answerly-nq-btn:not(.answerly-nq-cam-btn)');
+  const bg = themed ? getComputedStyle(themed).backgroundColor : '';
+  check('customization: accent colour applied to the button', /255,\s*0,\s*0/.test(bg), bg);
+
+  chrome.storage.local.set({ 'answerlyTheme_ANS-TEST': { accentColor: '#ff0000', cardBg: '#003300', cardBorder: '#ff0000', answerColor: '#ffffff', hintColor: '#cccccc', opacity: 0 } });
+  await tick(2500);
+  // theme.opacity is applied to the answer card (line ~1853), not the button.
+  // Button invisibility comes from stealth mode's .answerly-invisible class.
+  const ghostTrig = qEl('mc').querySelector('.answerly-nq-btn:not(.answerly-nq-cam-btn)');
+  if (ghostTrig) ghostTrig.click();
+  await tick(1200);
+  const ghostCard = qEl('mc').querySelector('.answerly-nq-card, [class*="answerly"][class*="card"]');
+  check('customization: opacity 0 makes the answer CARD transparent',
+        ghostCard && parseFloat(getComputedStyle(ghostCard).opacity) === 0,
+        ghostCard ? getComputedStyle(ghostCard).opacity : 'no card');
+
+  // ── 7. SCREENSHOT STEALTH: camera button appears alongside ───────────────
+  chrome.storage.local.set({ 'answerlyTheme_ANS-TEST': { accentColor: '#7c5cfc', cardBg: '#1a1a2e', cardBorder: '#7c5cfc', answerColor: '#fff', hintColor: '#ccc', opacity: 100 } });
+  chrome.storage.local.set({ answerlyScreenshotActive: true, answerlyScreenshotStealthActive: true });
+  await tick(2500);
+  const cam2 = qEl('mc').querySelector('.answerly-nq-cam-btn');
+  const tr2  = qEl('mc').querySelector('.answerly-nq-btn:not(.answerly-nq-cam-btn)');
+  check('screenshot stealth: camera button present', !!cam2);
+  check('screenshot stealth: camera sits beside the trigger', !!cam2 && !!tr2 &&
+        Math.abs(cam2.getBoundingClientRect().top - tr2.getBoundingClientRect().top) < 2 &&
+        Math.abs(cam2.getBoundingClientRect().left - tr2.getBoundingClientRect().left) < 40,
+        cam2 && tr2 ? 'gap ' + Math.round(tr2.getBoundingClientRect().left - cam2.getBoundingClientRect().left) + 'px' : '');
+
+  // ── 8. TURNING THE SOLVER OFF removes everything ─────────────────────────
+  chrome.storage.local.set({ answerlyQuizActive: false, answerlyScreenshotActive: false, answerlyScreenshotStealthActive: false });
+  await tick(2500);
+  check('switching everything off removes all injected UI',
+        document.querySelectorAll('.answerly-nq-btn').length === 0,
+        'buttons left: ' + document.querySelectorAll('.answerly-nq-btn').length);
+
+  document.getElementById('log').innerHTML = results.map(r =>
+    `<span class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</span>  ${r.n}\n       ${r.d}`
+  ).join('\n') + `\n\n${results.filter(r => r.ok).length}/${results.length} passed`;
+  window.__results = results; window.__done = true;
+})();
+</script>
+</body>
+</html>

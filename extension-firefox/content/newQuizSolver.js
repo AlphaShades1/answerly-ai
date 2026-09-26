@@ -1818,7 +1818,12 @@ window.__answerlyNQSolverLoaded = true;
                 if (!chrome.runtime.lastError && resp && !resp.error) {
                   const filled = autoFillNQText(textInputEls, resp.answer, resp.answerParts);
                   reportOutcome(resp, filled, filled ? undefined : 'fill-in-blank: no input filled');
-                  btn.dataset.opened = 'true';
+                  // Gated on the answer actually landing, like every sibling
+                  // path. Ungated, a blank that failed to fill still counted as
+                  // done, so Solve All's retry pass skipped it: the answer sat
+                  // in the solve log while the page stayed empty.
+                  if (filled) btn.dataset.opened = 'true';
+                  else        btn.dataset.done   = '';   // allow retry
                 } else {
                   btn.dataset.done = '';
                 }
