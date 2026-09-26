@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Privacy Guard frame coverage</title>
+<style>body{font-family:system-ui;padding:20px}
+#log{font-family:ui-monospace,monospace;font-size:13px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}
+iframe{width:1px;height:1px;border:0;position:absolute;left:-9999px}</style>
+</head>
+<body>
+<h3>Privacy Guard — does the guard reach an iframe?</h3>
+<p>Mirrors New Quizzes in the quiz-lti iframe: the logging calls are made from
+inside the frame, so a guard that only installs in the top document blocks nothing.</p>
+
+<!-- The top document gets the guard, exactly as it did before the fix. -->
+<script src="/extension/content/privacyGuard.js"></script>
+
+<div id="log">running…</div>
+
+<!-- unguarded = the old behaviour; guarded = the frame the fix now reaches -->
+<iframe id="unguarded" name="pg-bare"    src="/test-canvas/courses/pgframe-child.html"></iframe>
+<iframe id="guarded"   name="pg-guarded" src="/test-canvas/courses/pgframe-child.html"></iframe>
+
+<script>
+const results = [];
+const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail: detail || '' });
+const BLOCKED_URL = '/api/v1/courses/1/quizzes/5/submissions/9/events';
+const NORMAL_URL  = '/test-canvas/courses/quiz.html';
+
+function render() {
+  document.getElementById('log').innerHTML = results.map(r =>
+    `<span class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</span>  ${r.name}\n       ${r.detail}`
+  ).join('\n') + `\n\n${results.filter(r => r.ok).length}/${results.length} passed`;
+  window.__results = results;
+  window.__done = true;
+}
+
+// A blocked request resolves to a synthetic empty 200 that never hits the
+// network, so "did the server see it?" is the real question. The harness page
+// is static, so a real request for the events URL 404s — a 200 with {} means
+// the guard answered it, a 404 means it went to the network unguarded.
+async function probe(where) {
+  const r = await fetch(BLOCKED_URL);
+  const body = await r.text();
+  return { status: r.status, body: body.slice(0, 20), guarded: r.status === 200 && body.trim() === '{}' };
+}
+
+window.addEventListener('message', (e) => {
+  if (!e.data || e.data.type !== 'PG_RESULT') return;
+  const d = e.data;
+  if (d.guard === '0') {
+    check('Top-frame-only guard does NOT protect the iframe (the bug)',
+          d.blockedProbe.guarded === false,
+          'iframe saw status=' + d.blockedProbe.status + ' body=' + JSON.stringify(d.blockedProbe.body));
+  } else {
+    check('Guard installed in the iframe DOES block the event call (the fix)',
+          d.blockedProbe.guarded === true,
+          'iframe saw status=' + d.blockedProbe.status + ' body=' + JSON.stringify(d.blockedProbe.body));
+    check('Guard in the iframe leaves normal requests alone',
+          d.normalProbe.ok === true && d.normalProbe.guarded === false,
+          'normal request status=' + d.normalProbe.status);
+  }
+  if (results.length >= 4) render();
+});
+
+(async () => {
+  const top = await probe('top');
+  check('Top document is guarded (unchanged behaviour)', top.guarded,
+        'top saw status=' + top.status + ' body=' + JSON.stringify(top.body));
+  const normal = await fetch(NORMAL_URL);
+  check('Guard leaves normal page requests alone', normal.ok,
+        'normal request status=' + normal.status);
+  setTimeout(() => { if (!window.__done) render(); }, 6000);
+})();
+</script>
+</body>
+</html>

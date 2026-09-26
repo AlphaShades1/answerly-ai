@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>pg child frame</title></head>
+<body>
+<script>
+// ?guard=1 installs Privacy Guard in this frame (what allFrames: true now does).
+// ?guard=0 leaves it bare (what the top-frame-only registration produced).
+// The preview pane drops query strings, so the parent passes this via iframe name.
+const guard = (window.name === 'pg-guarded') ? '1' : '0';
+function boot() {
+  const BLOCKED_URL = '/api/v1/courses/1/quizzes/5/submissions/9/events';
+  const NORMAL_URL  = '/test-canvas/courses/quiz.html';
+  (async () => {
+    let blockedProbe, normalProbe;
+    try {
+      const r = await fetch(BLOCKED_URL);
+      const b = await r.text();
+      blockedProbe = { status: r.status, body: b.slice(0, 20), guarded: r.status === 200 && b.trim() === '{}' };
+    } catch (e) { blockedProbe = { status: 'throw', body: String(e.message).slice(0, 30), guarded: false }; }
+    try {
+      const r2 = await fetch(NORMAL_URL);
+      const b2 = await r2.text();
+      normalProbe = { status: r2.status, ok: r2.ok, guarded: b2.trim() === '{}' };
+    } catch (e) { normalProbe = { status: 'throw', ok: false, guarded: false }; }
+    parent.postMessage({ type: 'PG_RESULT', guard, blockedProbe, normalProbe }, '*');
+  })();
+}
+if (guard === '1') {
+  const s = document.createElement('script');
+  s.src = '/extension/content/privacyGuard.js';
+  s.onload = boot;
+  s.onerror = boot;
+  document.head.appendChild(s);
+} else {
+  boot();
+}
+</script>
+</body>
+</html>

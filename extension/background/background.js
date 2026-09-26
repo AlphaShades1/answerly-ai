@@ -100,6 +100,14 @@ async function registerPrivacyGuardScript() {
       js: ['content/privacyGuard.js'],
       runAt: 'document_start',
       world: 'MAIN',
+      // Every frame, not just the top one. New Quizzes can still be served
+      // inside the quiz-lti iframe, and the logging calls are made from
+      // inside that frame — guarding only the top document left them
+      // unblocked while the solver (allFrames: true) worked fine, so the
+      // guard looked switched on and wasn't. The script is idempotent
+      // (__answerlyPGInstalled) and only intercepts the Canvas event URLs
+      // in BLOCKED, so extra frames cost nothing.
+      allFrames: true,
     }]);
   } catch {}
 }
@@ -367,7 +375,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     // but belt-and-braces re-inject on Canvas pages.
     if (isCanvas && stored.answerlyPrivacyGuardActive) {
       try {
-        await chrome.scripting.executeScript({ target: { tabId }, files: ['content/privacyGuard.js'], world: 'MAIN' });
+        await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['content/privacyGuard.js'], world: 'MAIN' });
       } catch { /* tab not injectable */ }
     }
 
