@@ -15,13 +15,20 @@ same model and prompt the extension uses for screenshots.</p>
 <script>
 // Each chart: AS rising, AD lines, a marked new equilibrium at a known GDP.
 const CASES = [
-  { name: 'shift right to AD1', adShift: +90, answer: 40, label: 'AD1' },
-  { name: 'shift left to AD1',  adShift: -90, answer: 24, label: 'AD1' },
-  { name: 'shift right to AD2', adShift: +150, answer: 58, label: 'AD2' },
+  { name: 'shift right to AD1', adShift: +90,  label: 'AD1' },
+  { name: 'shift left to AD1',  adShift: -90,  label: 'AD1' },
+  { name: 'shift right to AD2', adShift: +150, label: 'AD2' },
 ];
 
 // Axis: x = Real GDP 0..70 mapped to 60..440 px, y = price level 0..70.
 const X0 = 60, X1 = 440, Y0 = 340, Y1 = 40, GMIN = 0, GMAX = 70;
+// The expected answer must come from the drawing, not from a number typed by
+// hand. AD is drawn through (5+d, 60) and (60+d, 5), slope -1, so y = 65+d-x;
+// AS is y = x; they meet at x = (65+d)/2. Getting this wrong once already made
+// a correct model look badly broken.
+const shiftPxFor = adShift => adShift * (X1 - X0) / ((GMAX - GMIN) * 10) * 10 / 9;
+const shiftUnits = adShift => shiftPxFor(adShift) / ((X1 - X0) / (GMAX - GMIN));
+const trueAnswer = adShift => (65 + shiftUnits(adShift)) / 2;
 const sx = v => X0 + (v - GMIN) / (GMAX - GMIN) * (X1 - X0);
 const sy = v => Y0 - (v - GMIN) / (GMAX - GMIN) * (Y0 - Y1);
 
@@ -55,23 +62,37 @@ function drawChart(c, cs) {
     g.fillStyle = '#000';
   };
   drawAD(0, 'AD', '#0057d8');
-  drawAD(cs.adShift * (X1 - X0) / ((GMAX - GMIN) * 10) * 10 / 9, cs.label, '#d81b60');
+  drawAD(shiftPxFor(cs.adShift), cs.label, '#d81b60');
   // No marker: the real quiz charts make you find the crossing yourself.
 }
 
-const PROMPT = 'Read this graph and answer with ONLY the new equilibrium Real GDP as a number, nothing else. '
+const BASE_PROMPT = 'Read this graph and answer with ONLY the new equilibrium Real GDP as a number, nothing else. '
   + 'The new equilibrium is where the shifted aggregate demand curve crosses the aggregate supply curve.';
+const MEASURE_PROMPT = 'Read this graph carefully. Find where the shifted aggregate demand curve crosses the '
+  + 'aggregate supply curve. Work out that crossing point&apos;s horizontal position relative to the labelled '
+  + 'x-axis gridlines, which are 10 apart, and interpolate between the two it falls between. '
+  + 'Reply with ONLY the Real GDP number, nothing else.';
+const VARIANTS = [
+  { name: 'baseline 1x',         scale: 1, prompt: BASE_PROMPT },
+  { name: 'hi-res 3x',           scale: 3, prompt: BASE_PROMPT },
+  { name: 'measure prompt 1x',   scale: 1, prompt: MEASURE_PROMPT },
+  { name: 'hi-res 3x + measure', scale: 3, prompt: MEASURE_PROMPT },
+];
 
 window.run = async function () {
   const out = [];
-  for (const cs of CASES) {
+  for (const V of VARIANTS) {
+   for (const cs of CASES) {
     const c = document.createElement('canvas');
-    c.width = 520; c.height = 380;
+    c.width = 520 * V.scale; c.height = 380 * V.scale;
+    c.style.width = '250px';
     document.getElementById('charts').appendChild(c);
+    c.getContext('2d').scale(V.scale, V.scale);
     drawChart(c, cs);
     const b64 = c.toDataURL('image/png').split(',')[1];
+    const PROMPT = V.prompt;
     const runs = [];
-    for (let i = 0; i < 3; i++) {   // three runs per chart
+    for (let i = 0; i < 1; i++) {
       try {
         // Local proxy holds the key; the page never sees it.
         const r = await fetch('http://localhost:3999/solve', {
@@ -82,12 +103,23 @@ window.run = async function () {
         runs.push(j.text);
       } catch (e) { runs.push('THREW ' + e.message); }
     }
-    const hit = runs.filter(t => String(t).replace(/[^0-9]/g, '') === String(cs.answer)).length;
-    out.push({ name: cs.name, answer: cs.answer, hit, runs: [...new Set(runs)] });
+    // Within 1 unit counts: the quiz offers discrete choices, so landing close
+    // enough to pick the right one is the bar that actually matters.
+    const want = trueAnswer(cs.adShift);
+    const near = runs.filter(t => {
+      const n = parseFloat(String(t).replace(/[^0-9.]/g, ''));
+      return isFinite(n) && Math.abs(n - want) <= 1;
+    }).length;
+    out.push({ variant: V.name, name: cs.name, answer: want.toFixed(2), hit: near, runs: [...new Set(runs)] });
+   }
   }
-  document.getElementById('log').innerHTML = out.map(o =>
-    `<span class="${o.hit === 3 ? 'pass' : 'fail'}">${o.hit}/3</span>  ${o.name}  — correct answer ${o.answer}, model said: ${o.runs.map(r => JSON.stringify(String(r).slice(0, 40))).join(' | ')}`
-  ).join('\n') + `\n\ntotal: ${out.reduce((a, o) => a + o.hit, 0)}/${out.length * 3}`;
+  const byVariant = {};
+  out.forEach(o => { (byVariant[o.variant] = byVariant[o.variant] || []).push(o); });
+  document.getElementById('log').innerHTML = Object.entries(byVariant).map(([v, rows]) => {
+    const got = rows.reduce((a, o) => a + o.hit, 0);
+    return `<span class="${got === rows.length ? 'pass' : 'fail'}">${got}/${rows.length}</span>  ${v}` + '\n' +
+      rows.map(o => `        want ${String(o.answer).padStart(3)}   got ${o.runs.map(r => String(r).slice(0, 14)).join(' | ')}`).join('\n');
+  }).join('\n\n');
   window.__out = out; window.__done = true;
   return 'done';
 };
