@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>NQ: buttons gone, Solve All still works</title>
+<style>body{font-family:system-ui;padding:20px;max-width:900px}
+[data-automation="sdk-item-wrapper"]{border:1px solid #cbd;margin:12px 0;padding:10px}
+#log{font-family:ui-monospace,monospace;font-size:12px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}</style>
+</head>
+<body>
+<h1 id="quiz_title">Module 5 Quiz</h1>
+<p>Reported symptom: the purple ? never appears on the real quiz, but "Solve all
+questions" always works. Every injection path is gated on solverActive;
+SOLVE_ALL is not, and _solveAllPass() works with no buttons present. So any
+state where solverActive is stuck false reproduces exactly that pairing.</p>
+<div id="quiz"></div>
+<div id="log">running…</div>
+
+<script>
+const BANK = [
+  { id: 'q1', q: 'Which dependency is inherent in the nature of the work?', opts: ['Mandatory', 'Discretionary'] },
+  { id: 'q2', q: 'A kanban board usually includes To Do, In Progress and Done.', opts: ['True', 'False'] },
+];
+document.getElementById('quiz').innerHTML = BANK.map((b, i) =>
+  '<div data-automation="sdk-item-wrapper" data-id="' + b.id + '">' +
+    '<div data-automation="sdk-position-box-text">Question ' + (i + 1) + '</div>' +
+    '<div data-automation="sdk-interaction-type-name-div">Multiple Choice</div>' +
+    '<div tabindex="-1"><div class="user_content enhanced"><p>' + b.q + '</p></div></div>' +
+    '<div role="radiogroup">' + b.opts.map(o =>
+      '<label style="display:block"><input type="radio" name="' + b.id + '"><span class="user_content enhanced">' + o + '</span></label>').join('') +
+  '</div></div>').join('');
+
+// ── chrome stub ────────────────────────────────────────────────────────────
+// dropSession mimics a read that comes back WITHOUT answerlySession while the
+// other keys are present — a signed-out or evicted session, not a failed read.
+let dropSession = false;
+const sent = [];
+const store = {
+  answerlySession: { code: 'ANS-TEST' },
+  answerlyQuizActive: true,
+  answerlyQuizStealthActive: false,
+  answerlyScreenshotActive: false,
+  answerlyScreenshotStealthActive: false,
+};
+const changeListeners = [], msgListeners = [];
+window.chrome = {
+  runtime: {
+    lastError: null,
+    onMessage: { addListener(fn) { msgListeners.push(fn); } },
+    getURL: p => p,
+    sendMessage(msg, cb) {
+      sent.push(msg && msg.type);
+      if (typeof cb === 'function') setTimeout(() => cb({ solveId: 's' + sent.length, answer: 'Mandatory', answerParts: ['Mandatory'], hint: 'h' }), 20);
+    },
+  },
+  storage: {
+    local: {
+      get(keys, cb) {
+        const list = Array.isArray(keys) ? keys : [keys];
+        const out = {};
+        list.forEach(k => {
+          if (k === 'answerlySession' && dropSession) return;   // key simply absent
+          if (k in store) out[k] = store[k];
+        });
+        cb(out);
+      },
+      set(obj, cb) {
+        const ch = {};
+        Object.keys(obj).forEach(k => { ch[k] = { oldValue: store[k], newValue: obj[k] }; store[k] = obj[k]; });
+        changeListeners.forEach(fn => fn(ch, 'local'));
+        if (cb) cb();
+      },
+      remove(keys, cb) { (Array.isArray(keys) ? keys : [keys]).forEach(k => delete store[k]); if (cb) cb(); },
+    },
+    onChanged: { addListener(fn) { changeListeners.push(fn); } },
+  },
+};
+const post = m => msgListeners.forEach(fn => fn(m, {}, () => {}));
+const tick = ms => new Promise(r => setTimeout(r, ms));
+</script>
+
+<script src="/extension/content/newQuizSolver.js"></script>
+
+<script>
+const results = [];
+const check = (n, ok, d) => results.push({ n, ok: !!ok, d: d === undefined ? '' : String(d) });
+const btnCount = () => document.querySelectorAll('.answerly-nq-btn').length;
+const picked = id => [...document.querySelector('[data-id="' + id + '"]').querySelectorAll('input:checked')].length;
+const clear = () => document.querySelectorAll('input').forEach(i => { i.checked = false; });
+
+(async () => {
+  await tick(3000);
+  check('1. buttons appear normally while the session is readable', btnCount() > 0, 'buttons=' + btnCount());
+
+  // Solver toggled off, as the popup does.
+  chrome.storage.local.set({ answerlyQuizActive: false });
+  await tick(2500);
+  check('2. turning the solver off removes them', btnCount() === 0, 'buttons=' + btnCount());
+
+  // Now the session key stops coming back, then the solver is switched on again.
+  dropSession = true;
+  chrome.storage.local.set({ answerlyQuizActive: true });
+  await tick(7000);                       // several recovery ticks
+  const stuck = btnCount();
+  check('3. solver back ON: buttons should return', stuck > 0, 'buttons=' + stuck);
+
+  // ...while Solve All still answers, which is the reported pairing.
+  clear();
+  sent.length = 0;
+  post({ type: 'SOLVE_ALL' });
+  await tick(4000);
+  const solved = picked('q1') + picked('q2');
+  check('4. Solve All still answers in that same state', solved > 0, 'options selected=' + solved);
+
+  const reproduced = stuck === 0 && solved > 0;
+  document.getElementById('log').innerHTML = results.map(r =>
+    `<span class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</span>  ${r.n}\n       ${r.d}`
+  ).join('\n') + '\n\n' + (reproduced
+    ? '<span class="fail">REPRODUCED</span>  no buttons, Solve All works — Sarah\'s exact pairing'
+    : '<span class="pass">not reproduced</span>  buttons recovered');
+  window.__reproduced = reproduced; window.__done = true;
+})();
+</script>
+</body>
+</html>
