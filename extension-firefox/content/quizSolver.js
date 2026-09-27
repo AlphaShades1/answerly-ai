@@ -2783,6 +2783,13 @@ window.__answerlyQuizSolverLoaded = true;
     }
   }, 2000);
 
+  // Every Instructure quiz-lti host, any region, and nothing else.
+  function isQuizLtiOrigin(origin) {
+    try {
+      return /^quiz-lti-[a-z0-9-]+\.instructure\.com$/i.test(new URL(origin).hostname);
+    } catch { return false; }
+  }
+
   // ── New Quizzes iframe overlay relay ──────────────────────────────────────
   // newQuizSolver.js runs inside the quiz-lti cross-origin iframe where
   // `position:fixed` is clipped to iframe bounds, making the overlay tiny.
@@ -2790,8 +2797,12 @@ window.__answerlyQuizSolverLoaded = true;
   // the full-screen overlay, then posts the selected region coordinates back.
   window.addEventListener('message', (e) => {
     if (!e.data || e.data.type !== 'ANSWERLY_NQ_SHOW_OVERLAY') return;
-    // Only accept messages from the known quiz-lti origin
-    if (e.origin && !e.origin.includes('quiz-lti-iad-prod.instructure.com')) return;
+    // Only accept messages from a quiz-lti origin. Instructure runs one per
+    // region (iad, dub, syd, sin, fra...), so pinning to iad silently dropped
+    // the relay everywhere else. Matched on the parsed hostname, not with
+    // includes(): "quiz-lti-iad-prod.instructure.com.example.net" contains the
+    // old string and would have passed.
+    if (e.origin && !isQuizLtiOrigin(e.origin)) return;
     const dataUrl = e.data.dataUrl;
     if (!dataUrl) return;
     injectStyles(); // ensure overlay CSS is present

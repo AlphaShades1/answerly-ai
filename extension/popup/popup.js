@@ -210,8 +210,9 @@ async function renderMain() {
   const url  = tabs[0]?.url || '';
   // Hide the "not on Canvas" notice when on a Canvas quiz/assignment page
   // OR when on a quiz-lti page (New Quizzes) directly
+  // Any regional quiz-lti host, not just iad — see manifest.json.
   const isCanvas = /\/courses\/\d+\/(quizzes|assignments)/.test(url)
-                || url.includes('quiz-lti-iad-prod.instructure.com');
+                || /quiz-lti-[a-z0-9-]+\.instructure\.com/i.test(url);
   notCanvasNotice.classList.toggle('hidden', isCanvas);
 
   // Load usage for THIS specific code (per-code storage so switching accounts is correct)

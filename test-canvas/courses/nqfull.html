@@ -173,6 +173,11 @@ const clearAll = () => BANK.forEach(b => {
   // ── 5. KEYBIND (stealth only, question under the mouse) ──────────────────
   clearAll();
   sent.length = 0;
+  // The page has grown by now, so bring the question back into view first:
+  // elementFromPoint returns null for a point above the viewport, and the
+  // keybind then correctly declines (no question under the cursor).
+  qEl('tf').scrollIntoView({ block: 'center' });
+  await tick(300);
   const r = qEl('tf').getBoundingClientRect();
   document.dispatchEvent(new MouseEvent('mousemove', { clientX: Math.round(r.left + 20), clientY: Math.round(r.top + 20), bubbles: true }));
   await tick(150);
