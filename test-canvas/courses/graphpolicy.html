@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>AD/AS policy questions through the real screenshot route</title>
+<style>body{font-family:system-ui;padding:16px}
+#log{font-family:ui-monospace,monospace;font-size:12px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}canvas{border:1px solid #ccc;margin:4px;width:380px}</style>
+</head>
+<body>
+<h3>Two-part AD/AS fiscal policy questions → POST /api/solve-screenshot (production prompt and model chain)</h3>
+<p>Must be served by scratchpad/sandbox-graph.js, which mounts the real routes/solve.js
+on this same origin. Every expected answer is fixed by construction: each AD line is
+built to pass through the point where it must cross SRAS, and the check below
+recomputes that crossing from the drawn endpoints before anything is sent.</p>
+<div id="charts"></div>
+<div id="log">running…</div>
+
+<script>
+// ── Geometry: GDP (x) and price level (y) both run 0..80 ──────────────────────
+const W = 760, H = 600;
+const X0 = 80, X1 = 560, Y0 = 470, Y1 = 130, VMAX = 80;
+const sx = v => X0 + v / VMAX * (X1 - X0);
+const sy = v => Y0 - v / VMAX * (Y0 - Y1);
+
+// SRAS is y = x. An AD curve that must meet SRAS at GDP e is y = 2e - x.
+const SRAS = { a: [8, 8], b: [74, 74] };
+function adThrough(e) {
+  const xa = Math.max(2, 2 * e - 78), xb = Math.min(78, 2 * e - 2);
+  return { a: [xa, 2 * e - xa], b: [xb, 2 * e - xb] };
+}
+// Independent check: intersect the two drawn segments' lines.
+function crossX(L1, L2) {
+  const [x1, y1] = L1.a, [x2, y2] = L1.b, [x3, y3] = L2.a, [x4, y4] = L2.b;
+  const d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  return ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / d;
+}
+
+// ── The questions ─────────────────────────────────────────────────────────────
+// type A: close the gap — policy direction from where equilibrium sits vs LRAS,
+//         and the new GDP is potential output (the labelled LRAS line).
+// type B: multiplier — a tax change of the same size shifts AD LESS than a
+//         spending change, because the tax multiplier is smaller.
+const CASES = [
+  { id: 'A1', kind: 'A', ads: [{ e: 30, label: 'AD' }], lras: 50,
+    text: 'Refer to the graph. The economy is in short-run equilibrium where AD crosses SRAS. Which policy would move the economy to its potential output, and what will real GDP be once it gets there?',
+    policyChoices: ['increase government spending', 'decrease government spending', 'increase taxes'],
+    gdpChoices: [30, 40, 50, 60], wantPolicy: 'increase government spending', wantGDP: 50 },
+  { id: 'A2', kind: 'A', ads: [{ e: 60, label: 'AD' }], lras: 40,
+    text: 'Refer to the graph. The economy is in short-run equilibrium where AD crosses SRAS. Which policy would move the economy to its potential output, and what will real GDP be once it gets there?',
+    policyChoices: ['increase government spending', 'decrease taxes', 'increase taxes'],
+    gdpChoices: [30, 40, 50, 60], wantPolicy: 'increase taxes', wantGDP: 40 },
+  { id: 'A3', kind: 'A', ads: [{ e: 20, label: 'AD' }], lras: 40,
+    text: 'Refer to the graph. The economy is in short-run equilibrium where AD crosses SRAS. Which policy would move the economy to its potential output, and what will real GDP be once it gets there?',
+    policyChoices: ['decrease taxes', 'increase taxes', 'decrease government spending'],
+    gdpChoices: [20, 30, 40, 50], wantPolicy: 'decrease taxes', wantGDP: 40 },
+  { id: 'B1', kind: 'B', ads: [{ e: 30, label: 'AD0' }, { e: 40, label: 'AD1' }, { e: 50, label: 'AD2' }],
+    text: 'Refer to the graph. Starting at AD0, the government can either increase spending by $10 billion or cut taxes by $10 billion. Which curve shows the result of the $10 billion TAX CUT, and what is the new equilibrium real GDP?',
+    policyChoices: ['AD1', 'AD2'], gdpChoices: [30, 40, 50, 60], wantPolicy: 'AD1', wantGDP: 40 },
+  { id: 'B2', kind: 'B', ads: [{ e: 30, label: 'AD0' }, { e: 40, label: 'AD1' }, { e: 50, label: 'AD2' }],
+    text: 'Refer to the graph. Starting at AD0, the government can either increase spending by $10 billion or cut taxes by $10 billion. Which curve shows the result of the $10 billion INCREASE IN GOVERNMENT SPENDING, and what is the new equilibrium real GDP?',
+    policyChoices: ['AD1', 'AD2'], gdpChoices: [30, 40, 50, 60], wantPolicy: 'AD2', wantGDP: 50 },
+  { id: 'B3', kind: 'B', ads: [{ e: 50, label: 'AD0' }, { e: 40, label: 'AD1' }, { e: 30, label: 'AD2' }],
+    text: 'Refer to the graph. Starting at AD0, the government can either raise taxes by $10 billion or cut spending by $10 billion. Which curve shows the result of the $10 billion TAX INCREASE, and what is the new equilibrium real GDP?',
+    policyChoices: ['AD1', 'AD2'], gdpChoices: [20, 30, 40, 50], wantPolicy: 'AD1', wantGDP: 40 },
+];
+
+// ── Drawing ───────────────────────────────────────────────────────────────────
+function wrap(g, text, x, y, maxW, lh) {
+  let line = '';
+  for (const w of text.split(' ')) {
+    const t = line ? line + ' ' + w : w;
+    if (g.measureText(t).width > maxW && line) { g.fillText(line, x, y); y += lh; line = w; }
+    else line = t;
+  }
+  if (line) g.fillText(line, x, y);
+}
+function seg(g, L) { g.beginPath(); g.moveTo(sx(L.a[0]), sy(L.a[1])); g.lineTo(sx(L.b[0]), sy(L.b[1])); g.stroke(); }
+
+function draw(c, cs, dropdowns) {
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#222'; g.font = '15px system-ui';
+  wrap(g, cs.text, 20, 30, W - 40, 21);
+  // grid, axes, ticks
+  g.font = '12px system-ui';
+  for (let v = 10; v <= 70; v += 10) {
+    g.strokeStyle = '#e4e4e4'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(sx(v), Y0); g.lineTo(sx(v), Y1); g.stroke();
+    g.beginPath(); g.moveTo(X0, sy(v)); g.lineTo(X1, sy(v)); g.stroke();
+    g.fillStyle = '#000';
+    g.fillText(String(v), sx(v) - 7, Y0 + 17);
+    g.fillText(String(v), X0 - 24, sy(v) + 4);
+  }
+  g.strokeStyle = '#000'; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(X0, Y1); g.lineTo(X0, Y0); g.lineTo(X1, Y0); g.stroke();
+  g.fillText('Price level', X0 - 70, Y1 - 8);
+  g.fillText('Real GDP (billions of dollars)', X1 - 190, Y0 + 36);
+  // SRAS
+  g.lineWidth = 2.5; g.strokeStyle = '#111'; seg(g, SRAS);
+  g.fillStyle = '#111'; g.fillText('SRAS', sx(SRAS.b[0]) + 4, sy(SRAS.b[1]));
+  // LRAS
+  if (cs.lras) {
+    g.strokeStyle = '#0a7d2c';
+    g.beginPath(); g.moveTo(sx(cs.lras), sy(4)); g.lineTo(sx(cs.lras), sy(78)); g.stroke();
+    g.fillStyle = '#0a7d2c'; g.fillText('LRAS', sx(cs.lras) + 4, sy(76));
+  }
+  // AD curves
+  const colours = ['#0057d8', '#d81b60', '#8e24aa'];
+  cs.ads.forEach((ad, i) => {
+    const L = adThrough(ad.e);
+    g.strokeStyle = colours[i % 3]; seg(g, L);
+    g.fillStyle = colours[i % 3]; g.fillText(ad.label, sx(L.b[0]) + 4, sy(L.b[1]) + 4);
+  });
+  // answer controls, the way the quiz renders them
+  g.fillStyle = '#222'; g.font = '14px system-ui';
+  const firstLabel = cs.kind === 'A' ? 'Policy:' : 'Curve:';
+  if (dropdowns === 'closed') {
+    g.fillText(firstLabel + '  [ Select ▾ ]        New real GDP:  [ Select ▾ ]', 20, 530);
+  } else {
+    g.fillText(firstLabel + '  ' + cs.policyChoices.map(p => '( ) ' + p).join('     '), 20, 522);
+    g.fillText('New real GDP:  ' + cs.gdpChoices.map(v => '( ) $' + v + ' billion').join('     '), 20, 552);
+  }
+}
+
+// ── Regression set: every other shape the normal screenshot prompt answers ────
+// R7 is the guard for the hidden-choices rule: it ASKS for a category, so the
+// right answer is "expansionary", and a rule that pushed every closed dropdown
+// toward a concrete action would break it.
+const REGRESSION = [
+  { id: 'R1', name: 'multiple choice',
+    text: 'Which organelle produces most of the ATP in a eukaryotic cell?',
+    lines: ['( ) Nucleus', '( ) Mitochondria', '( ) Ribosome', '( ) Golgi apparatus'],
+    ok: t => /mitochondri/i.test(t) && !/nucleus|ribosome|golgi/i.test(t) },
+  { id: 'R2', name: 'true / false',
+    text: 'True or false: the Treaty of Versailles ended World War II.',
+    lines: ['( ) True', '( ) False'],
+    ok: t => /\bfalse\b/i.test(t) && !/\btrue\b/i.test(t) },
+  { id: 'R3', name: 'select all that apply',
+    text: 'Which of these animals are mammals? (Select all that apply.)',
+    lines: ['[ ] Dolphin', '[ ] Shark', '[ ] Bat', '[ ] Penguin', '[ ] Whale'],
+    ok: t => /dolphin/i.test(t) && /\bbat\b/i.test(t) && /whale/i.test(t) && !/shark|penguin/i.test(t) },
+  { id: 'R4', name: 'fill in the blank',
+    text: 'The chemical symbol for sodium is ________.',
+    lines: ['[                    ]'],
+    ok: t => /^\s*na\s*\.?\s*$/i.test(t) },
+  { id: 'R5', name: 'maths word problem',
+    text: 'A jacket costs $80 and is on sale for 25% off. What is the sale price in dollars?',
+    lines: ['[                    ]'],
+    ok: t => { const n = (t.match(/\d+(?:\.\d+)?/g) || []).map(Number); return n.length && n[n.length - 1] === 60; } },
+  { id: 'R6', name: 'matching, dropdowns closed',
+    text: 'Match each country to its capital city.',
+    lines: ['France     [ Select ▾ ]', 'Japan      [ Select ▾ ]', 'Kenya      [ Select ▾ ]'],
+    ok: t => { const l = t.toLowerCase(); const a = l.indexOf('paris'), b = l.indexOf('tokyo'), c = l.indexOf('nairobi');
+               return a >= 0 && b > a && c > b; } },
+  { id: 'R7', name: 'closed dropdown that asks for a category',
+    text: 'During a recession the government cuts income taxes. What type of fiscal policy is this?',
+    lines: ['Type of policy:   [ Select ▾ ]'],
+    ok: t => /expansionary/i.test(t) && !/contractionary/i.test(t) },
+];
+function drawText(c, rq) {
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#222'; g.font = '16px system-ui';
+  wrap(g, rq.text, 24, 40, c.width - 48, 22);
+  g.font = '15px system-ui';
+  rq.lines.forEach((ln, i) => g.fillText(ln, 40, 110 + i * 32));
+}
+
+// ── Scoring ───────────────────────────────────────────────────────────────────
+function boldLine(resp) {
+  const m = String(resp || '').match(/\*\*([\s\S]*?)\*\*/);
+  return (m ? m[1] : String(resp || '').split('\n')[0]).trim();
+}
+// With the dropdown closed the choices are not in the picture, and "which
+// policy" is genuinely two questions in macro: the type (expansionary or
+// contractionary) or the action (raise spending, cut taxes...). The model reads
+// it as the type. A prompt rule pushing it toward the action was tried against
+// this harness and changed nothing, so it was reverted — the hidden choices are
+// what decide which reading the quiz meant. Either reading counts here, as long
+// as the direction is right and it does not also name the opposite direction.
+const EXPANSIONARY  = /(increase|raise)\s+(in\s+)?government spending|(decrease|cut|lower|reduce)\s+(in\s+)?taxes|tax cut/i;
+const CONTRACTIONARY = /(decrease|cut|reduce|lower)\s+(in\s+)?government spending|(increase|raise)\s+(in\s+)?taxes|tax increase/i;
+function scorePolicy(cs, line, dd) {
+  const l = line.toLowerCase();
+  if (cs.kind === 'A' && dd === 'closed') {
+    const wantExp  = cs.lras > cs.ads[0].e;          // below potential -> expansionary
+    const cat      = wantExp ? /expansionary/i : /contractionary/i;
+    const wrongCat = wantExp ? /contractionary/i : /expansionary/i;
+    const act      = wantExp ? EXPANSIONARY : CONTRACTIONARY;
+    const wrongAct = wantExp ? CONTRACTIONARY : EXPANSIONARY;
+    return (cat.test(line) || act.test(line)) && !wrongCat.test(line) && !wrongAct.test(line);
+  }
+  if (cs.kind === 'B') {
+    const want = new RegExp('\\bAD\\s*' + cs.wantPolicy.slice(2) + '\\b', 'i');
+    const others = cs.policyChoices.filter(p => p !== cs.wantPolicy)
+      .map(p => new RegExp('\\bAD\\s*' + p.slice(2) + '\\b', 'i'));
+    return want.test(line) && !others.some(r => r.test(line));
+  }
+  return l.includes(cs.wantPolicy) && !cs.policyChoices.filter(p => p !== cs.wantPolicy).some(p => l.includes(p));
+}
+function scoreGDP(cs, line) {
+  const cleaned = line.replace(/\bAD\s*\d\b/gi, ' ').replace(/\$?\s*10\s*billion/gi, ' ');
+  const nums = (cleaned.match(/\d+(?:\.\d+)?/g) || []).map(Number);
+  const last = nums.length ? nums[nums.length - 1] : null;
+  return { ok: last !== null && Math.abs(last - cs.wantGDP) <= 1, got: last };
+}
+
+// ── Run ───────────────────────────────────────────────────────────────────────
+(async () => {
+  const out = [];
+  // Construction check first: a harness that disagrees with its own picture is
+  // exactly the mistake that has already happened once on this question type.
+  for (const cs of CASES) {
+    if (cs.kind === 'B') {
+      const L = adThrough(cs.ads.find(a => a.label === cs.wantPolicy).e);
+      const x = crossX(L, SRAS);
+      if (Math.abs(x - cs.wantGDP) > 1e-9) throw new Error(cs.id + ': drawn crossing ' + x + ' != expected ' + cs.wantGDP);
+    }
+  }
+  const tok = (await (await fetch('/token?code=ANS-SANDBOX-TEST')).json()).token;
+  for (const cs of CASES) {
+    for (const dd of ['visible', 'closed']) {
+      const c = document.createElement('canvas'); c.width = W; c.height = H;
+      document.getElementById('charts').appendChild(c);
+      draw(c, cs, dd);
+      let resp = '', err = '';
+      try {
+        const r = await fetch('/api/solve-screenshot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+          body: JSON.stringify({ image: c.toDataURL('image/png'), stealth: false, quizTitle: '5.4 Learning Quiz' }),
+        });
+        const j = await r.json();
+        resp = j.response || ''; err = j.error || '';
+      } catch (e) { err = e.message; }
+      const line = boldLine(resp);
+      const pol = scorePolicy(cs, line, dd);
+      const gdp = scoreGDP(cs, line);
+      out.push({ id: cs.id, dd, want: cs.wantPolicy + ' / $' + cs.wantGDP, line, err, policyOk: pol, gdpOk: gdp.ok, both: pol && gdp.ok });
+      window.__progress = out.length;
+    }
+  }
+  // ── Regression: the other question types the same normal-mode prompt serves ──
+  const reg = [];
+  for (const rq of REGRESSION) {
+    const c = document.createElement('canvas'); c.width = W; c.height = 300;
+    document.getElementById('charts').appendChild(c);
+    drawText(c, rq);
+    let resp = '', err = '';
+    try {
+      const r = await fetch('/api/solve-screenshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+        body: JSON.stringify({ image: c.toDataURL('image/png'), stealth: false, quizTitle: 'Regression' }),
+      });
+      const j = await r.json();
+      resp = j.response || ''; err = j.error || '';
+    } catch (e) { err = e.message; }
+    const line = boldLine(resp);
+    reg.push({ id: rq.id, name: rq.name, line, err, ok: !err && rq.ok(line) });
+    window.__progress = out.length + reg.length;
+  }
+
+  const both = out.filter(o => o.both).length;
+  const visOk = out.filter(o => o.dd === 'visible' && o.both).length;
+  const clsOk = out.filter(o => o.dd === 'closed' && o.both).length;
+  const regOk = reg.filter(o => o.ok).length;
+  document.getElementById('log').innerHTML = out.map(o =>
+    `<span class="${o.both ? 'pass' : 'fail'}">${o.both ? 'PASS' : 'FAIL'}</span> ${o.id} ${o.dd.padEnd(7)} policy:${o.policyOk ? 'ok' : 'NO'} gdp:${o.gdpOk ? 'ok' : 'NO'}` +
+    `\n       want: ${o.want}\n       got:  ${o.err ? 'ERROR ' + o.err : o.line}`
+  ).join('\n') + '\n\n' + reg.map(o =>
+    `<span class="${o.ok ? 'pass' : 'fail'}">${o.ok ? 'PASS' : 'FAIL'}</span> ${o.id} ${o.name}\n       got:  ${o.err ? 'ERROR ' + o.err : o.line}`
+  ).join('\n') +
+  `\n\nSUMMARY  graphs, choices visible: ${visOk}/6   graphs, dropdowns closed: ${clsOk}/6   regression: ${regOk}/${reg.length}`;
+  window.__summary = { visOk, clsOk, regOk, regN: reg.length };
+  window.__out = out; window.__reg = reg; window.__done = true;
+})().catch(e => { document.getElementById('log').textContent = 'HARNESS ERROR: ' + e.message; window.__done = true; });
+</script>
+</body>
+</html>
