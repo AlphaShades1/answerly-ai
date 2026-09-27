@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Can it read a graph?</title>
+<style>body{font-family:system-ui;padding:20px}
+#log{font-family:ui-monospace,monospace;font-size:13px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}canvas{border:1px solid #ccc;margin:6px}</style>
+</head>
+<body>
+<h3>AD/AS graph reading — the question type this student keeps losing</h3>
+<p>Three charts with a known answer. Each is drawn, rasterised, and sent to the
+same model and prompt the extension uses for screenshots.</p>
+<div id="charts"></div>
+<div id="log">waiting for key…</div>
+
+<script>
+// Each chart: AS rising, AD lines, a marked new equilibrium at a known GDP.
+const CASES = [
+  { name: 'shift right to AD1', adShift: +90, answer: 40, label: 'AD1' },
+  { name: 'shift left to AD1',  adShift: -90, answer: 24, label: 'AD1' },
+  { name: 'shift right to AD2', adShift: +150, answer: 58, label: 'AD2' },
+];
+
+// Axis: x = Real GDP 0..70 mapped to 60..440 px, y = price level 0..70.
+const X0 = 60, X1 = 440, Y0 = 340, Y1 = 40, GMIN = 0, GMAX = 70;
+const sx = v => X0 + (v - GMIN) / (GMAX - GMIN) * (X1 - X0);
+const sy = v => Y0 - (v - GMIN) / (GMAX - GMIN) * (Y0 - Y1);
+
+function drawChart(c, cs) {
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  g.strokeStyle = '#000'; g.lineWidth = 1.5; g.font = '13px system-ui'; g.fillStyle = '#000';
+  // axes
+  g.beginPath(); g.moveTo(X0, Y1); g.lineTo(X0, Y0); g.lineTo(X1, Y0); g.stroke();
+  g.fillText('Price Level', 8, 30);
+  g.fillText('Real GDP ($ billions)', X1 - 150, Y0 + 34);
+  // gridlines + ticks every 10 so a value can actually be read off
+  g.font = '12px system-ui';
+  for (let v = 10; v <= 70; v += 10) {
+    g.strokeStyle = '#e0e0e0'; g.beginPath(); g.moveTo(sx(v), Y0); g.lineTo(sx(v), Y1); g.stroke();
+    g.strokeStyle = '#000'; g.beginPath(); g.moveTo(sx(v), Y0); g.lineTo(sx(v), Y0 + 5); g.stroke();
+    g.fillText(String(v), sx(v) - 7, Y0 + 19);
+    g.strokeStyle = '#e0e0e0'; g.beginPath(); g.moveTo(X0, sy(v)); g.lineTo(X1, sy(v)); g.stroke();
+    g.strokeStyle = '#000'; g.beginPath(); g.moveTo(X0 - 5, sy(v)); g.lineTo(X0, sy(v)); g.stroke();
+    g.fillText(String(v), X0 - 26, sy(v) + 4);
+  }
+  // AS: price level = GDP (45 degrees) so equilibrium GDP == the AD crossing
+  g.strokeStyle = '#111'; g.lineWidth = 2.5;
+  g.beginPath(); g.moveTo(sx(5), sy(5)); g.lineTo(sx(65), sy(65)); g.stroke();
+  g.fillText('AS', sx(66), sy(65));
+  // AD0 through (32,32); AD1/AD2 shifted horizontally
+  const drawAD = (shiftPx, label, colour) => {
+    g.strokeStyle = colour; g.lineWidth = 2.5;
+    g.beginPath(); g.moveTo(sx(5) + shiftPx, sy(60)); g.lineTo(sx(60) + shiftPx, sy(5)); g.stroke();
+    g.fillStyle = colour; g.fillText(label, Math.min(sx(60) + shiftPx + 6, X1 - 24), sy(5));
+    g.fillStyle = '#000';
+  };
+  drawAD(0, 'AD', '#0057d8');
+  drawAD(cs.adShift * (X1 - X0) / ((GMAX - GMIN) * 10) * 10 / 9, cs.label, '#d81b60');
+  // No marker: the real quiz charts make you find the crossing yourself.
+}
+
+const PROMPT = 'Read this graph and answer with ONLY the new equilibrium Real GDP as a number, nothing else. '
+  + 'The new equilibrium is where the shifted aggregate demand curve crosses the aggregate supply curve.';
+
+window.run = async function () {
+  const out = [];
+  for (const cs of CASES) {
+    const c = document.createElement('canvas');
+    c.width = 520; c.height = 380;
+    document.getElementById('charts').appendChild(c);
+    drawChart(c, cs);
+    const b64 = c.toDataURL('image/png').split(',')[1];
+    const runs = [];
+    for (let i = 0; i < 3; i++) {   // three runs per chart
+      try {
+        // Local proxy holds the key; the page never sees it.
+        const r = await fetch('http://localhost:3999/solve', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ b64, prompt: PROMPT }),
+        });
+        const j = await r.json();
+        runs.push(j.text);
+      } catch (e) { runs.push('THREW ' + e.message); }
+    }
+    const hit = runs.filter(t => String(t).replace(/[^0-9]/g, '') === String(cs.answer)).length;
+    out.push({ name: cs.name, answer: cs.answer, hit, runs: [...new Set(runs)] });
+  }
+  document.getElementById('log').innerHTML = out.map(o =>
+    `<span class="${o.hit === 3 ? 'pass' : 'fail'}">${o.hit}/3</span>  ${o.name}  — correct answer ${o.answer}, model said: ${o.runs.map(r => JSON.stringify(String(r).slice(0, 40))).join(' | ')}`
+  ).join('\n') + `\n\ntotal: ${out.reduce((a, o) => a + o.hit, 0)}/${out.length * 3}`;
+  window.__out = out; window.__done = true;
+  return 'done';
+};
+document.getElementById('log').textContent = 'ready — call run()';
+run();
+</script>
+</body>
+</html>
