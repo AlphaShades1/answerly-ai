@@ -2283,7 +2283,7 @@ window.__answerlyNQSolverLoaded = true;
   // Background.js injects this script and may also forward messages to it.
   // This handles both manual injection (background.js executeScript + sendMessage)
   // and manifest-declared auto-injection.
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((msg) => {
     // Sent by background.js after a page navigation — storage is authoritative.
     if (msg.type === 'ANSWERLY_SYNC') { syncFromStorage(); return; }
 
@@ -2304,32 +2304,6 @@ window.__answerlyNQSolverLoaded = true;
 
     if (msg.type === 'SOLVE_ALL') {
       setTimeout(solveAll, 300);
-    }
-
-    // ── Health ping ──────────────────────────────────────────────────────────
-    // When injection silently fails there is nothing to see: no buttons, no
-    // error, and every "extension context invalidated" path in this file
-    // swallows its exception by design. A user then reports "the buttons just
-    // don't show up" and nothing anywhere can confirm or deny it.
-    //
-    // The popup asks each frame this on open. A frame that never answers is one
-    // where this script is not running — the orphaned-content-script case, which
-    // only a page reload fixes. A frame that answers with questions but no
-    // buttons is a live script that failed to inject. The popup can tell the
-    // user which, instead of them staring at a page that looks broken.
-    if (msg.type === 'ANSWERLY_HEALTH') {
-      try {
-        sendResponse({
-          engine: 'newquizzes',
-          alive: true,
-          isQuizPage: isNQPage(),
-          questions: findNQQuestions().length,
-          buttons: document.querySelectorAll('.answerly-nq-btn').length,
-          solverActive, stealthHidden, screenshotStealthActive,
-          hasSession: !!currentCode,
-        });
-      } catch { sendResponse({ engine: 'newquizzes', alive: true, error: true }); }
-      return true;
     }
 
     if (msg.type === 'SS_STEALTH_ON') {

@@ -215,20 +215,6 @@ async function renderMain() {
                 || /quiz-lti-[a-z0-9-]+\.instructure\.com/i.test(url);
   notCanvasNotice.classList.toggle('hidden', isCanvas);
 
-  // ── Is the extension actually alive on that page? ────────────────────────
-  // A content script whose extension context was invalidated (an update or a
-  // worker recycle mid-quiz) keeps running but can no longer reach storage or
-  // the background, so it silently stops injecting. Every one of those paths
-  // swallows its error by design, so the page just looks broken: no buttons, no
-  // message, nothing in any log. One user hit this during a real quiz and could
-  // only describe it as "the buttons don't show up".
-  //
-  // Ask each frame. Silence means the script is not running there, and only a
-  // reload fixes that. An answer with questions but no buttons means a live
-  // script that failed to inject. Either way the user gets told what to do
-  // instead of guessing. Never shown when the page is not a quiz.
-  if (isCanvas) checkPageHealth(tabs[0].id).catch(() => {});
-
   // Load usage for THIS specific code (per-code storage so switching accounts is correct)
   const usageKey = 'answerlyUsage_' + currentSession.code;
   const storedUsage = await chrome.storage.local.get(usageKey);
@@ -306,46 +292,6 @@ function updateUsageBars(remaining) {
   usageScreenBar.style.background = sRem <= 10 ? '#f05454' : sRem <= 30 ? '#f0a054' : '#7c5cfc';
 }
 
-
-// Ask every frame of the tab whether the solver is live there. Resolves to the
-// most informative answer: a frame that reports questions wins over one that
-// reports none, because a quiz page has exactly one frame that matters.
-function askFrames(tabId) {
-  return new Promise((resolve) => {
-    let best = null, pending = 1, settled = false;
-    const done = () => { if (!settled) { settled = true; resolve(best); } };
-    const timer = setTimeout(done, 700);   // a dead script never answers at all
-    const take = (r) => {
-      if (r && r.alive && (!best || (r.questions || 0) > (best.questions || 0))) best = r;
-      if (--pending <= 0) { clearTimeout(timer); done(); }
-    };
-    try {
-      chrome.tabs.sendMessage(tabId, { type: 'ANSWERLY_HEALTH' }, (r) => {
-        void chrome.runtime.lastError;     // "no receiving end" = nothing running
-        take(r);
-      });
-    } catch { clearTimeout(timer); done(); }
-  });
-}
-
-async function checkPageHealth(tabId) {
-  const reloadNotice = document.getElementById('reload-notice');
-  const reloadText   = document.getElementById('reload-notice-text');
-  if (!reloadNotice) return;
-  const health = await askFrames(tabId);
-
-  let message = null;
-  if (!health) {
-    // Nothing answered. Either the script never loaded here or its context died.
-    message = 'Refresh this quiz page — Answerly is not connected to it.';
-  } else if (quizActive && health.questions > 0 && health.buttons === 0) {
-    // Live, can see the questions, and still put nothing on the page.
-    message = 'Refresh this quiz page — the buttons did not load.';
-  }
-
-  reloadNotice.classList.toggle('hidden', !message);
-  if (message) reloadText.textContent = message;
-}
 
 // ── Activation ────────────────────────────────────────────────────────────────
 // Auto-format code input as user types
