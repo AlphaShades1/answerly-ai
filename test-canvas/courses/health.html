@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Health ping</title>
+<style>body{font-family:system-ui;padding:20px;max-width:900px}
+[data-automation="sdk-item-wrapper"]{border:1px solid #cbd;margin:12px 0;padding:10px}
+#log{font-family:ui-monospace,monospace;font-size:12px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}</style>
+</head>
+<body>
+<h1 id="quiz_title">Module 5 Quiz</h1>
+<p>The popup decides what to tell the user from this reply. It has to be right in
+three states: working, solver off, and questions present with no buttons.</p>
+<div id="quiz"></div>
+<div id="log">running…</div>
+
+<script>
+document.getElementById('quiz').innerHTML = [1, 2].map(n =>
+  '<div data-automation="sdk-item-wrapper" data-id="q' + n + '">' +
+    '<div data-automation="sdk-position-box-text">Question ' + n + '</div>' +
+    '<div data-automation="sdk-interaction-type-name-div">Multiple Choice</div>' +
+    '<div tabindex="-1"><div class="user_content enhanced"><p>Question ' + n + ' stem text</p></div></div>' +
+    '<div role="radiogroup">' +
+      '<label style="display:block"><input type="radio" name="q' + n + '"><span class="user_content enhanced">A</span></label>' +
+      '<label style="display:block"><input type="radio" name="q' + n + '"><span class="user_content enhanced">B</span></label>' +
+    '</div></div>').join('');
+
+const store = {
+  answerlySession: { code: 'ANS-TEST' },
+  answerlyQuizActive: true,
+  answerlyQuizStealthActive: false,
+  answerlyScreenshotActive: false,
+  answerlyScreenshotStealthActive: false,
+};
+const changeListeners = [], msgListeners = [];
+window.chrome = {
+  runtime: {
+    lastError: null,
+    onMessage: { addListener(fn) { msgListeners.push(fn); } },
+    getURL: p => p,
+    sendMessage(msg, cb) { if (typeof cb === 'function') setTimeout(() => cb({}), 10); },
+  },
+  storage: {
+    local: {
+      get(keys, cb) { const l = Array.isArray(keys) ? keys : [keys]; const o = {}; l.forEach(k => { if (k in store) o[k] = store[k]; }); cb(o); },
+      set(obj, cb) { const ch = {}; Object.keys(obj).forEach(k => { ch[k] = { oldValue: store[k], newValue: obj[k] }; store[k] = obj[k]; });
+                     changeListeners.forEach(fn => fn(ch, 'local')); if (cb) cb(); },
+      remove(keys, cb) { (Array.isArray(keys) ? keys : [keys]).forEach(k => delete store[k]); if (cb) cb(); },
+    },
+    onChanged: { addListener(fn) { changeListeners.push(fn); } },
+  },
+};
+// Deliver ANSWERLY_HEALTH the way chrome.tabs.sendMessage does and capture the reply.
+const ping = () => new Promise(resolve => {
+  let answered = false;
+  msgListeners.forEach(fn => fn({ type: 'ANSWERLY_HEALTH' }, {}, (r) => { answered = true; resolve(r); }));
+  setTimeout(() => { if (!answered) resolve(null); }, 400);
+});
+const tick = ms => new Promise(r => setTimeout(r, ms));
+</script>
+
+<script src="/extension/content/newQuizSolver.js"></script>
+
+<script>
+const results = [];
+const check = (n, ok, d) => results.push({ n, ok: !!ok, d: d === undefined ? '' : String(d) });
+
+// The popup's own logic, copied so the test covers the decision, not just the data.
+function popupWouldSay(health, quizActive) {
+  if (!health) return 'Refresh this quiz page — Answerly is not connected to it.';
+  if (quizActive && health.questions > 0 && health.buttons === 0) return 'Refresh this quiz page — the buttons did not load.';
+  return null;
+}
+
+(async () => {
+  await tick(3000);
+
+  // 1. Everything working — the popup must stay quiet.
+  const ok = await ping();
+  check('working page answers the ping', !!ok && ok.alive, JSON.stringify(ok));
+  check('  reports the questions it can see', ok && ok.questions === 2, ok && ok.questions);
+  check('  reports the buttons it injected', ok && ok.buttons >= 2, ok && ok.buttons);
+  check('  popup shows NO warning', popupWouldSay(ok, true) === null, popupWouldSay(ok, true));
+
+  // 2. Solver switched off — not a fault, so still no warning.
+  chrome.storage.local.set({ answerlyQuizActive: false });
+  await tick(2500);
+  const off = await ping();
+  check('solver off: still answers', !!off && off.alive, JSON.stringify(off));
+  check('  popup shows NO warning when the solver is off',
+        popupWouldSay(off, false) === null, popupWouldSay(off, false));
+
+  // 3. Live script, questions visible, buttons stripped by the page and not yet
+  //    re-injected — the state a user sees as "the buttons don't show up".
+  chrome.storage.local.set({ answerlyQuizActive: true });
+  await tick(2500);
+  document.querySelectorAll('.answerly-nq-btn').forEach(b => b.remove());
+  const stripped = await ping();
+  check('buttons stripped: ping still answers', !!stripped && stripped.alive, JSON.stringify(stripped));
+  check('  reports questions>0 and buttons=0',
+        stripped && stripped.questions === 2 && stripped.buttons === 0,
+        stripped && (stripped.questions + '/' + stripped.buttons));
+  check('  popup WOULD warn the user',
+        /did not load/.test(popupWouldSay(stripped, true) || ''), popupWouldSay(stripped, true));
+
+  // 4. Dead script (orphaned context): nothing answers at all.
+  check('no answer at all -> popup tells them to refresh',
+        /not connected/.test(popupWouldSay(null, true) || ''), popupWouldSay(null, true));
+
+  // 5. And the recovery timer must put the buttons back on its own.
+  await tick(3000);
+  check('recovery timer re-injects the stripped buttons',
+        document.querySelectorAll('.answerly-nq-btn').length >= 2,
+        document.querySelectorAll('.answerly-nq-btn').length);
+
+  document.getElementById('log').innerHTML = results.map(r =>
+    `<span class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</span>  ${r.n}\n       ${r.d}`
+  ).join('\n') + `\n\n${results.filter(r => r.ok).length}/${results.length} passed`;
+  window.__results = results; window.__done = true;
+})();
+</script>
+</body>
+</html>

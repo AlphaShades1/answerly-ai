@@ -2697,7 +2697,21 @@ window.__answerlyQuizSolverLoaded = true;
   function activate()   { syncState(true); }
   function deactivate() { syncState(true); }
 
-  chrome.runtime.onMessage.addListener((msg) => {
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    // Health ping — mirrors newQuizSolver.js, see the note there. A frame that
+    // never answers is one where this script is not running.
+    if (msg && msg.type === 'ANSWERLY_HEALTH') {
+      try {
+        const qs = findQuestions().length;
+        sendResponse({
+          engine: 'classic', alive: true,
+          isQuizPage: qs > 0, questions: qs,
+          buttons: document.querySelectorAll('.answerly-btn').length,
+          solverActive, stealthHidden,
+        });
+      } catch { sendResponse({ engine: 'classic', alive: true, error: true }); }
+      return true;
+    }
     switch (msg.type) {
       // These messages carry no information storage doesn't already have — the
       // popup always writes storage BEFORE sending — so every one of them just
