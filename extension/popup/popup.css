@@ -285,7 +285,7 @@ body {
   right: calc(100% + 7px);
   top: 50%;
   transform: translateY(-50%);
-  width: 172px;
+  width: 205px;
   background: #1e1e2e;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -300,8 +300,12 @@ body {
 .stealth-tooltip b { color: var(--text); }
 .stealth-tip:hover .stealth-tooltip { display: block; }
 
-/* Screenshot Stealth is the bottom row — open its tooltip upward so it never
-   extends past the popup's bottom edge (which caused a scrollbar + hover-flicker loop). */
+/* Both stealth rows sit near the bottom, so their tooltips open UPWARD or they
+   run past the popup's bottom edge — and html/body are overflow:hidden, so the
+   overflow is clipped rather than scrollable and the last lines simply vanish.
+   The quiz row used to be centred, which was fine until these tooltips gained
+   the "requires ... to be turned on" line and grew taller. */
+#quiz-stealth-row .stealth-tooltip,
 #ss-stealth-row .stealth-tooltip {
   top: auto;
   bottom: -4px;
@@ -343,18 +347,25 @@ body {
 /* A stealth row whose parent tool is off is dimmed and its switch is dead, but
    the (i) must stay hoverable: that tooltip is the only place the popup explains
    WHY the row is greyed out, and pointer-events:none on the whole row made it
-   unreadable exactly when it was most needed. */
-.stealth-row.stealth-disabled {
-  opacity: 0.6;
-}
+   unreadable exactly when it was most needed.
+
+   Dimming is applied to the switch and the label individually, NOT to the row.
+   opacity on the row creates a stacking context its children cannot escape, so
+   the tooltip inherited the fade and came up washed out and half-transparent —
+   a child cannot raise its own opacity above its parent's. */
 .stealth-row.stealth-disabled .toggle-pill,
 .stealth-row.stealth-disabled .stealth-label {
+  opacity: 0.4;
   pointer-events: none;
 }
 .stealth-row.stealth-disabled .stealth-tip {
   pointer-events: auto;
-  opacity: 1;
   cursor: help;
+}
+/* Fully opaque, and above the rows below it, whichever row it belongs to. */
+.stealth-tooltip {
+  opacity: 1;
+  z-index: 2147483000;
 }
 .stealth-label {
   font-size: 11px;
