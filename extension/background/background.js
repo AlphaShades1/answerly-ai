@@ -77,6 +77,23 @@ function mergeContext(quizContext, uploaded) {
   return parts.length ? parts.join('\n\n---\n\n') : undefined;
 }
 
+// The student's own uploaded notes, sent alongside fileContext rather than only
+// inside it. The backend trusts a course's notes about its own subject while
+// still distrusting whatever the quiz page supplied; merged into one field it
+// could not tell the two apart. fileContext is still sent unchanged, so an
+// older backend behaves exactly as it does today.
+function notesOnly(uploaded) {
+  return (typeof uploaded === 'string' && uploaded.trim()) ? uploaded : undefined;
+}
+
+// Only what the quiz page itself supplied. The student's uploaded notes now
+// travel in notesContext, where the backend can trust them; sending them here
+// as well would put two contradictory instructions about the same text in one
+// prompt — trust it, and ignore it.
+function quizOnly(quizContext) {
+  return quizContext ? 'QUIZ CONTEXT / INSTRUCTIONS:\n' + quizContext : undefined;
+}
+
 // Always resolves or throws — never hangs forever, so the content script always
 // gets an answer and can unlock its button.
 async function fetchWithTimeout(url, opts, ms = 75000) {
@@ -212,7 +229,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const token = result.answerlySession?.token;
         const code  = result.answerlySession?.code;
         // Quiz description/passages (this page) + any uploaded notes.
-        const fileContext = mergeContext(message.quizContext, result.answerlyContextFile?.context);
+        const fileContext = quizOnly(message.quizContext);
+        const notesContext = notesOnly(result.answerlyContextFile?.context);
         if (!token) { sendResponse({ error: 'Not logged in' }); return; }
         keepAliveStart();
         try {
@@ -222,7 +240,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`,
             },
-            body: JSON.stringify({ question: message.question, options: message.options, blankContext: message.blankContext, isMultiSelect: message.isMultiSelect, blankCount: message.blankCount, fileContext, quizTitle: message.quizTitle, relatedQuestions: message.relatedQuestions }),
+            body: JSON.stringify({ question: message.question, options: message.options, blankContext: message.blankContext, isMultiSelect: message.isMultiSelect, blankCount: message.blankCount, fileContext, notesContext, quizTitle: message.quizTitle, relatedQuestions: message.relatedQuestions }),
           });
           const data = await res.json();
           if (!res.ok) {
@@ -249,14 +267,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.storage.local.get(['answerlySession', 'answerlyContextFile'], async (result) => {
         const token = result.answerlySession?.token;
         const code  = result.answerlySession?.code;
-        const fileContext = mergeContext(message.quizContext, result.answerlyContextFile?.context);
+        const fileContext = quizOnly(message.quizContext);
+        const notesContext = notesOnly(result.answerlyContextFile?.context);
         if (!token) { sendResponse({ error: 'Not logged in' }); return; }
         keepAliveStart();
         try {
           const res = await fetchWithTimeout(`${BACKEND_URL}/api/solve-matching`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ question: message.question, rows: message.rows, fileContext, quizTitle: message.quizTitle, relatedQuestions: message.relatedQuestions }),
+            body: JSON.stringify({ question: message.question, rows: message.rows, fileContext, notesContext, quizTitle: message.quizTitle, relatedQuestions: message.relatedQuestions }),
           });
           const data = await res.json();
           if (!res.ok) {
@@ -279,7 +298,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.storage.local.get(['answerlySession', 'answerlyContextFile'], async (result) => {
         const token = result.answerlySession?.token;
         const code  = result.answerlySession?.code;
-        const fileContext = result.answerlyContextFile?.context; // uploaded reference notes
+        const fileContext = undefined;   // notes now travel in notesContext
+        const notesContext = notesOnly(result.answerlyContextFile?.context);
         if (!token) { sendResponse({ error: 'Not logged in' }); return; }
         if (!message.image) { sendResponse({ error: 'No image provided' }); return; }
         keepAliveStart();
@@ -287,7 +307,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const res = await fetchWithTimeout(`${BACKEND_URL}/api/solve-screenshot`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ image: message.image, context: message.questionText, stealth: true, fileContext, quizTitle: message.quizTitle }),
+            body: JSON.stringify({ image: message.image, context: message.questionText, stealth: true, fileContext, notesContext, quizTitle: message.quizTitle }),
           });
           const data = await res.json();
           if (!res.ok) {
@@ -310,7 +330,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.storage.local.get(['answerlySession', 'answerlyContextFile'], async (result) => {
         const token = result.answerlySession?.token;
         const code  = result.answerlySession?.code;
-        const fileContext = result.answerlyContextFile?.context; // uploaded reference notes
+        const fileContext = undefined;   // notes now travel in notesContext
+        const notesContext = notesOnly(result.answerlyContextFile?.context);
         if (!token) { sendResponse({ error: 'Not logged in' }); return; }
         keepAliveStart();
         try {
@@ -320,7 +341,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`,
             },
-            body: JSON.stringify({ image: message.image, images: message.images, context: message.context, fileContext, quizTitle: message.quizTitle }),
+            body: JSON.stringify({ image: message.image, images: message.images, context: message.context, fileContext, notesContext, quizTitle: message.quizTitle }),
           });
           const data = await res.json();
           if (!res.ok) {
