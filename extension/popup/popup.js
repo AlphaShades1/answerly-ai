@@ -8,6 +8,7 @@ let screenshotActive        = false;
 let quizStealthActive       = false;
 let screenshotStealthActive = false;
 let privacyGuardActive      = false;
+let quizLoaderActive        = false;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const viewActivate = document.getElementById('view-activate');
@@ -52,6 +53,7 @@ const quizStealthRow  = document.getElementById('quiz-stealth-row');
 const btnSsStealth    = document.getElementById('btn-ss-stealth');
 const ssStealthRow    = document.getElementById('ss-stealth-row');
 const btnPrivacyGuard = document.getElementById('btn-privacy-guard');
+const btnQuizLoader   = document.getElementById('btn-quiz-loader');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showView(id) {
@@ -113,7 +115,7 @@ async function init() {
   const stored = await chrome.storage.local.get([
     'answerlySession', 'answerlyQuizActive', 'answerlyScreenshotActive',
     'answerlyQuizStealthActive', 'answerlyScreenshotStealthActive',
-    'answerlyPrivacyGuardActive'
+    'answerlyPrivacyGuardActive', 'answerlyQuizLoaderActive'
   ]);
 
   if (stored.answerlySession) {
@@ -132,6 +134,7 @@ async function init() {
       quizStealthActive       = quizActive       && !!stored.answerlyQuizStealthActive;
       screenshotStealthActive = screenshotActive && !!stored.answerlyScreenshotStealthActive;
       privacyGuardActive      = !!stored.answerlyPrivacyGuardActive;
+      quizLoaderActive        = !!stored.answerlyQuizLoaderActive;
       if (quizStealthActive       !== !!stored.answerlyQuizStealthActive ||
           screenshotStealthActive !== !!stored.answerlyScreenshotStealthActive) {
         await chrome.storage.local.set({
@@ -156,7 +159,7 @@ async function init() {
             await chrome.storage.local.remove([
               'answerlySession','answerlyQuizActive','answerlyScreenshotActive',
               'answerlyQuizStealthActive','answerlyScreenshotStealthActive',
-              'answerlyPrivacyGuardActive'
+              'answerlyPrivacyGuardActive', 'answerlyQuizLoaderActive'
             ]);
             currentSession = null;
             quizActive = false; screenshotActive = false;
@@ -176,7 +179,7 @@ async function init() {
     await chrome.storage.local.remove([
       'answerlySession', 'answerlyQuizActive', 'answerlyScreenshotActive',
       'answerlyQuizStealthActive', 'answerlyScreenshotStealthActive',
-      'answerlyPrivacyGuardActive'
+      'answerlyPrivacyGuardActive', 'answerlyQuizLoaderActive'
     ]);
   }
 
@@ -205,6 +208,7 @@ async function renderMain() {
   renderStealthBtns();
   renderSolveAllBtn();
   btnPrivacyGuard.classList.toggle('active', privacyGuardActive);
+  btnQuizLoader.classList.toggle('active', quizLoaderActive);
 
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const url  = tabs[0]?.url || '';
@@ -412,7 +416,7 @@ btnDeactivate.addEventListener('click', async () => {
   await chrome.storage.local.remove([
     'answerlySession','answerlyQuizActive','answerlyScreenshotActive',
     'answerlyQuizStealthActive','answerlyScreenshotStealthActive',
-    'answerlyPrivacyGuardActive'
+    'answerlyPrivacyGuardActive', 'answerlyQuizLoaderActive'
   ]);
   profileDropdown.classList.add('hidden');
   codeInput.value = '';
@@ -424,6 +428,11 @@ btnMenu.addEventListener('click', (e) => {
   e.stopPropagation();
   profileDropdown.classList.add('hidden');
   menuDropdown.classList.toggle('hidden');
+});
+
+document.getElementById('menu-tutorial').addEventListener('click', () => {
+  menuDropdown.classList.add('hidden');
+  chrome.tabs.create({ url: 'https://www.youtube.com/channel/UCrMGuTUthvK7yNdbP8_wDBg' });
 });
 
 document.getElementById('menu-subscription').addEventListener('click', () => {
@@ -625,6 +634,15 @@ btnSsStealth.addEventListener('click', async () => {
     await injectScript('content/quizSolver.js');
   }
   await sendToActiveTab({ type: screenshotStealthActive ? 'SS_STEALTH_ON' : 'SS_STEALTH_OFF' });
+});
+
+// ── Quiz Loader toggle ────────────────────────────────────────────────────
+// content/quizMemory.js watches storage for this key, so flipping it takes
+// effect on any open quiz without the popup reaching into tabs itself.
+btnQuizLoader.addEventListener('click', async () => {
+  quizLoaderActive = !quizLoaderActive;
+  btnQuizLoader.classList.toggle('active', quizLoaderActive);
+  await chrome.storage.local.set({ answerlyQuizLoaderActive: quizLoaderActive });
 });
 
 // ── Privacy Guard toggle ──────────────────────────────────────────────────

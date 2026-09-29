@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Quiz Loader</title>
+<style>body{font-family:system-ui;padding:20px;max-width:960px}
+[data-automation="sdk-item-wrapper"],.display_question{border:1px solid #cbd;margin:12px 0;padding:10px}
+#log{font-family:ui-monospace,monospace;font-size:12px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}</style>
+</head>
+<body>
+<h1 id="quiz_title">Unit 3 Quiz</h1>
+<p>Attempt 1 is answered, the page is rebuilt as a fresh attempt with the options
+in a different order, and the loader must put the same answers back — without
+touching anything already answered.</p>
+<div id="quiz"></div>
+<div id="log">running…</div>
+
+<script>
+// ENGINE is set by the runner before reload: 'nq' or 'classic'.
+let ENGINE = 'nq';
+try { ENGINE = localStorage.getItem('QL_ENGINE') || 'nq'; } catch {}
+// No replaceState here: the reload would then request a path the static test
+// server does not serve. quizKey() falls back to the quiz title, which is the
+// documented fallback and is what this harness exercises.
+
+const BANK = [
+  { id: 'q1', stem: 'Which dependency is inherent in the nature of the work?',
+    opts: ['Mandatory', 'Discretionary', 'External'], kind: 'radio', pick: 'Mandatory' },
+  { id: 'q2', stem: 'Select every technique that compresses a schedule.',
+    opts: ['Crashing', 'Fast-tracking', 'Chartering'], kind: 'checkbox', pick: ['Crashing', 'Fast-tracking'] },
+  { id: 'q3', stem: 'Activity ____ determines the dependencies between activities.',
+    opts: [], kind: 'text', pick: 'sequencing' },
+  { id: 'q4', stem: 'Choose the correct phase for this description.',
+    opts: ['Initiating', 'Planning', 'Closing'], kind: 'select', pick: 'Planning' },
+];
+
+function body(b, shuffled) {
+  const opts = shuffled ? b.opts.slice().reverse() : b.opts;
+  if (b.kind === 'text')   return '<div><input type="text" name="' + b.id + '"></div>';
+  if (b.kind === 'select') return '<div><select name="' + b.id + '"><option>[ Select ]</option>' +
+      opts.map(o => '<option>' + o + '</option>').join('') + '</select></div>';
+  return '<div role="' + (b.kind === 'radio' ? 'radiogroup' : 'group') + '">' + opts.map(o =>
+    '<label style="display:block"><input type="' + b.kind + '" name="' + b.id + '"><span class="user_content enhanced">' + o + '</span></label>').join('') + '</div>';
+}
+function render(shuffled) {
+  document.getElementById('quiz').innerHTML = BANK.map((b, i) => ENGINE === 'nq'
+    ? '<div data-automation="sdk-item-wrapper" data-id="' + b.id + '">' +
+        '<div data-automation="sdk-position-box-text">Question ' + (i + 1) + '</div>' +
+        '<div tabindex="-1"><div class="user_content enhanced"><p>' + b.stem + '</p></div></div>' + body(b, shuffled) + '</div>'
+    : '<div class="question display_question" data-id="' + b.id + '">' +
+        '<div class="question_text user_content"><p>' + b.stem + '</p></div>' + body(b, shuffled) + '</div>').join('');
+}
+render(false);
+
+// ── chrome stub with a persistent store across "attempts" ──────────────────
+let store = {};
+try { store = JSON.parse(localStorage.getItem('QL_STORE') || '{}'); } catch {}
+store.answerlyQuizLoaderActive = true;
+const changeListeners = [];
+const save = () => { try { localStorage.setItem('QL_STORE', JSON.stringify(store)); } catch {} };
+window.chrome = {
+  runtime: { lastError: null, onMessage: { addListener() {} }, sendMessage() {}, getURL: p => p },
+  storage: {
+    local: {
+      get(keys, cb) { const l = Array.isArray(keys) ? keys : [keys]; const o = {}; l.forEach(k => { if (k in store) o[k] = store[k]; }); cb(o); },
+      set(obj, cb) { const ch = {}; Object.keys(obj).forEach(k => { ch[k] = { oldValue: store[k], newValue: obj[k] }; store[k] = obj[k]; });
+                     save(); changeListeners.forEach(fn => fn(ch, 'local')); if (cb) cb(); },
+      remove(keys, cb) { (Array.isArray(keys) ? keys : [keys]).forEach(k => delete store[k]); save(); if (cb) cb(); },
+    },
+    onChanged: { addListener(fn) { changeListeners.push(fn); } },
+  },
+};
+const tick = ms => new Promise(r => setTimeout(r, ms));
+</script>
+
+<script src="/extension/content/quizMemory.js"></script>
+
+<script>
+const results = [];
+const check = (n, ok, d) => results.push({ n, ok: !!ok, d: d === undefined ? '' : String(d) });
+const qEl = id => document.querySelector('[data-id="' + id + '"]');
+const checkedTexts = id => [...qEl(id).querySelectorAll('input:checked')]
+  .map(i => i.closest('label').textContent.trim()).sort();
+const textVal = id => { const t = qEl(id).querySelector('input[type="text"]'); return t ? t.value.trim() : null; };
+const selVal  = id => { const s = qEl(id).querySelector('select'); return s && s.selectedIndex > 0 ? s.options[s.selectedIndex].text : null; };
+
+function answerAsStudent() {
+  BANK.forEach(b => {
+    const q = qEl(b.id);
+    if (b.kind === 'text')   { const t = q.querySelector('input[type="text"]'); t.value = b.pick; t.dispatchEvent(new Event('input', { bubbles: true })); return; }
+    if (b.kind === 'select') { const s = q.querySelector('select');
+      for (let i = 0; i < s.options.length; i++) if (s.options[i].text === b.pick) { s.selectedIndex = i; break; }
+      s.dispatchEvent(new Event('change', { bubbles: true })); return; }
+    const want = Array.isArray(b.pick) ? b.pick : [b.pick];
+    q.querySelectorAll('input').forEach(i => {
+      if (want.includes(i.closest('label').textContent.trim())) { i.checked = true; i.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+  });
+}
+
+(async () => {
+  const phase = (() => { try { return localStorage.getItem('QL_PHASE') || 'attempt1'; } catch { return 'attempt1'; } })();
+
+  if (phase === 'attempt1') {
+    await tick(1800);
+    answerAsStudent();
+    await tick(3500);                       // let the debounce + timer capture
+    const mem = store.answerlyQuizMemory || {};
+    const key = Object.keys(mem)[0];
+    check('attempt 1: answers captured', !!key && Object.keys(mem[key].answers || {}).length === BANK.length,
+          key ? Object.keys(mem[key].answers || {}).length + ' of ' + BANK.length + ' questions stored under ' + key : 'nothing stored');
+    check('attempt 1: stored by option TEXT, not position',
+          !!key && JSON.stringify(mem[key].answers[Object.keys(mem[key].answers)[0]]).includes('Mandatory'),
+          key ? JSON.stringify(mem[key].answers[Object.keys(mem[key].answers)[0]]).slice(0, 90) : '');
+    try { localStorage.setItem('QL_PHASE', 'attempt2'); } catch {}
+    document.getElementById('log').textContent = 'attempt 1 done — reloading as a fresh attempt…';
+    window.__phase1 = results;
+    try { localStorage.setItem('QL_R1', JSON.stringify(results)); } catch {}
+    setTimeout(() => location.reload(), 400);
+    return;
+  }
+
+  // ── Attempt 2: fresh page, options in a different order ──────────────────
+  render(true);
+  // one question already answered by the student, which must NOT be overwritten
+  const q1 = qEl('q1');
+  const other = [...q1.querySelectorAll('input')].find(i => i.closest('label').textContent.trim() === 'Discretionary');
+  other.checked = true;
+  await tick(4500);                          // loader restores on its timer
+
+  let r1 = []; try { r1 = JSON.parse(localStorage.getItem('QL_R1') || '[]'); } catch {}
+  r1.forEach(r => results.push(r));
+
+  check('attempt 2: multi-select restored (order shuffled)',
+        JSON.stringify(checkedTexts('q2')) === JSON.stringify(['Crashing', 'Fast-tracking']), JSON.stringify(checkedTexts('q2')));
+  check('attempt 2: text answer restored', textVal('q3') === 'sequencing', textVal('q3'));
+  check('attempt 2: dropdown restored', selVal('q4') === 'Planning', selVal('q4'));
+  check('attempt 2: a question the student already answered is LEFT ALONE',
+        JSON.stringify(checkedTexts('q1')) === JSON.stringify(['Discretionary']), JSON.stringify(checkedTexts('q1')));
+
+  document.getElementById('log').innerHTML = results.map(r =>
+    `<span class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</span>  ${r.n}\n       ${r.d}`
+  ).join('\n') + `\n\n${results.filter(r => r.ok).length}/${results.length} passed  [engine: ${ENGINE}]`;
+  window.__results = results; window.__done = true;
+  try { localStorage.removeItem('QL_PHASE'); localStorage.removeItem('QL_R1'); } catch {}
+})();
+</script>
+</body>
+</html>

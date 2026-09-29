@@ -96,6 +96,7 @@
             </svg>
           </button>
           <div id="menu-dropdown" class="dropdown hidden">
+            <button class="dropdown-item" id="menu-tutorial">Tutorial: how to use Answerly</button>
             <button class="dropdown-item" id="menu-subscription">Buy / Renew Subscription</button>
             <button class="dropdown-item" id="menu-manage">Manage Subscription</button>
             <button class="dropdown-item" id="menu-help">Help: AnswerlyAISupport@gmail.com</button>
@@ -195,6 +196,18 @@
 
     <!-- Footer -->
     <div class="footer">
+      <!-- Quiz Loader -->
+      <div class="privacy-guard-row">
+        <button id="btn-quiz-loader" class="toggle-pill" title="Toggle Quiz Loader">
+          <span class="toggle-pill-knob"></span>
+        </button>
+        <span class="privacy-guard-label">Quiz Loader</span>
+        <div class="stealth-tip">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div class="stealth-tooltip privacy-guard-tooltip">Remembers the answers you entered on a quiz and puts them back if you retake it, so you do not have to re-enter every one. It only fills boxes you have left <b>empty</b> — anything you have already answered on this attempt is never changed. Works on both Canvas quiz types. Remembers your last 40 quizzes for 60 days.</div>
+        </div>
+      </div>
+
       <!-- Privacy Guard -->
       <div class="privacy-guard-row">
         <button id="btn-privacy-guard" class="toggle-pill" title="Toggle Privacy Guard">
@@ -215,7 +228,7 @@
           <span class="stealth-label">Quiz Stealth</span>
           <div class="stealth-tip">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <div class="stealth-tooltip">Hides the <b>?</b> button on each question. Click where it normally appears to silently fetch &amp; auto-select the answer — nothing visible on screen.</div>
+            <div class="stealth-tooltip"><b>Requires Quiz Solver to be turned on.</b> Hides the <b>?</b> button on each question. Click where it normally appears to silently fetch &amp; auto-select the answer — nothing visible on screen. The buttons sit in the <b>top-right corner of every question</b>. Hover that corner and a small label confirms which is which.</div>
           </div>
         </div>
         <!-- Screenshot Stealth -->
@@ -226,7 +239,7 @@
           <span class="stealth-label">Screenshot Stealth</span>
           <div class="stealth-tip">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <div class="stealth-tooltip">Places an invisible 📸 button on each question — hover over it to reveal it. Click it, a fullscreen overlay appears, drag to outline the question area, and the answer is automatically filled in the answer box. No popup, no visible AI interaction. Works with or without Quiz Solver.</div>
+            <div class="stealth-tooltip"><b>Requires Screenshot Tool to be turned on.</b> Places an invisible 📸 button on each question — hover over it to reveal it. Click it, a fullscreen overlay appears, drag to outline the question area, and the answer is automatically filled in the answer box. No popup, no visible AI interaction. The buttons sit in the <b>top-right corner of every question</b>.</div>
           </div>
         </div>
       </div>

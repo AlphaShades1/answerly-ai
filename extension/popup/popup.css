@@ -335,9 +335,21 @@ body {
   align-items: center;
   gap: 6px;
 }
+/* A stealth row whose parent tool is off is dimmed and its switch is dead, but
+   the (i) must stay hoverable: that tooltip is the only place the popup explains
+   WHY the row is greyed out, and pointer-events:none on the whole row made it
+   unreadable exactly when it was most needed. */
 .stealth-row.stealth-disabled {
-  opacity: 0.35;
+  opacity: 0.6;
+}
+.stealth-row.stealth-disabled .toggle-pill,
+.stealth-row.stealth-disabled .stealth-label {
   pointer-events: none;
+}
+.stealth-row.stealth-disabled .stealth-tip {
+  pointer-events: auto;
+  opacity: 1;
+  cursor: help;
 }
 .stealth-label {
   font-size: 11px;
@@ -433,11 +445,12 @@ body {
 }
 
 .activate-spam-hint {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
   text-align: center;
-  opacity: 0.85;
-  margin: 6px 0 0;
+  opacity: 1;
+  margin: 8px 0 0;
 }
 
 .code-input-wrap {
