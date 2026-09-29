@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Results-page verdict capture</title>
+<style>body{font-family:system-ui;padding:20px;max-width:960px}
+.display_question{border:1px solid #cbd;margin:10px 0;padding:10px}
+.display_question.correct{border-left:4px solid #2a7}.display_question.incorrect{border-left:4px solid #c33}
+#log{font-family:ui-monospace,monospace;font-size:12px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}</style>
+</head>
+<body>
+<h1 id="quiz_title">Unit 3 Quiz</h1>
+<div class="quiz-submission">
+  <div class="quiz_score">Score for this attempt: 2 out of 4</div>
+
+  <!-- Classic Canvas marks the question container itself, and tags the
+       student's pick and the right answer on the individual options. -->
+  <div class="question display_question correct">
+    <div class="question_text user_content"><p>Which dependency is inherent in the nature of the work?</p></div>
+    <div class="answers">
+      <div class="answer selected_answer correct_answer"><div class="answer_text">Mandatory</div></div>
+      <div class="answer"><div class="answer_text">Discretionary</div></div>
+    </div>
+  </div>
+
+  <div class="question display_question incorrect">
+    <div class="question_text user_content"><p>The part of the frontal lobe that serves as the primary taste cortex is known as ______.</p></div>
+    <div class="answers">
+      <div class="answer selected_answer"><div class="answer_text">You Answered primary gustatory cortex</div></div>
+      <div class="answer correct_answer"><div class="answer_text">Correct Answer anterior insular cortex</div></div>
+    </div>
+  </div>
+
+  <div class="question display_question partial_credit">
+    <div class="question_text user_content"><p>Select every technique that compresses a schedule.</p></div>
+    <div class="answers">
+      <div class="answer selected_answer correct_answer"><div class="answer_text">Crashing</div></div>
+      <div class="answer correct_answer"><div class="answer_text">Fast-tracking</div></div>
+    </div>
+  </div>
+
+  <!-- Ungraded: no verdict class. Must be reported as nothing rather than guessed. -->
+  <div class="question display_question">
+    <div class="question_text user_content"><p>Explain in your own words why scope creep happens.</p></div>
+    <div class="answers"><div class="answer"><div class="answer_text">essay</div></div></div>
+  </div>
+</div>
+<div id="log">running…</div>
+
+<script>
+const sent = [];
+window.chrome = {
+  runtime: {
+    lastError: null,
+    sendMessage(msg, cb) { sent.push(msg); if (typeof cb === 'function') cb({ ok: true }); },
+    onMessage: { addListener() {} },
+    getURL: p => p,
+  },
+  storage: { local: {
+    get(k, cb) { cb({}); },
+    set(o, cb) { if (cb) cb(); },
+  }, onChanged: { addListener() {} } },
+};
+const tick = ms => new Promise(r => setTimeout(r, ms));
+</script>
+
+<script src="/extension/content/scoreReporter.js"></script>
+
+<script>
+(async () => {
+  await tick(2500);
+  const results = [];
+  const check = (n, ok, d) => results.push({ n, ok: !!ok, d: d === undefined ? '' : String(d) });
+
+  const msg = sent.find(m => m && m.type === 'REPORT_SCORE');
+  check('a score report was sent', !!msg, msg ? JSON.stringify(msg.payload).slice(0, 80) : 'none');
+  const p = (msg && msg.payload) || {};
+  const qs = p.questions || [];
+
+  check('score still parsed as before', p.score === 2 && p.possible === 4, p.score + '/' + p.possible);
+  check('three graded questions captured, the ungraded one skipped', qs.length === 3, qs.length + ' captured');
+
+  const byVerdict = {};
+  qs.forEach(q => { byVerdict[q.verdict] = (byVerdict[q.verdict] || 0) + 1; });
+  check('verdicts read correctly', byVerdict.correct === 1 && byVerdict.incorrect === 1 && byVerdict.partial === 1,
+        JSON.stringify(byVerdict));
+
+  const wrong = qs.find(q => q.verdict === 'incorrect');
+  check('the correct answer TEXT was captured for the wrong one',
+        !!wrong && (wrong.correct || []).some(t => /anterior insular cortex/i.test(t)),
+        wrong ? JSON.stringify(wrong.correct) : '');
+  check('Canvas "Correct Answer" / "You Answered" prefixes stripped',
+        !!wrong && (wrong.correct || []).every(t => !/^correct answer/i.test(t))
+                && (wrong.chosen  || []).every(t => !/^you answered/i.test(t)),
+        wrong ? JSON.stringify([wrong.chosen, wrong.correct]) : '');
+  check('an ungraded essay produced no verdict',
+        !qs.some(q => /scope creep/i.test(q.stem)), qs.map(q => q.stem.slice(0, 22)).join(' | '));
+
+  document.getElementById('log').innerHTML = results.map(r =>
+    `<span class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</span>  ${r.n}\n       ${r.d}`
+  ).join('\n') + `\n\n${results.filter(r => r.ok).length}/${results.length} passed`;
+  window.__payload = p; window.__results = results; window.__done = true;
+})();
+</script>
+</body>
+</html>

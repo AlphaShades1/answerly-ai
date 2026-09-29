@@ -211,6 +211,75 @@
     return 'unknown';
   }
 
+
+  // ── Per-question verdicts ──────────────────────────────────────────────────
+  // The results page is the only place the CORRECT answer is ever visible to
+  // us. A total score says five of seventeen were wrong without saying which;
+  // this says exactly which, and is the difference between a benchmark built
+  // from real usage and guessing from aggregates.
+  //
+  // Deliberately conservative: it reports a verdict ONLY when Canvas has
+  // labelled the question itself, and reports nothing at all when it cannot
+  // tell. A wrong verdict stored as fact is far worse than a missing one,
+  // because it would be served back to students as a verified answer.
+  function verdictFor(qEl) {
+    var c = ' ' + (qEl.className || '') + ' ';
+    // Classic Canvas labels the question container directly. These class names
+    // are long-standing and unambiguous.
+    if (/\scorrect\s/.test(c) && !/\sincorrect\s/.test(c)) return 'correct';
+    if (/\sincorrect\s/.test(c)) return 'incorrect';
+    if (/\spartial_credit\s/.test(c)) return 'partial';
+    // New Quizzes marks the result with a data attribute rather than a class.
+    var da = qEl.getAttribute('data-automation') || '';
+    var res = qEl.querySelector('[data-automation*="correct"], [data-automation*="incorrect"]');
+    if (res) {
+      var ra = res.getAttribute('data-automation') || '';
+      if (/incorrect/i.test(ra)) return 'incorrect';
+      if (/correct/i.test(ra)) return 'correct';
+    }
+    if (/incorrect/i.test(da)) return 'incorrect';
+    return null;                       // unknown — say nothing
+  }
+
+  function stemOf(qEl) {
+    var el = qEl.querySelector('div[tabindex="-1"] .user_content.enhanced')
+          || qEl.querySelector('.question_text.user_content')
+          || qEl.querySelector('.user_content.enhanced')
+          || qEl.querySelector('.question_text');
+    var t = el ? txt(el) : '';
+    return t.replace(/\s+/g, ' ').trim().slice(0, 300);
+  }
+
+  function answerTexts(qEl, sel) {
+    var out = [];
+    Array.prototype.forEach.call(qEl.querySelectorAll(sel), function (a) {
+      var t = txt(a).replace(/\s+/g, ' ').trim();
+      // Canvas appends markers like "You Answered" / "Correct Answer" to the
+      // label; strip them or the stored text will not match the live option.
+      t = t.replace(/^(you answered|correct answer|correct!|incorrect)\s*/i, '').trim();
+      if (t && out.indexOf(t) === -1 && t.length < 300) out.push(t.slice(0, 200));
+    });
+    return out;
+  }
+
+  function extractQuestionResults() {
+    var qs = document.querySelectorAll('[data-automation="sdk-item-wrapper"], div.question.display_question, div.display_question');
+    var out = [];
+    Array.prototype.forEach.call(qs, function (qEl) {
+      var verdict = verdictFor(qEl);
+      if (!verdict) return;
+      var stem = stemOf(qEl);
+      if (!stem || stem.length < 12) return;
+      out.push({
+        stem: stem,
+        verdict: verdict,
+        chosen:  answerTexts(qEl, '.selected_answer .answer_text, .selected_answer .answer_label, .answer.selected_answer'),
+        correct: answerTexts(qEl, '.correct_answer .answer_text, .correct_answer .answer_label, .answer.correct_answer'),
+      });
+    });
+    return out.slice(0, 80);
+  }
+
   // ── Dedupe so reloading/revisiting a results page doesn't re-report ────────
   function alreadyReported(key, cb) {
     try {
@@ -246,6 +315,7 @@
       engine: detectEngine(),
       durationSec: extractDuration(),
       pending: gradingPending(),
+      questions: extractQuestionResults(),
     };
 
     var key = [payload.quizTitle, payload.attempt, payload.score, payload.possible].join('|');

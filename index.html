@@ -277,7 +277,67 @@
       </div>
       <div class="faq-item">
         <button class="faq-q">Does it work on mobile or tablet?</button>
-        <div class="faq-a">Answerly AI is a Chrome desktop extension. It works on Windows, Mac, and Chromebooks. It does not work on iOS/Android devices.</div>
+        <div class="faq-a">Answerly AI is a desktop browser extension for Chrome and Firefox. It works on Windows, Mac and Chromebooks. It does not work on iOS or Android.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">What exactly does the Quiz Solver do?</button>
+        <div class="faq-a">It puts a small <b>?</b> button on every question. Click it and you get a hint first; click <b>Show Answer</b> and it reveals the answer. In normal mode nothing is selected for you — you stay in control of what goes on the page. It reads the question and all of its options directly from the page, so it works with multiple choice, true/false, multiple select, dropdowns and fill-in-the-blank.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">What does Solve All Questions do, and when should I not use it?</button>
+        <div class="faq-a">It answers every question on the page in one pass, then runs a second pass to catch anything that did not take the first time. It deliberately <b>skips</b> questions it cannot answer safely from text alone — essays, drag-and-drop, and anything whose answer lives in a picture or a diagram — rather than guessing. Those are the ones to use the Screenshot Tool on. If your quiz shows one question at a time, press it again on each question.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">What is the Screenshot Tool for?</button>
+        <div class="faq-a">For anything the page text cannot express: diagrams, graphs, chemical structures, rendered equations, tables and image-based questions. You drag a box around the question and the AI reads the picture. You can attach up to <b>three</b> screenshots of the same question — useful when a passage or table sits above the question and the choices sit below it.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">What is Stealth Mode and how is it different?</button>
+        <div class="faq-a">Stealth Mode makes the buttons invisible and selects the answer for you directly on the page, with no card and nothing visible on screen. There are two, and each one needs its parent tool switched on: <b>Quiz Stealth</b> requires Quiz Solver, and <b>Screenshot Stealth</b> requires the Screenshot Tool. The invisible buttons always sit in the <b>top-right corner of each question</b> — hover that corner and a small label tells you which is which.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">What does Privacy Guard actually block?</button>
+        <div class="faq-a">It blocks the requests your LMS uses to log what you do during a quiz — tab-switch detection, page-view tracking and quiz event logging — across Canvas, Moodle, Blackboard and others. It covers the whole page, including quizzes that open in an embedded box. It does <b>not</b> hide anything from software installed on a school-managed computer, and it does not change your submitted answers or your score.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">What is the Quiz Loader?</button>
+        <div class="faq-a">If you retake a quiz, it puts back the answers you entered last time so you do not have to re-enter every one. It only fills boxes you have left <b>empty</b> — anything you have already answered on the new attempt is never changed. It remembers by the answer text, so it still works when your teacher shuffles the option order. It keeps your last 40 quizzes for 60 days, and you can switch it off at any time.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">How do I upload my notes, and does it really help?</button>
+        <div class="faq-a">Open the extension and choose <b>Upload notes</b> — one file, up to 7&nbsp;MB, as a PDF, image or .txt. The AI then reads your own course material when it answers. It makes the biggest difference on questions where your class defines a term its own way, which is exactly the kind of question a general AI gets wrong. Your notes stay attached until you remove them.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">Can I change the keyboard shortcut?</button>
+        <div class="faq-a">Yes, under <b>Customize</b>. Hover the question you want and press your key instead of clicking. It needs both Quiz Solver and Quiz Stealth switched on, and it is ignored while you are typing in an answer box so it cannot fire by accident.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">Can I change how it looks?</button>
+        <div class="faq-a">Yes. Under <b>Customize</b> you can set the accent colour, card background, border, answer and hint colours, and the opacity of the answer card. There are presets including a Ghost preset that makes the card fully transparent.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">How many questions can I do per day?</button>
+        <div class="faq-a">Pro subscribers get 150 Quiz Solver answers and 150 Screenshot answers each day. The counters reset at <b>midnight UTC</b>, which is 5pm Pacific and 8pm Eastern — worth knowing if you are planning around a late-night exam. Your remaining count is shown in the extension.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">How do I cancel my subscription?</button>
+        <div class="faq-a">Open the extension, click the <b>menu</b> (the three lines in the top right) and choose <b>Manage Subscription</b>. That opens the Stripe billing portal, where <b>Cancel plan</b> ends the renewal. You keep full access until the end of the period you have already paid for, and you are not charged again. You can also reach the portal from the receipt email Stripe sent you. If you cannot get in, email AnswerlyAISupport@gmail.com and we will cancel it for you.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">What happens to my activation code if I cancel or resubscribe?</button>
+        <div class="faq-a">Your code works until the end of your paid period. If you resubscribe later you are sent a code again — email support if you would like to keep the same one.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">Can I use it on more than one computer?</button>
+        <div class="faq-a">Yes. Install the extension and enter the same activation code. Your daily limit is shared across your devices because it belongs to your code, not to a machine.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">It is not working on my quiz — what should I check?</button>
+        <div class="faq-a">First make sure the tool you want is switched on in the extension, and that you are on the quiz page itself rather than the course home page. If the buttons do not appear, refresh the quiz page: a browser update can disconnect the extension from a tab that is already open. If your school blocks extensions on a managed laptop, use your own computer. If it still fails, email AnswerlyAISupport@gmail.com with the quiz type and we will look at it.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">Does it work on Firefox?</button>
+        <div class="faq-a">Yes. Answerly AI is available for both Chrome and Firefox on desktop, with the same features in each.</div>
       </div>
     </div>
   </section>
@@ -291,6 +351,13 @@
         <span>Answerly AI</span>
       </div>
       <div class="footer-links">
+        <!-- Checks the real backend health endpoint on load. It starts as
+             "Checking..." and only claims operational once a request has
+             actually succeeded, so it can never sit there saying everything is
+             fine while the service is down. -->
+        <a href="#" id="status-pill" class="status-pill" title="Checking service status...">
+          <span class="status-dot" id="status-dot"></span><span id="status-text">Checking…</span>
+        </a>
         <a href="privacy.html">Privacy Policy</a>
         <a href="mailto:AnswerlyAISupport@gmail.com">Support</a>
       </div>
@@ -314,5 +381,33 @@
   </footer>
 
   <script src="script.js"></script>
+<script>
+// Live service status. Hits the same /health endpoint the owner monitors.
+(function () {
+  var pill = document.getElementById('status-pill');
+  var dot  = document.getElementById('status-dot');
+  var text = document.getElementById('status-text');
+  if (!pill) return;
+  function set(state, label, title) {
+    dot.className = 'status-dot ' + state;
+    text.textContent = label;
+    pill.title = title;
+  }
+  var ctrl = new AbortController();
+  var timer = setTimeout(function () { ctrl.abort(); }, 8000);
+  fetch('https://answerly-ai-backend.onrender.com/health', { signal: ctrl.signal })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('http ' + r.status)); })
+    .then(function (d) {
+      clearTimeout(timer);
+      var ok = d && d.status === 'ok' && d.provider && d.provider.reachable;
+      if (ok) set('up', 'All systems operational', 'Answerly is running normally — the AI service responded just now.');
+      else    set('degraded', 'Degraded', 'Answerly responded but reports a problem. Answers may be slow or failing.');
+    })
+    .catch(function () {
+      clearTimeout(timer);
+      set('down', 'Service issue', 'Could not reach Answerly just now. This may also be your own connection.');
+    });
+})();
+</script>
 </body>
 </html>

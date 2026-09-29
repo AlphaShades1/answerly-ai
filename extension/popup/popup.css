@@ -259,8 +259,8 @@ body {
 .footer {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 6px 14px 9px;
+  gap: 3px;
+  padding: 5px 14px 7px;
   border-top: 1px solid var(--border);
 }
 
@@ -313,9 +313,14 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-bottom: 6px;
-  margin-bottom: 3px;
+  padding-bottom: 4px;
+  margin-bottom: 2px;
   border-bottom: 1px solid var(--border);
+}
+/* The last toggle row sits directly above the icon row, which has its own
+   spacing, so it does not need a separator of its own. */
+.privacy-guard-row + .privacy-guard-row {
+  padding-bottom: 4px;
 }
 .privacy-guard-label {
   font-size: 11px;
