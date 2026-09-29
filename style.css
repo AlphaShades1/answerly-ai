@@ -862,3 +862,7 @@ section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
 @media (prefers-reduced-motion: reduce) {
   .status-dot.up { animation: none; }
 }
+
+/* Inconclusive is not the same as down: a neutral grey, so a blocked request or
+   a sleeping laptop does not show the viewer a red alarm. */
+.status-dot.unknown { background: #8a8a99; box-shadow: 0 0 0 3px rgba(138, 138, 153, 0.18); }

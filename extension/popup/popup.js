@@ -218,6 +218,12 @@ async function renderMain() {
   const isCanvas = /\/courses\/\d+\/(quizzes|assignments)/.test(url)
                 || /quiz-lti-[a-z0-9-]+\.instructure\.com/i.test(url);
   notCanvasNotice.classList.toggle('hidden', isCanvas);
+  // The screenshot disclaimer is advice about answering questions, which is
+  // meaningless on a page that has none — and showing both at once is what used
+  // to push the popup past Chrome's 600px cap and clip the footer buttons off
+  // the bottom. Hide it whenever the "not on Canvas" notice is up.
+  const ssNotice = document.querySelector('.screenshot-notice');
+  if (ssNotice) ssNotice.classList.toggle('hidden', !isCanvas);
 
   // Load usage for THIS specific code (per-code storage so switching accounts is correct)
   const usageKey = 'answerlyUsage_' + currentSession.code;

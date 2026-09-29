@@ -327,31 +327,54 @@
 
   <script src="script.js"></script>
 <script>
-// Live service status. Hits the same /health endpoint the owner monitors.
+// Live service status.
+//
+// Two attempts before it says anything worrying. A single failed request does
+// not mean the service is down: a deploy restart takes under a minute, a laptop
+// waking from sleep drops the first fetch, and an ad blocker can eat it
+// outright. Crying wolf over those teaches people to ignore the light.
+//
+// It is also deliberately NOT hard-coded green. The one moment this matters is
+// during a real outage, and a badge that always reads "operational" would send
+// users hunting for a fault on their own machine instead.
 (function () {
   var pill = document.getElementById('status-pill');
   var dot  = document.getElementById('status-dot');
   var text = document.getElementById('status-text');
   if (!pill) return;
+
   function set(state, label, title) {
     dot.className = 'status-dot ' + state;
     text.textContent = label;
     pill.title = title;
   }
-  var ctrl = new AbortController();
-  var timer = setTimeout(function () { ctrl.abort(); }, 8000);
-  fetch('https://answerly-ai-backend.onrender.com/health', { signal: ctrl.signal })
-    .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('http ' + r.status)); })
-    .then(function (d) {
-      clearTimeout(timer);
-      var ok = d && d.status === 'ok' && d.provider && d.provider.reachable;
-      if (ok) set('up', 'All systems operational', 'Answerly is running normally — the AI service responded just now.');
-      else    set('degraded', 'Degraded', 'Answerly responded but reports a problem. Answers may be slow or failing.');
-    })
-    .catch(function () {
-      clearTimeout(timer);
-      set('down', 'Service issue', 'Could not reach Answerly just now. This may also be your own connection.');
-    });
+
+  function probe(timeoutMs) {
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, timeoutMs);
+    return fetch('https://answerly-ai-backend.onrender.com/health', { signal: ctrl.signal, cache: 'no-store' })
+      .then(function (r) { clearTimeout(timer); return r.ok ? r.json() : Promise.reject(new Error('http ' + r.status)); })
+      .catch(function (e) { clearTimeout(timer); throw e; });
+  }
+
+  function apply(d) {
+    if (d && d.status === 'ok' && d.provider && d.provider.reachable) {
+      set('up', 'All systems operational', 'Answerly is running normally — the AI service responded just now.');
+    } else {
+      set('degraded', 'Partial outage', 'Answerly responded but reports a problem. Answers may be slow or failing right now.');
+    }
+  }
+
+  probe(8000).then(apply).catch(function () {
+    // Second chance, with a longer window, before saying anything.
+    setTimeout(function () {
+      probe(15000).then(apply).catch(function () {
+        // Still nothing. We genuinely do not know whether this is us or the
+        // viewer's own connection, so say that rather than declare an outage.
+        set('unknown', 'Status unavailable', 'Could not reach the status check. This is often a local connection or an ad blocker rather than an outage — the extension itself may be working fine.');
+      });
+    }, 2500);
+  });
 })();
 </script>
 </body>

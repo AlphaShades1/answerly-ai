@@ -159,12 +159,16 @@ body {
 .dropdown-item:hover { background: rgba(255,255,255,0.07); }
 
 /* ── Notice bar ── */
+/* Chrome caps the popup at 600px and html/body are overflow:hidden, so
+   anything past 600px is clipped away silently rather than scrolled to. The
+   logged-in view measures 539px clean, and each notice below adds to that, so
+   every block here is sized against that budget — see the note above .footer. */
 .notice {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 10px 12px 0;
-  padding: 8px 10px;
+  margin: 7px 12px 0;
+  padding: 6px 10px;
   background: rgba(124, 92, 252, 0.08);
   border: 1px solid rgba(124, 92, 252, 0.25);
   border-radius: 8px;
@@ -186,14 +190,14 @@ body {
 
 /* ── Screenshot disclaimer ── */
 .screenshot-notice {
-  margin: 6px 12px 0;
-  padding: 6px 10px;
+  margin: 5px 12px 0;
+  padding: 5px 9px;
   background: rgba(124,92,252,0.1);
   border: 1px solid rgba(124,92,252,0.25);
   border-radius: 6px;
   font-size: 11px;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.35;
   text-align: center;
 }
 .screenshot-notice strong { color: #a78bfa; }
