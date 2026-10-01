@@ -104,13 +104,21 @@
     question_flagged: 1,
     session_started: 1,
 
-    // New Quizzes — NOT verified. quiz-lti is closed source, so these are the
-    // plausible spellings of the same three ideas rather than names read off a
-    // repository. Guessing here is safe in one direction only: because this is
-    // an allowlist, a name that is wrong or does not exist simply never matches
-    // and the feed is dropped exactly as it was before this change. What must
-    // never be added is anything meaning resumed/focused/returned — those are
-    // the events the feature exists to suppress, whatever Canvas calls them.
+    // New Quizzes — speculative, and measured since to be beside the point.
+    // Native New Quizzes does not POST an event batch anywhere: it fetches
+    // credentials from /api/quiz_sessions/:id/kinesis_credentials and streams
+    // events straight to kinesis.us-east-1.amazonaws.com. Watched end to end
+    // through a real attempt, nothing on this page's event feed was intercepted
+    // at all, so every New Quizzes pattern below is effectively dead.
+    //
+    // Two consequences worth keeping written down. New Quizzes never had the
+    // Classic defect, because its events were never being dropped — views were
+    // always reaching the instructor. And the Kinesis stream must stay
+    // untouched: blocking it would delete views along with everything else and
+    // recreate on New Quizzes exactly the hole this change closed on Classic.
+    // Tab switching there is already handled a layer up, by the listener
+    // suppression further down this file — the app cannot report a blur it is
+    // never told about, whatever transport it would have used.
     item_viewed: 1,
     item_flagged: 1,
     session_created: 1,
