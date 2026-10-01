@@ -17,24 +17,17 @@
   // reply we fake, the dashboard got an empty object where it expected an array
   // of notifications. Blocking a read hides nothing from the instructor — the
   // access report is built from page_views — and only breaks Canvas.
-  var BLOCKED = [
+  // The quiz event feed. These carry a BATCH of mixed event types, so they are
+  // filtered rather than dropped — see filterEventBody below.
+  var EVENT_FEED = [
     /\/quizzes\/\d+\/submissions\/\d+\/events/,
     /\/quiz_submissions\/\d+\/events/,
     /quiz_submission_events/,
-    /\/page_views/,
-    /\/api\/v1\/audit/,
-    /\/api\/v1\/.*\/analytics/,
-    /\/live_events/,
-    /\/api\/v1\/.*\/quiz_reports/,
-    /\/api\/v1\/.*\/quiz_statistics/,
-    /log_participation/,
     // Events only. Bare /api/quiz_sessions also matched the session itself and
     // its /questions and /session_items — the calls New Quizzes makes to fetch
     // the quiz — so the quiz sat on "Loading…" forever instead of opening.
     /\/api\/quiz_sessions\/[^/]+\/events/,
     /\/quiz-lti.*\/events/,
-    /\/log_event/,
-    /\/api\/v1\/.*\/enrollments\/.*\/last_attended/,
     /\/api\/quiz\/v1\/.*\/events/,
     /\/quizzes\/.*\/events/,
     /\/quiz_api\/.*\/events/,
@@ -42,10 +35,136 @@
     /\/submission_events/,
   ];
 
+  // Pure telemetry: nothing an instructor reads is built from these, so there
+  // is no innocuous half to preserve and they stay dropped outright.
+  var TELEMETRY = [
+    /\/page_views/,
+    /\/api\/v1\/audit/,
+    /\/api\/v1\/.*\/analytics/,
+    /\/live_events/,
+    /\/api\/v1\/.*\/quiz_reports/,
+    /\/api\/v1\/.*\/quiz_statistics/,
+    /log_participation/,
+    /\/log_event/,
+    /\/api\/v1\/.*\/enrollments\/.*\/last_attended/,
+  ];
+
+  var BLOCKED = EVENT_FEED.concat(TELEMETRY);
+
   function blocked(url) {
     if (!window.__answerlyPGActive) return false;
     var s = String(url || '');
     return BLOCKED.some(function (r) { return r.test(s); });
+  }
+
+  function isEventFeed(url) {
+    var s = String(url || '');
+    return EVENT_FEED.some(function (r) { return r.test(s); });
+  }
+
+  // ── Quiz event feed: filter the batch, don't discard it ──────────
+  // The instructor's quiz log is assembled from two sources, and dropping the
+  // whole feed only reaches one of them:
+  //
+  //   question_answered — synthesised SERVER-side from the answer autosave.
+  //                       Unreachable from here; blocking the autosave would
+  //                       stop answers saving at all.
+  //   question_viewed   — exists ONLY because the browser posts it on this
+  //                       feed. Drop the feed and it is gone for good.
+  //
+  // So discarding the feed deleted the views while the answers survived,
+  // leaving a log that reads "answered 40, never looked at one" — a far louder
+  // signal than the tab switches it was hiding. Filtering keeps the innocuous
+  // events flowing and strips only the ones that record leaving the page.
+  //
+  // An ALLOWLIST, not a denylist: an event type we have never seen is stripped
+  // rather than forwarded, so a type Canvas adds later cannot leak by default.
+  // Verified against canvas-lms ui/shared/quiz-log-auditing/jquery/constants.js
+  // — the client sends exactly five types, and question_answered is not one.
+  var ALLOWED_EVENTS = {
+    // Classic — verified against the Canvas source.
+    question_viewed: 1,
+    question_flagged: 1,
+    session_started: 1,
+
+    // New Quizzes — NOT verified. quiz-lti is closed source, so these are the
+    // plausible spellings of the same three ideas rather than names read off a
+    // repository. Guessing here is safe in one direction only: because this is
+    // an allowlist, a name that is wrong or does not exist simply never matches
+    // and the feed is dropped exactly as it was before this change. What must
+    // never be added is anything meaning resumed/focused/returned — those are
+    // the events the feature exists to suppress, whatever Canvas calls them.
+    item_viewed: 1,
+    item_flagged: 1,
+    session_created: 1,
+
+    // page_blurred / page_focused and their New Quizzes equivalents are the
+    // whole point of the feature and are deliberately absent.
+  };
+
+  // New Quizzes is closed source, so its event names could not be read off a
+  // repository the way Classic's were. Unknown names fail closed (stripped, so
+  // the feed is dropped exactly as before this change), and setting
+  // localStorage.answerlyPGDebug = '1' records the names actually seen in
+  // window.__answerlyPGSeen so they can be confirmed against a real attempt.
+  window.__answerlyPGSeen = window.__answerlyPGSeen || {};
+  function noteEvent(type, kept) {
+    try {
+      window.__answerlyPGSeen[type] = kept ? 'forwarded' : 'stripped';
+      if (localStorage.getItem('answerlyPGDebug') === '1') {
+        console.log('[PG] event ' + type + ' -> ' + (kept ? 'forwarded' : 'stripped'));
+      }
+    } catch (e) { /* storage can throw in private windows */ }
+  }
+
+  // Returns a body string to forward, '' when nothing innocuous remains, or
+  // null when the payload could not be understood. Both of the latter two mean
+  // "drop the request", i.e. the behaviour that shipped before this change.
+  function filterEventBody(raw) {
+    if (typeof raw !== 'string' || !raw) return null;
+
+    var payload;
+    try { payload = JSON.parse(raw); } catch (e) { return null; }
+    if (!payload || typeof payload !== 'object') return null;
+
+    // Classic wraps the batch in quiz_submission_events. Accept a bare array or
+    // some other wrapper key too, so New Quizzes can reuse this path once its
+    // event names are confirmed.
+    var key = null;
+    var list = null;
+    if (Array.isArray(payload)) {
+      list = payload;
+    } else {
+      for (var k in payload) {
+        if (Object.prototype.hasOwnProperty.call(payload, k) && Array.isArray(payload[k])) {
+          key = k;
+          list = payload[k];
+          break;
+        }
+      }
+    }
+    if (!list) return null;
+
+    var kept = [];
+    for (var i = 0; i < list.length; i++) {
+      var ev = list[i];
+      if (!ev || typeof ev !== 'object') continue;
+      var type = String(ev.event_type || ev.type || ev.name || '');
+      var ok = Object.prototype.hasOwnProperty.call(ALLOWED_EVENTS, type);
+      noteEvent(type, ok);
+      if (ok) kept.push(ev);
+    }
+
+    if (!kept.length) return '';
+    if (kept.length === list.length) return raw;
+    if (key === null) return JSON.stringify(kept);
+
+    var out = {};
+    for (var k2 in payload) {
+      if (Object.prototype.hasOwnProperty.call(payload, k2)) out[k2] = payload[k2];
+    }
+    out[key] = kept;
+    return JSON.stringify(out);
   }
 
   // ── Wrap addEventListener on window/document ─────────────────────
@@ -85,13 +204,42 @@
 
   // ── Intercept fetch ──────────────────────────────────────────────
   var _fetch = window.fetch;
-  window.fetch = function (input) {
+
+  // Re-sends an event-feed request carrying only the allowed events. A Request
+  // object's body can only be read asynchronously, hence the promise.
+  function pgFilteredFetch(input, init) {
+    function forward(bodyText) {
+      var filtered = filterEventBody(bodyText);
+      if (typeof filtered !== 'string' || !filtered) return pgEmptyOk();
+      if (input instanceof Request) {
+        return _fetch.call(window, new Request(input, { body: filtered }));
+      }
+      var next = {};
+      for (var k in (init || {})) {
+        if (Object.prototype.hasOwnProperty.call(init, k)) next[k] = init[k];
+      }
+      next.body = filtered;
+      return _fetch.call(window, input, next);
+    }
+    try {
+      if (init && typeof init.body === 'string') return Promise.resolve(forward(init.body));
+      if (input instanceof Request) {
+        return input.clone().text().then(forward, function () { return pgEmptyOk(); });
+      }
+    } catch (e) { /* fall through to the plain drop */ }
+    return Promise.resolve(pgEmptyOk());
+  }
+
+  window.fetch = function (input, init) {
     // This override sits in front of every request the page makes, so it must
     // never be the thing that throws. On any surprise, fall through to the real
     // fetch: failing open costs one unblocked log, failing closed breaks Canvas.
     try {
       var url = input instanceof Request ? input.url : String(input);
-      if (blocked(url)) return Promise.resolve(pgEmptyOk());
+      if (blocked(url)) {
+        if (isEventFeed(url)) return pgFilteredFetch(input, init);
+        return Promise.resolve(pgEmptyOk());
+      }
     } catch (e) { /* fall through */ }
     return _fetch.apply(this, arguments);
   };
@@ -101,7 +249,10 @@
   var _xhrSend = XMLHttpRequest.prototype.send;
 
   XMLHttpRequest.prototype.open = function (method, url) {
-    try { this._pgBlock = blocked(url); } catch (e) { this._pgBlock = false; }
+    try {
+      this._pgBlock = blocked(url);
+      this._pgFeed = this._pgBlock && isEventFeed(url);
+    } catch (e) { this._pgBlock = false; this._pgFeed = false; }
     return _xhrOpen.apply(this, arguments);
   };
 
@@ -109,7 +260,17 @@
   // anything awaiting it waits for good — a spinner that never resolves. Hand
   // the caller an empty 200 on the next tick instead, the XHR-shaped equivalent
   // of what the fetch path returns.
-  XMLHttpRequest.prototype.send = function () {
+  XMLHttpRequest.prototype.send = function (body) {
+    // Classic Quizzes delivers its event batch through jQuery, so this is the
+    // path that matters there. Forwarding the filtered batch also lets the real
+    // response through, which is what makes Canvas drop the whole batch from
+    // its localStorage queue — including the events stripped here. Faking a
+    // response instead would be fine too, but a real one is one less lie.
+    if (this._pgBlock && this._pgFeed) {
+      var filtered = filterEventBody(body);
+      if (typeof filtered === 'string' && filtered) return _xhrSend.call(this, filtered);
+      // null (unreadable) or '' (nothing innocuous left) fall through and drop.
+    }
     if (!this._pgBlock) return _xhrSend.apply(this, arguments);
     var xhr = this;
     setTimeout(function () {
@@ -132,8 +293,14 @@
   // ── Intercept sendBeacon ─────────────────────────────────────────
   var _beacon = navigator.sendBeacon ? navigator.sendBeacon.bind(navigator) : null;
   if (_beacon) {
-    navigator.sendBeacon = function (url) {
-      if (blocked(url)) return true;
+    navigator.sendBeacon = function (url, data) {
+      if (blocked(url)) {
+        if (isEventFeed(url) && typeof data === 'string') {
+          var filtered = filterEventBody(data);
+          if (typeof filtered === 'string' && filtered) return _beacon.call(navigator, url, filtered);
+        }
+        return true;
+      }
       return _beacon.apply(navigator, arguments);
     };
   }
