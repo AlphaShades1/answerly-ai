@@ -62,6 +62,23 @@
     return EVENT_FEED.some(function (r) { return r.test(s); });
   }
 
+  // The event endpoints answer GET as well as POST, and the GET is how an
+  // instructor's own log page loads. Dropping that reported nothing and only
+  // blanked the teacher's screen — a log that read "there were no events logged
+  // during the quiz-taking session" while the server held the events all along,
+  // which is worse than useless because it looks like proof of something.
+  // Reads cannot record what a student did, so on this feed they pass through.
+  // Scoped to the feed on purpose: telemetry stays blocked whatever the method,
+  // since a tracking pixel is a GET too.
+  function isRead(method) {
+    var m = String(method || 'GET').toUpperCase();
+    return m === 'GET' || m === 'HEAD';
+  }
+
+  function blockedRequest(url, method) {
+    return blocked(url) && !(isEventFeed(url) && isRead(method));
+  }
+
   // ── Quiz event feed: filter the batch, don't discard it ──────────
   // The instructor's quiz log is assembled from two sources, and dropping the
   // whole feed only reaches one of them:
@@ -236,7 +253,8 @@
     // fetch: failing open costs one unblocked log, failing closed breaks Canvas.
     try {
       var url = input instanceof Request ? input.url : String(input);
-      if (blocked(url)) {
+      var method = (input instanceof Request ? input.method : (init && init.method)) || 'GET';
+      if (blockedRequest(url, method)) {
         if (isEventFeed(url)) return pgFilteredFetch(input, init);
         return Promise.resolve(pgEmptyOk());
       }
@@ -250,7 +268,7 @@
 
   XMLHttpRequest.prototype.open = function (method, url) {
     try {
-      this._pgBlock = blocked(url);
+      this._pgBlock = blockedRequest(url, method);
       this._pgFeed = this._pgBlock && isEventFeed(url);
     } catch (e) { this._pgBlock = false; this._pgFeed = false; }
     return _xhrOpen.apply(this, arguments);
