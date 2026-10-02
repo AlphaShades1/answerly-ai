@@ -206,7 +206,7 @@ body {
    violet so it reads as caution, and sized tight: the popup has only ~11px of
    headroom under Chrome's 600px cap in its worst state. */
 .pg-timing-notice {
-  margin: 4px 0 0;
+  margin: 7px 12px 0;
   padding: 4px 7px;
   background: rgba(245,158,11,0.10);
   border: 1px solid rgba(245,158,11,0.28);
