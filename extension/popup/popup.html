@@ -219,6 +219,15 @@
           <div class="stealth-tooltip privacy-guard-tooltip">Blocks activity logging during quizzes and assignments. Prevents tab-switch detection, page-view tracking, and quiz event logging. Works across Canvas, Moodle, Blackboard, and other LMS platforms.</div>
         </div>
       </div>
+
+      <!-- Shown only while Privacy Guard is OFF. Opening this popup moves focus
+           off the page, which Canvas records as leaving the quiz, so switching
+           tools on mid-attempt costs a log entry that turning them on beforehand
+           would not. Hidden once the guard is on, since it suppresses that. -->
+      <div id="pg-timing-notice" class="pg-timing-notice hidden">
+        Turn tools on <strong>before</strong> the quiz &mdash; opening this popup mid-quiz is logged unless Privacy Guard is on.
+      </div>
+
       <div class="stealth-group">
         <!-- Quiz Stealth -->
         <div class="stealth-row" id="quiz-stealth-row">

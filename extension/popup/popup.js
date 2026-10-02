@@ -53,6 +53,7 @@ const quizStealthRow  = document.getElementById('quiz-stealth-row');
 const btnSsStealth    = document.getElementById('btn-ss-stealth');
 const ssStealthRow    = document.getElementById('ss-stealth-row');
 const btnPrivacyGuard = document.getElementById('btn-privacy-guard');
+const pgTimingNotice  = document.getElementById('pg-timing-notice');
 const btnQuizLoader   = document.getElementById('btn-quiz-loader');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -208,6 +209,7 @@ async function renderMain() {
   renderStealthBtns();
   renderSolveAllBtn();
   btnPrivacyGuard.classList.toggle('active', privacyGuardActive);
+  pgTimingNotice?.classList.toggle('hidden', privacyGuardActive);
   btnQuizLoader.classList.toggle('active', quizLoaderActive);
 
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -655,6 +657,7 @@ btnQuizLoader.addEventListener('click', async () => {
 btnPrivacyGuard.addEventListener('click', async () => {
   privacyGuardActive = !privacyGuardActive;
   btnPrivacyGuard.classList.toggle('active', privacyGuardActive);
+  pgTimingNotice?.classList.toggle('hidden', privacyGuardActive);
   await chrome.storage.local.set({ answerlyPrivacyGuardActive: privacyGuardActive });
   chrome.runtime.sendMessage({ type: 'PRIVACY_GUARD_TOGGLE', active: privacyGuardActive }).catch(() => {});
   if (privacyGuardActive) {
