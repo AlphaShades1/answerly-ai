@@ -563,6 +563,18 @@ window.__answerlyNQSolverLoaded = true;
 
 
   // ── Styles ─────────────────────────────────────────────────────────────────
+
+  // Rules with no inline counterpart (the Thinking... line, its spinner, the
+  // reveal button's hover state) cannot be themed at render time, so they read
+  // these instead. Set on the document so every injected card picks them up.
+  function applyThemeVars() {
+    const el = document.documentElement;
+    if (!el) return;
+    el.style.setProperty('--answerly-btn',    theme.buttonColor || DEFAULT_THEME.buttonColor);
+    el.style.setProperty('--answerly-border', theme.cardBorder  || DEFAULT_THEME.cardBorder);
+    el.style.setProperty('--answerly-hint',   theme.hintColor   || DEFAULT_THEME.hintColor);
+  }
+
   function injectStyles() {
     if (document.getElementById('answerly-nq-styles')) return;
     const s = document.createElement('style');
@@ -667,8 +679,8 @@ window.__answerlyNQSolverLoaded = true;
       }
       .answerly-nq-reveal:hover {
         background: rgba(124,92,252,.15) !important;
-        border-color: #7c5cfc !important;
-        color: #fff !important;
+        border-color: var(--answerly-btn,#7c5cfc) !important;
+        color: var(--answerly-btn,#fff) !important;
       }
 
       .answerly-nq-answer-row {
@@ -696,7 +708,7 @@ window.__answerlyNQSolverLoaded = true;
       }
 
       .answerly-nq-loading {
-        color: #a090f0 !important;
+        color: var(--answerly-btn,#a090f0) !important;
         font-size: 12px !important;
         font-style: italic !important;
         display: flex !important;
@@ -706,8 +718,8 @@ window.__answerlyNQSolverLoaded = true;
       .answerly-nq-spinner {
         width: 12px !important;
         height: 12px !important;
-        border: 2px solid #3a3a5c !important;
-        border-top-color: #7c5cfc !important;
+        border: 2px solid var(--answerly-border,#3a3a5c) !important;
+        border-top-color: var(--answerly-btn,#7c5cfc) !important;
         border-radius: 50% !important;
         animation: answerly-nq-spin .65s linear infinite !important;
         flex-shrink: 0 !important;
@@ -2227,6 +2239,7 @@ window.__answerlyNQSolverLoaded = true;
     const themeKey = currentCode ? 'answerlyTheme_' + currentCode : 'answerlyTheme';
     chrome.storage.local.get(themeKey, (t) => {
       if (t[themeKey]) theme = { ...DEFAULT_THEME, ...t[themeKey] };
+      applyThemeVars();
       injectButtons();
       startObserver();
     });
@@ -2298,6 +2311,7 @@ window.__answerlyNQSolverLoaded = true;
     const themeKey = currentCode ? 'answerlyTheme_' + currentCode : 'answerlyTheme';
     if (changes[themeKey] && solverActive) {
       theme = { ...DEFAULT_THEME, ...changes[themeKey].newValue };
+      applyThemeVars();
       // An answer already on screen keeps the colours it was built with, so a
       // theme change left a black box sitting inside a freshly pale card.
       document.querySelectorAll('.answerly-nq-answer-row').forEach(r => {
