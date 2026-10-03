@@ -532,6 +532,7 @@ window.__answerlyNQSolverLoaded = true;
     accentColor: '#7c5cfc',
     cardBg:      '#1a1a2e',
     cardBorder:  '#7c5cfc',
+    answerBg:    '#0f0f1e',
     answerColor: '#ffffff',
     hintColor:   '#c0c0d8',
     opacity:     100,
@@ -2002,6 +2003,8 @@ window.__answerlyNQSolverLoaded = true;
         const row = document.createElement('div');
         row.className = 'answerly-nq-answer-row';
         row.style.setProperty('border-color', theme.cardBorder, 'important');
+        // See quizSolver.js: the stylesheet's dark box cannot blend into a light page.
+        row.style.setProperty('background', theme.answerBg || DEFAULT_THEME.answerBg, 'important');
         row.innerHTML = `<span class="answerly-nq-answer-lbl" style="color:${accent}!important">Answer</span>${bodyHtml}`;
         this.insertAdjacentElement('afterend', row);
         this.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transform:rotate(90deg)"><polyline points="9 18 15 12 9 6"/></svg> Hide Answer`;

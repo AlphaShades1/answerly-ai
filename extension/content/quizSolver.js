@@ -93,6 +93,7 @@ window.__answerlyQuizSolverLoaded = true;
     accentColor: '#7c5cfc',
     cardBg:      '#1a1a2e',
     cardBorder:  '#7c5cfc',
+    answerBg:    '#0f0f1e',
     answerColor: '#ffffff',
     hintColor:   '#c0c0d8',
     opacity:     100,
@@ -1993,6 +1994,9 @@ window.__answerlyQuizSolverLoaded = true;
         const row = document.createElement('div');
         row.className = 'answerly-answer-row';
         row.style.setProperty('border-color', theme.cardBorder, 'important');
+        // The stylesheet hardcodes a dark box, which cannot blend into a light
+        // LMS page however the rest of the card is themed.
+        row.style.setProperty('background', theme.answerBg || DEFAULT_THEME.answerBg, 'important');
 
         // Build the parts array — prefer server's clean answerParts array,
         // then fall back to matching the answer string against the known options list

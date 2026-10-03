@@ -8,10 +8,10 @@ const DEFAULTS = {
 };
 
 const PRESETS = {
-  default: { accentColor: '#7c5cfc', cardBg: '#1a1a2e', cardBorder: '#7c5cfc', answerColor: '#ffffff', hintColor: '#c0c0d8', opacity: 100 },
-  ghost:   { accentColor: '#7c5cfc', cardBg: '#1a1a2e', cardBorder: '#7c5cfc', answerColor: '#ffffff', hintColor: '#c0c0d8', opacity: 0   },
-  dark:    { accentColor: '#444466', cardBg: '#000000', cardBorder: '#444466', answerColor: '#ffffff', hintColor: '#888899', opacity: 95  },
-  green:   { accentColor: '#00ff41', cardBg: '#001a00', cardBorder: '#00ff41', answerColor: '#00ff41', hintColor: '#00cc33', opacity: 100 },
+  default: { accentColor: '#7c5cfc', cardBg: '#1a1a2e', cardBorder: '#7c5cfc', answerBg: '#0f0f1e', answerColor: '#ffffff', hintColor: '#c0c0d8', opacity: 100 },
+  ghost:   { accentColor: '#7c5cfc', cardBg: '#1a1a2e', cardBorder: '#7c5cfc', answerBg: '#0f0f1e', answerColor: '#ffffff', hintColor: '#c0c0d8', opacity: 0   },
+  dark:    { accentColor: '#444466', cardBg: '#000000', cardBorder: '#444466', answerBg: '#000000', answerColor: '#ffffff', hintColor: '#888899', opacity: 95  },
+  green:   { accentColor: '#00ff41', cardBg: '#001a00', cardBorder: '#00ff41', answerBg: '#001a00', answerColor: '#00ff41', hintColor: '#00cc33', opacity: 100 },
 };
 
 let theme = { ...DEFAULTS };
@@ -23,6 +23,8 @@ const colorBg      = document.getElementById('color-bg');
 const hexBg        = document.getElementById('hex-bg');
 const colorBorder  = document.getElementById('color-border');
 const hexBorder    = document.getElementById('hex-border');
+const colorAnswerBg = document.getElementById('color-answerbg');
+const hexAnswerBg   = document.getElementById('hex-answerbg');
 const colorAnswer  = document.getElementById('color-answer');
 const hexAnswer    = document.getElementById('hex-answer');
 const colorHint    = document.getElementById('color-hint');
@@ -125,6 +127,7 @@ function syncColorPair(colorInput, hexInput, key) {
 syncColorPair(colorAccent, hexAccent, 'accentColor');
 syncColorPair(colorBg,     hexBg,     'cardBg');
 syncColorPair(colorBorder, hexBorder, 'cardBorder');
+syncColorPair(colorAnswerBg, hexAnswerBg, 'answerBg');
 syncColorPair(colorAnswer, hexAnswer, 'answerColor');
 syncColorPair(colorHint,   hexHint,   'hintColor');
 
@@ -143,6 +146,8 @@ function applyToUI() {
   hexBg.value       = theme.cardBg;
   colorBorder.value = theme.cardBorder;
   hexBorder.value   = theme.cardBorder;
+  colorAnswerBg.value = theme.answerBg || DEFAULTS.answerBg;
+  hexAnswerBg.value   = theme.answerBg || DEFAULTS.answerBg;
   colorAnswer.value = theme.answerColor;
   hexAnswer.value   = theme.answerColor;
   colorHint.value   = theme.hintColor;
@@ -168,7 +173,7 @@ function updatePreview() {
   previewCard.style.opacity = op;
   previewBadge.style.color = accent;
   previewHint.style.color = theme.hintColor;
-  previewAnswerBox.style.background = '#0f0f1e';
+  previewAnswerBox.style.background = theme.answerBg || DEFAULTS.answerBg;
   previewAnswerBox.style.border = `1px solid ${theme.cardBorder}`;
   previewAnswerLbl.style.color = theme.cardBorder;
   previewAnswerText.style.color = theme.answerColor;
