@@ -2,31 +2,27 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* The brand violet stays: the extension icon, the store artwork and every
-     lavender asset are built on it. Everything around it changes. */
-  --purple: #8b6cff;
-  --purple-dark: #6344d6;
-  --purple-glow: rgba(139, 108, 255, 0.32);
-  --purple-soft: rgba(139, 108, 255, 0.12);
+  /* Brand violet stays — the icon and every store asset are built on it. */
+  --purple: #9575ff;
+  --purple-dark: #6b46e5;
+  --purple-glow: rgba(149, 117, 255, 0.38);
+  --purple-soft: rgba(149, 117, 255, 0.14);
 
-  /* A second accent so the page is not one hue end to end. Used sparingly,
-     for confirmations and small highlights only. */
   --mint: #4fd4a0;
   --mint-soft: rgba(79, 212, 160, 0.13);
 
-  /* Surfaces are indigo-tinted rather than neutral near-black, which is what
-     made the old palette read as default dark mode. Each step is far enough
-     apart that cards genuinely sit above the page. */
-  --bg: #080714;
-  --bg-soft: #0c0a1c;
-  --bg-card: #111026;
-  --bg-card2: #191733;
-  --border: #262245;
+  /* The previous palette put cards at rgb(17,17,24) on a rgb(10,10,15) page —
+     a delta of 23, which is invisible, and why the whole thing read flat.
+     Surfaces now step far enough apart to actually see, and carry a violet
+     cast so the dark is a colour rather than an absence of one. */
+  --bg: #0a0818;
+  --bg-soft: #120d2a;
+  --bg-card: #191434;
+  --bg-card2: #241d4d;
+  --border: #392e6e;
 
-  /* Off-white rather than #fff. Pure white on near-black is maximum contrast,
-     which glares and reads cheap at long reading lengths. */
-  --text: #f3f1fb;
-  --text-muted: #9c96c2;
+  --text: #f2effc;
+  --text-muted: #a9a2d0;
 }
 
 html { scroll-behavior: smooth; }
@@ -34,8 +30,8 @@ html { scroll-behavior: smooth; }
 body {
   font-family: 'Inter', sans-serif;
   background:
-    radial-gradient(900px 600px at 15% -5%, rgba(139,108,255,.10), transparent 60%),
-    radial-gradient(800px 500px at 90% 8%, rgba(79,212,160,.045), transparent 60%),
+    radial-gradient(1000px 680px at 15% -8%, rgba(149,117,255,.20), transparent 62%),
+    radial-gradient(820px 520px at 92% 6%, rgba(79,212,160,.075), transparent 60%),
     var(--bg);
   background-attachment: fixed;
   color: var(--text);
@@ -120,12 +116,12 @@ body {
   justify-content: center;
   text-align: center;
   padding: 120px 24px 80px;
-  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139,108,255,0.18) 0%, transparent 70%);
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(149,117,255,0.18) 0%, transparent 70%);
 }
 .hero-badge {
   display: inline-block;
-  background: rgba(139,108,255,0.15);
-  border: 1px solid rgba(139,108,255,0.4);
+  background: rgba(149,117,255,0.15);
+  border: 1px solid rgba(149,117,255,0.4);
   color: #a88fff;
   font-size: 13px;
   font-weight: 600;
@@ -218,7 +214,7 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 20px;
-  border: 1px solid rgba(139,108,255,0.3);
+  border: 1px solid rgba(149,117,255,0.3);
   z-index: 1;
   pointer-events: none;
 }
@@ -278,9 +274,9 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
   transition: opacity .22s;
 }
 .feature-card:hover {
-  border-color: rgba(139,108,255,0.55);
+  border-color: rgba(149,117,255,0.55);
   transform: translateY(-5px);
-  background: linear-gradient(180deg, rgba(139,108,255,.07), rgba(139,108,255,0) 60%), var(--bg-card);
+  background: linear-gradient(180deg, rgba(149,117,255,.07), rgba(149,117,255,0) 60%), var(--bg-card);
   box-shadow: 0 18px 44px rgba(76,40,180,.28);
 }
 .feature-card:hover::before { opacity: 1; }
@@ -365,9 +361,9 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
   transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
 }
 .screenshot-item:hover {
-  border-color: rgba(139,108,255,0.6);
+  border-color: rgba(149,117,255,0.6);
   transform: translateY(-4px);
-  box-shadow: 0 20px 50px rgba(139,108,255,0.15);
+  box-shadow: 0 20px 50px rgba(149,117,255,0.15);
 }
 .screenshot-item img {
   width: 100%;
@@ -385,7 +381,7 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
 /* ── Pricing ── */
 .pricing {
   text-align: center;
-  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(139,108,255,0.1) 0%, transparent 70%);
+  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(149,117,255,0.1) 0%, transparent 70%);
 }
 .pricing-sub {
   color: var(--text-muted);
@@ -395,13 +391,13 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
 }
 .pricing-card {
   background: var(--bg-card);
-  border: 1px solid rgba(139,108,255,0.5);
+  border: 1px solid rgba(149,117,255,0.5);
   border-radius: 24px;
   padding: 48px 40px;
   max-width: 440px;
   margin: 0 auto;
   position: relative;
-  box-shadow: 0 0 60px rgba(139,108,255,0.15);
+  box-shadow: 0 0 60px rgba(149,117,255,0.15);
 }
 .pricing-badge {
   position: absolute;
@@ -459,7 +455,7 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
   overflow: hidden;
   transition: border-color 0.2s;
 }
-.faq-item:hover { border-color: rgba(139,108,255,0.4); }
+.faq-item:hover { border-color: rgba(149,117,255,0.4); }
 .faq-q {
   width: 100%;
   text-align: left;
@@ -565,7 +561,7 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
   align-items: center;
   justify-content: center;
   padding: 120px 24px 60px;
-  background: radial-gradient(ellipse 70% 50% at 50% 20%, rgba(139,108,255,0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse 70% 50% at 50% 20%, rgba(149,117,255,0.12) 0%, transparent 70%);
 }
 .cp-card {
   background: #0f0f17;
@@ -582,8 +578,8 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(139,108,255,0.12);
-  border: 1px solid rgba(139,108,255,0.35);
+  background: rgba(149,117,255,0.12);
+  border: 1px solid rgba(149,117,255,0.35);
   color: #a88fff;
   font-size: 13px;
   font-weight: 600;
@@ -660,7 +656,7 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
   flex-shrink: 0;
 }
 .cp-bullet-green  { background: rgba(52,211,153,0.15); color: #34d399; }
-.cp-bullet-purple { background: rgba(139,108,255,0.15); color: var(--purple); }
+.cp-bullet-purple { background: rgba(149,117,255,0.15); color: var(--purple); }
 .cp-bullet-orange { background: rgba(251,146,60,0.15); color: #fb923c; }
 .cp-bullet strong { display: block; font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 2px; }
 .cp-bullet p { font-size: 13px; color: var(--text-muted); margin: 0; }
@@ -704,7 +700,7 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
   font-weight: 700;
   text-decoration: none;
   transition: opacity 0.2s, transform 0.2s;
-  box-shadow: 0 0 40px rgba(139,108,255,0.3);
+  box-shadow: 0 0 40px rgba(149,117,255,0.3);
 }
 .cp-cta-btn:hover { opacity: 0.92; transform: translateY(-2px); }
 
@@ -717,7 +713,7 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
   justify-content: center;
   text-align: center;
   padding: 140px 24px 80px;
-  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139,108,255,0.18) 0%, transparent 70%);
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(149,117,255,0.18) 0%, transparent 70%);
 }
 
 .aff-how, .aff-perks, .aff-earnings, .aff-form-section {
@@ -746,7 +742,7 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
   min-width: 200px;
   transition: border-color 0.2s, transform 0.2s;
 }
-.aff-step:hover { border-color: rgba(139,108,255,0.5); transform: translateY(-3px); }
+.aff-step:hover { border-color: rgba(149,117,255,0.5); transform: translateY(-3px); }
 .aff-step-icon { font-size: 36px; margin-bottom: 16px; }
 .aff-step h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
 .aff-step p { color: var(--text-muted); font-size: 14px; line-height: 1.65; }
@@ -766,7 +762,7 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
   padding: 28px;
   transition: border-color 0.2s, transform 0.2s;
 }
-.aff-perk-card:hover { border-color: rgba(139,108,255,0.5); transform: translateY(-3px); }
+.aff-perk-card:hover { border-color: rgba(149,117,255,0.5); transform: translateY(-3px); }
 .aff-perk-icon { font-size: 28px; margin-bottom: 14px; }
 .aff-perk-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
 .aff-perk-card p { color: var(--text-muted); font-size: 14px; line-height: 1.65; }
@@ -787,10 +783,10 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
   position: relative;
   transition: border-color 0.2s, transform 0.2s;
 }
-.aff-earn-card:hover { border-color: rgba(139,108,255,0.4); transform: translateY(-3px); }
+.aff-earn-card:hover { border-color: rgba(149,117,255,0.4); transform: translateY(-3px); }
 .aff-earn-featured {
-  border-color: rgba(139,108,255,0.6) !important;
-  box-shadow: 0 0 40px rgba(139,108,255,0.15);
+  border-color: rgba(149,117,255,0.6) !important;
+  box-shadow: 0 0 40px rgba(149,117,255,0.15);
 }
 .aff-earn-badge {
   position: absolute;
@@ -958,19 +954,19 @@ section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
 
 /* the Answerly column */
 .compare-table .ct-us {
-  background: linear-gradient(180deg, rgba(139,108,255,.14), rgba(139,108,255,.06));
-  border-left: 1px solid rgba(139,108,255,.45);
-  border-right: 1px solid rgba(139,108,255,.45);
+  background: linear-gradient(180deg, rgba(149,117,255,.14), rgba(149,117,255,.06));
+  border-left: 1px solid rgba(149,117,255,.45);
+  border-right: 1px solid rgba(149,117,255,.45);
   color: var(--text);
   font-weight: 600;
 }
 .compare-table thead .ct-us {
   color: #c4b5fd;
-  background: linear-gradient(180deg, rgba(139,108,255,.30), rgba(139,108,255,.14));
-  border-top: 1px solid rgba(139,108,255,.45);
+  background: linear-gradient(180deg, rgba(149,117,255,.30), rgba(149,117,255,.14));
+  border-top: 1px solid rgba(149,117,255,.45);
   font-size: 14px;
 }
-.compare-table tbody tr:last-child .ct-us { border-bottom: 1px solid rgba(139,108,255,.45); }
+.compare-table tbody tr:last-child .ct-us { border-bottom: 1px solid rgba(149,117,255,.45); }
 
 .compare-table .yes  { color: #34d399; font-size: 17px; font-weight: 800; }
 .compare-table .no   { color: #6b6b7e; font-size: 16px; }
