@@ -1355,3 +1355,11 @@ section { padding: 96px 24px; max-width: 1180px; margin: 0 auto; }
 .compare .section-label::before {
   background: linear-gradient(90deg, transparent, var(--purple));
 }
+
+/* Bolded feature names inside body copy need to lift off the muted colour,
+   or "bold" reads as a slightly different grey. */
+.lead-sub strong,
+.trail-note strong {
+  color: var(--text);
+  font-weight: 700;
+}
