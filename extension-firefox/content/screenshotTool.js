@@ -90,8 +90,8 @@ window.__answerlyScreenshotLoaded = true;
 
       .answerly-ss-actions { display:flex; gap:8px; padding:0 12px 12px; }
       .answerly-ss-btn {
-        flex:1; padding:9px 8px; border-radius:8px; border:1px solid var(--a-border,#2e2e3e);
-        background:var(--a-field,#1a1a22); color:var(--a-text,#f0f0f5); font-size:12px; font-weight:600;
+        flex:1; padding:9px 8px; border-radius:8px; border:1px solid var(--a-btn,#2e2e3e);
+        background:var(--a-field,#1a1a22); color:var(--a-btn,#f0f0f5); font-size:12px; font-weight:600;
         cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;
         transition:background .15s, border-color .15s;
       }
@@ -136,6 +136,7 @@ window.__answerlyScreenshotLoaded = true;
   const SS_DEFAULT_THEME = {
     accentColor: '#7c5cfc', cardBg: '#0f0f12', cardBorder: '#2e2e3e',
     answerBg: '#1a1a22', answerColor: '#f0f0f5', hintColor: '#555570',
+    buttonColor: '#f0f0f5',
   };
   let ssTheme = { ...SS_DEFAULT_THEME };
 
@@ -178,6 +179,7 @@ window.__answerlyScreenshotLoaded = true;
       '--a-muted':     t.hintColor   || SS_DEFAULT_THEME.hintColor,
       '--a-field':     ssAnswerBg(t),
       '--a-well':      ssAnswerBg(t),
+      '--a-btn':       t.buttonColor  || SS_DEFAULT_THEME.buttonColor,
       '--a-on-accent': ssReadableOn(t.accentColor || SS_DEFAULT_THEME.accentColor),
     };
     for (const k in vars) widgetEl.style.setProperty(k, vars[k]);

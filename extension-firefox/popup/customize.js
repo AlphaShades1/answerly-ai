@@ -8,14 +8,14 @@ const DEFAULTS = {
 };
 
 const PRESETS = {
-  default: { accentColor: '#7c5cfc', cardBg: '#1a1a2e', cardBorder: '#7c5cfc', answerBg: '#0f0f1e', answerColor: '#ffffff', hintColor: '#c0c0d8', opacity: 100 },
-  ghost:   { accentColor: '#7c5cfc', cardBg: '#1a1a2e', cardBorder: '#7c5cfc', answerBg: '#0f0f1e', answerWeight: 800, answerColor: '#ffffff', hintColor: '#c0c0d8', opacity: 0   },
-  dark:    { accentColor: '#444466', cardBg: '#000000', cardBorder: '#444466', answerBg: '#000000', answerWeight: 800, answerColor: '#ffffff', hintColor: '#888899', opacity: 95  },
-  green:   { accentColor: '#00ff41', cardBg: '#001a00', cardBorder: '#00ff41', answerBg: '#001a00', answerWeight: 800, answerColor: '#00ff41', hintColor: '#00cc33', opacity: 100 },
+  default: { accentColor: '#7c5cfc', cardBg: '#1a1a2e', cardBorder: '#7c5cfc', answerBg: '#0f0f1e', buttonColor: '#a090f0', answerColor: '#ffffff', hintColor: '#c0c0d8', opacity: 100 },
+  ghost:   { accentColor: '#7c5cfc', cardBg: '#1a1a2e', cardBorder: '#7c5cfc', answerBg: '#0f0f1e', buttonColor: '#a090f0', answerWeight: 800, answerColor: '#ffffff', hintColor: '#c0c0d8', opacity: 0   },
+  dark:    { accentColor: '#444466', cardBg: '#000000', cardBorder: '#444466', answerBg: '#000000', buttonColor: '#a090f0', answerWeight: 800, answerColor: '#ffffff', hintColor: '#888899', opacity: 95  },
+  green:   { accentColor: '#00ff41', cardBg: '#001a00', cardBorder: '#00ff41', answerBg: '#001a00', buttonColor: '#a090f0', answerWeight: 800, answerColor: '#00ff41', hintColor: '#00cc33', opacity: 100 },
   // Canvas's own palette: #f5f5f5 question headers, #c7cdd1 rules, #2d3b45 body
   // text. Matching them rather than inventing a light theme is what makes the
   // card read as part of the page instead of a pale box sitting on top of it.
-  canvas:  { accentColor: '#c7cdd1', cardBg: '#f5f5f5', cardBorder: '#c7cdd1', answerBg: '#ffffff', answerWeight: 500, answerColor: '#6b7780', hintColor: '#9aa3ab', opacity: 100 },
+  canvas:  { accentColor: '#c7cdd1', cardBg: '#f5f5f5', cardBorder: '#c7cdd1', answerBg: '#ffffff', buttonColor: '#9aa3ab', answerWeight: 500, answerColor: '#6b7780', hintColor: '#9aa3ab', opacity: 100 },
 };
 
 let theme = { ...DEFAULTS };
@@ -27,6 +27,8 @@ const colorBg      = document.getElementById('color-bg');
 const hexBg        = document.getElementById('hex-bg');
 const colorBorder  = document.getElementById('color-border');
 const hexBorder    = document.getElementById('hex-border');
+const colorButton  = document.getElementById('color-button');
+const hexButton    = document.getElementById('hex-button');
 const colorAnswerBg = document.getElementById('color-answerbg');
 const hexAnswerBg   = document.getElementById('hex-answerbg');
 const colorAnswer  = document.getElementById('color-answer');
@@ -131,6 +133,7 @@ function syncColorPair(colorInput, hexInput, key) {
 syncColorPair(colorAccent, hexAccent, 'accentColor');
 syncColorPair(colorBg,     hexBg,     'cardBg');
 syncColorPair(colorBorder, hexBorder, 'cardBorder');
+syncColorPair(colorButton, hexButton, 'buttonColor');
 syncColorPair(colorAnswerBg, hexAnswerBg, 'answerBg');
 syncColorPair(colorAnswer, hexAnswer, 'answerColor');
 syncColorPair(colorHint,   hexHint,   'hintColor');
@@ -167,6 +170,9 @@ function applyToUI() {
   hexBg.value       = theme.cardBg;
   colorBorder.value = theme.cardBorder;
   hexBorder.value   = theme.cardBorder;
+  const btn = theme.buttonColor || DEFAULTS.buttonColor;
+  colorButton.value = btn;
+  hexButton.value   = btn;
   theme.answerBg = deriveAnswerBg(theme);
   colorAnswerBg.value = theme.answerBg;
   hexAnswerBg.value   = theme.answerBg;

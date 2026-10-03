@@ -93,7 +93,8 @@ window.__answerlyQuizSolverLoaded = true;
     accentColor: '#7c5cfc',
     cardBg:      '#1a1a2e',
     cardBorder:  '#7c5cfc',
-    answerBg:    '#0f0f1e',
+    answerBg:    '#0f0f1e',
+    buttonColor: '#a090f0',
     // Forced bold made the answer the only heavy text in the card, which is
     // what the eye lands on first however well the colours blend.
     answerWeight: 800,
@@ -1996,9 +1997,9 @@ window.__answerlyQuizSolverLoaded = true;
     const area = card.querySelector('.answerly-hint-area');
     area.innerHTML = `
       <div class="answerly-hint-row" style="color:${theme.hintColor}!important">
-        <span class="answerly-hint-lbl" style="color:#fff!important">Hint: </span>${esc(hint)}
+        <span class="answerly-hint-lbl" style="color:${theme.hintColor}!important">Hint: </span>${esc(hint)}
       </div>
-      <button type="button" class="answerly-reveal" data-open="false">
+      <button type="button" class="answerly-reveal" data-open="false" style="color:${theme.buttonColor || DEFAULT_THEME.buttonColor}!important;border-color:${theme.buttonColor || DEFAULT_THEME.buttonColor}!important">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         Show Answer
       </button>`;
