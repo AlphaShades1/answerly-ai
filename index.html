@@ -30,7 +30,7 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Answerly AI — Canvas Quiz Solver",
-    "operatingSystem": "Chrome",
+    "operatingSystem": "Chrome, Firefox",
     "applicationCategory": "BrowserApplication",
     "description": "Chrome extension that instantly solves Canvas LMS quizzes and homework with AI.",
     "url": "https://getanswerlyai.com/",
@@ -52,12 +52,12 @@
       {
         "@type": "Question",
         "name": "What question types does it support?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Multiple choice, multiple select (checkboxes), matching dropdowns, and free response (via Screenshot Tool). True/false questions also work." }
+        "acceptedAnswer": { "@type": "Answer", "text": "Multiple choice, true/false, multiple select (checkboxes), matching dropdowns, fill-in-the-blank, and free response. Anything built around a diagram or image is handled by the Screenshot Tool." }
       },
       {
         "@type": "Question",
         "name": "How accurate is the AI?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Answerly AI uses Google's Gemini AI model, which is highly accurate on factual and conceptual questions. For questions requiring specific lab data or personal context, the Screenshot Tool provides the best results." }
+        "acceptedAnswer": { "@type": "Answer", "text": "Answerly AI runs on current large language models and the model is upgraded as better ones ship. It is strong on factual and conceptual questions. For anything resting on a diagram, lab data or your specific course materials, the Screenshot Tool and Upload Notes give noticeably better results than text alone." }
       },
       {
         "@type": "Question",
@@ -67,13 +67,13 @@
       {
         "@type": "Question",
         "name": "Does it work on mobile or tablet?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Answerly AI is a Chrome desktop extension. It works on Windows, Mac, and Chromebooks. It does not work on iOS/Android devices." }
+        "acceptedAnswer": { "@type": "Answer", "text": "Answerly AI is a desktop browser extension for Chrome and Firefox. It works on Windows, Mac, and Chromebooks. It does not work on iOS or Android devices." }
       }
     ]
   }
   </script>
 
-  <link rel="stylesheet" href="style.css?v=7" />
+  <link rel="stylesheet" href="style.css?v=8" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -90,6 +90,7 @@
       <div class="nav-links">
         <a href="#features">Features</a>
         <a href="#how">How It Works</a>
+        <a href="#compare">Compare</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
         <a href="blog/">Blog</a>
@@ -98,15 +99,145 @@
     </div>
   </nav>
 
+
   <!-- ── HERO ── -->
   <section class="hero">
-    <div class="hero-badge">✦ AI-Powered Study Tool</div>
-    <h1 class="hero-title">Solve Any Canvas<br /><span class="gradient-text">Quiz Instantly</span></h1>
-    <p class="hero-sub">Answerly AI is a Chrome extension that gives you hints, answers, and screenshot analysis for Canvas LMS quizzes and assignments — all in seconds.</p>
-    <div class="hero-btns">
-      <a href="https://chromewebstore.google.com/detail/answerly-ai-%E2%80%94-canvas-home/gmekadimanglmacabjkmaigckocobnnc" target="_blank" class="btn-primary">Get Access — $9.99/mo</a>
-      <a href="#features" class="btn-ghost">See How It Works ↓</a>
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <div class="hero-badge">&#10022; Built for Canvas &mdash; not a chatbot in another tab</div>
+        <h1 class="hero-title">Solve any Canvas quiz <span class="gradient-text">without leaving the page</span></h1>
+        <p class="hero-sub">Hints, answers and screenshot analysis appear right on the question. Works on Classic Quizzes and New Quizzes, in Chrome and Firefox.</p>
+        <div class="hero-btns">
+          <a href="https://chromewebstore.google.com/detail/answerly-ai-%E2%80%94-canvas-home/gmekadimanglmacabjkmaigckocobnnc" target="_blank" class="btn-primary">Get Access &mdash; $9.99/mo</a>
+          <a href="#demo" class="btn-ghost">Watch the demo &darr;</a>
+        </div>
+        <ul class="hero-trust">
+          <li>Classic &amp; New Quizzes</li>
+          <li>Chrome &amp; Firefox</li>
+          <li>Cancel anytime</li>
+        </ul>
+      </div>
+      <div class="hero-shot">
+        <img src="assets/screenshot3.png" alt="Answerly AI answering a Canvas question" />
+      </div>
     </div>
+  </section>
+
+  <!-- ── PROOF STRIP ── -->
+  <section class="strip">
+    <div class="strip-inner">
+      <div class="strip-item"><strong>Every question type</strong><span>Multiple choice, select-all, dropdowns, matching, fill-in-blank</span></div>
+      <div class="strip-item"><strong>Diagrams and images</strong><span>Screenshot anything the text solver cannot read</span></div>
+      <div class="strip-item"><strong>Your own notes</strong><span>Upload a study guide and get answers in your course's terms</span></div>
+      <div class="strip-item"><strong>Nothing on screen</strong><span>Stealth modes leave the page looking untouched</span></div>
+    </div>
+  </section>
+
+  <!-- ── THE DIFFERENTIATOR ── -->
+  <section class="trail" id="trail">
+    <div class="section-label">The difference that matters</div>
+    <h2 class="section-title">Other tools leave a trail</h2>
+    <p class="lead-sub">Canvas records more than your answers. It logs when you viewed each question and every time the page lost focus. Here is the same quiz, with and without Privacy Guard.</p>
+    <div class="trail-img">
+      <img src="assets/promo-comparison.png" alt="Canvas teacher logs with and without Answerly AI" />
+    </div>
+    <p class="trail-note">Real Canvas teacher logs. Privacy Guard blocks the tab-switch detection and event logging that produce the left-hand column.</p>
+  </section>
+
+  <!-- ── SHOWCASE ── -->
+  <section class="showcase" id="features">
+    <div class="section-label">Features</div>
+    <h2 class="section-title">Everything you need to<br />ace your assignments</h2>
+
+    <div class="show-row">
+      <div class="show-copy">
+        <div class="show-tag">Quiz Solver</div>
+        <h3>A hint first, then the answer</h3>
+        <p>Click the button on any question for a hint that explains the reasoning, then reveal the answer when you want it. Multiple choice, select-all, dropdowns, matching and fill-in-the-blank all work the same way.</p>
+        <p class="show-extra">Solve All answers every question on the page in one click.</p>
+      </div>
+      <div class="show-img"><img src="assets/shot-solver.png" alt="Answerly AI hint and answer on a Canvas question, next to the extension popup" /></div>
+    </div>
+
+    <div class="show-row reverse">
+      <div class="show-copy">
+        <div class="show-tag">Screenshot Tool</div>
+        <h3>For the questions text cannot reach</h3>
+        <p>Drag a box over a diagram, a graph, a chemical structure or a photo, add your own instructions if you want, and get the answer back in seconds. This is what handles the questions that defeat ordinary solvers.</p>
+      </div>
+      <div class="show-img"><img src="assets/shot-screenshot.png" alt="The Screenshot Tool answering a captured question" /></div>
+    </div>
+
+    <div class="show-row">
+      <div class="show-copy">
+        <div class="show-tag">Stealth &amp; Customize</div>
+        <h3>Make it disappear</h3>
+        <p>Stealth modes hide the buttons entirely and fill answers silently. Or keep them visible and recolour everything &mdash; card, answer box, buttons and text &mdash; with the Blend In preset matching Canvas's own colours so the panel reads as part of the page.</p>
+        <p class="show-extra">Set a hotkey and solve without clicking at all.</p>
+      </div>
+      <div class="show-img"><img src="assets/shot-customize.png" alt="The Customize panel: presets and per-element colour controls" /></div>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">&#128257;</div>
+        <h3>Quiz Loader</h3>
+        <p>Retaking a quiz? Your previous answers come back automatically. It only fills boxes you left empty, so nothing you already answered is changed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128737;</div>
+        <h3>Privacy Guard</h3>
+        <p>Blocks tab-switch detection, page-view tracking and quiz event logging while you work. Works across Canvas, Moodle, Blackboard and others.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128196;</div>
+        <h3>Upload Notes</h3>
+        <p>Attach your lecture slides, study guide or textbook and answers come back using your course's own definitions rather than a generic one.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128274;</div>
+        <h3>Secure &amp; Private</h3>
+        <p>Your activation code is tied to your subscription. No personal data stored, and everything runs over encrypted connections.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── HOW IT WORKS ── -->
+  <section class="how" id="how">
+    <div class="section-label">How it works</div>
+    <h2 class="section-title">Up and running in<br />60 seconds</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Install the Extension</h3>
+          <p>Add Answerly AI to Chrome or Firefox in one click.</p>
+        </div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>Get Your Activation Code</h3>
+          <p>Subscribe for $9.99/month and receive your code instantly.</p>
+        </div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Start Solving</h3>
+          <p>Open any Canvas quiz, switch the solver on, and go.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── DEMO VIDEO ── -->
+  <section class="demo" id="demo">
+    <div class="section-label">In action</div>
+    <h2 class="section-title">See it work in real time</h2>
     <div class="hero-video-wrap">
       <iframe
         src="https://www.youtube.com/embed/HIp3uUznzc4"
@@ -115,118 +246,6 @@
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowfullscreen>
       </iframe>
-    </div>
-  </section>
-
-  <!-- ── FEATURES ── -->
-  <section class="features" id="features">
-    <div class="section-label">FEATURES</div>
-    <h2 class="section-title">Everything you need to<br />ace your assignments</h2>
-
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">🎯</div>
-        <h3>Quiz Solver</h3>
-        <p>Click the purple button on any Canvas quiz question to get an instant hint and the correct answer. Works on multiple choice, checkboxes, and more.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">📸</div>
-        <h3>Screenshot Tool</h3>
-        <p>Snap any question — even free response or complex diagrams — and let AI analyze it and give you a direct answer.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">⚡</div>
-        <h3>Solve All at Once</h3>
-        <p>One click to solve every question on the page simultaneously. Save time on long quizzes with dozens of questions.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">👻</div>
-        <h3>Stealth Mode</h3>
-        <p>Invisible button silently fetches answers and auto-selects the correct option — nothing visible on screen. Undetectable.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🎨</div>
-        <h3>Full Customization</h3>
-        <p>Change colors, card style, opacity, and presets to match your preference. Ghost mode makes it nearly invisible.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🔁</div>
-        <h3>Quiz Loader</h3>
-        <p>Retaking a quiz? Your answers from last time are put back automatically, so you do not re-enter every one. It only fills the boxes you left empty, so nothing you have already answered is changed.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🛡️</div>
-        <h3>Privacy Guard</h3>
-        <p>Blocks activity logging while you work — tab-switch detection, page-view tracking, and quiz event logging. Works across Canvas, Moodle, Blackboard, and more.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🔒</div>
-        <h3>Secure & Private</h3>
-        <p>Your activation code is tied to your subscription. No personal data stored. Works entirely through encrypted connections.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── HOW IT WORKS ── -->
-  <section class="how" id="how">
-    <div class="section-label">HOW IT WORKS</div>
-    <h2 class="section-title">Up and running in<br />60 seconds</h2>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-content">
-          <h3>Install the Extension</h3>
-          <p>Add Answerly AI to Chrome from the Chrome Web Store in one click.</p>
-        </div>
-      </div>
-      <div class="step-line"></div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-content">
-          <h3>Get Your Activation Code</h3>
-          <p>Subscribe for $9.99/month and receive your unique activation code instantly.</p>
-        </div>
-      </div>
-      <div class="step-line"></div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-content">
-          <h3>Start Solving</h3>
-          <p>Open any Canvas quiz, activate the solver, and click the purple button on any question.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── SCREENSHOTS ── -->
-  <section class="screenshots" id="demo">
-    <div class="section-label">IN ACTION</div>
-    <h2 class="section-title">See it work in real time</h2>
-
-    <!-- Comparison banner -->
-    <div style="margin:0 auto 32px;max-width:860px;">
-      <img src="assets/promo-comparison.png" alt="Other tools get you flagged — Answerly AI stays undetectable" style="width:100%;border-radius:16px;box-shadow:0 8px 40px rgba(124,92,252,0.25);" />
-      <p style="text-align:center;margin-top:12px;color:#a78bfa;font-size:14px;font-weight:600;">Real Canvas teacher logs — Other tools leave a trail. Answerly AI doesn't.</p>
-    </div>
-
-    <div class="screenshots-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:28px;">
-      <div class="screenshot-item">
-        <img src="assets/screenshot1.png" alt="Answerly AI in action" />
-        <p>Solve Anything — AI-powered answers for any Canvas question</p>
-      </div>
-      <div class="screenshot-item">
-        <img src="assets/screenshot3.png" alt="Quiz solver answering a question" />
-        <p>Quiz Solver — hints + answers on any multiple choice question</p>
-      </div>
-      <div class="screenshot-item">
-        <img src="assets/screenshot2.png" alt="Screenshot tool" />
-        <p>Screenshot Tool — AI analyzes any question you capture</p>
-      </div>
-      <div class="screenshot-item">
-        <img src="assets/screenshot4.png" alt="Customize panel" />
-        <p>Customize — change colors, opacity, and enable Stealth Mode</p>
-      </div>
     </div>
   </section>
 
@@ -336,15 +355,15 @@
       </div>
       <div class="faq-item">
         <button class="faq-q">What question types does it support?</button>
-        <div class="faq-a">Multiple choice, multiple select (checkboxes), matching dropdowns, and free response (via Screenshot Tool). True/false questions also work.</div>
+        <div class="faq-a">Multiple choice, true/false, multiple select (checkboxes), matching dropdowns, fill-in-the-blank, and free response. Anything built around a diagram or image is handled by the Screenshot Tool.</div>
       </div>
       <div class="faq-item">
         <button class="faq-q">Is it detectable?</button>
-        <div class="faq-a">No. Answerly AI is 100% foolproof and completely undetectable. It runs entirely in your browser as a Chrome extension — Canvas has no way to see it, log it, or detect it. Teacher logs on Canvas only show your quiz submissions, not what browser tools you use. With Stealth Mode enabled, even the button itself is invisible.</div>
+        <div class="faq-a">Canvas cannot see your browser extensions &mdash; it is a website and websites are not given that list. What Canvas does record is the shape of your attempt: when each question was viewed and answered, and whether the page lost focus. Privacy Guard blocks that logging, and Stealth Mode hides the buttons so nothing is visible on screen. Separately, proctoring software such as HonorLock or Proctorio is not a website and can see installed extensions &mdash; if your exam is proctored, that is a different situation.</div>
       </div>
       <div class="faq-item">
         <button class="faq-q">How accurate is the AI?</button>
-        <div class="faq-a">Answerly AI uses Google's Gemini AI model, which is highly accurate on factual and conceptual questions. For questions requiring specific lab data or personal context, the Screenshot Tool provides the best results.</div>
+        <div class="faq-a">Answerly AI runs on current large language models and the model is upgraded as better ones ship, so accuracy improves without you doing anything. It is strong on factual and conceptual questions. For anything resting on a diagram, lab data or your specific course materials, the Screenshot Tool and Upload Notes give noticeably better results than text alone.</div>
       </div>
       <div class="faq-item">
         <button class="faq-q">Can I cancel my subscription?</button>
@@ -352,11 +371,22 @@
       </div>
       <div class="faq-item">
         <button class="faq-q">Does it work on mobile or tablet?</button>
-        <div class="faq-a">Answerly AI is a Chrome desktop extension. It works on Windows, Mac, and Chromebooks. It does not work on iOS/Android devices.</div>
+        <div class="faq-a">Answerly AI is a desktop browser extension for Chrome and Firefox. It works on Windows, Mac, and Chromebooks. It does not work on iOS or Android devices.</div>
       </div>
     </div>
   </section>
 
+
+
+  <!-- ── CLOSING CTA ── -->
+  <section class="endcta">
+    <div class="endcta-card">
+      <h2>Your next quiz is already on the calendar</h2>
+      <p>Install it once, switch it on before the quiz starts, and stop wondering whether you remembered chapter nine.</p>
+      <a href="https://chromewebstore.google.com/detail/answerly-ai-%E2%80%94-canvas-home/gmekadimanglmacabjkmaigckocobnnc" target="_blank" class="btn-primary btn-large">Get Access &mdash; $9.99/mo</a>
+      <span class="endcta-note">Cancel anytime &middot; Secure payment via Stripe</span>
+    </div>
+  </section>
 
   <!-- ── FOOTER ── -->
   <footer class="footer">
@@ -391,7 +421,7 @@
         </a>
       </div>
       <p class="footer-email">📧 <a href="mailto:AnswerlyAISupport@gmail.com">AnswerlyAISupport@gmail.com</a></p>
-      <p class="footer-copy">© 2025 Answerly AI. All rights reserved.</p>
+      <p class="footer-copy">© 2026 Answerly AI. All rights reserved.</p>
     </div>
   </footer>
 
