@@ -143,6 +143,23 @@ opacitySlider.addEventListener('input', () => {
 });
 
 
+
+// A theme saved before the Answer box setting existed has no answerBg, and
+// showing the old hardcoded dark in the picker would tell the student their
+// light theme is fine when the page will render a black box. Derive it the same
+// way the content scripts do so the swatch matches what they will actually see.
+function deriveAnswerBg(t) {
+  if (t && t.answerBg) return t.answerBg;
+  const bg = (t && t.cardBg) || DEFAULTS.cardBg;
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(bg).trim());
+  if (!m) return DEFAULTS.answerBg;
+  const n = parseInt(m[1], 16);
+  const l = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return (0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]) > 0.4 ? '#ffffff' : DEFAULTS.answerBg;
+}
 function applyToUI() {
   colorAccent.value = theme.accentColor || DEFAULTS.accentColor;
   hexAccent.value   = theme.accentColor || DEFAULTS.accentColor;
@@ -150,8 +167,9 @@ function applyToUI() {
   hexBg.value       = theme.cardBg;
   colorBorder.value = theme.cardBorder;
   hexBorder.value   = theme.cardBorder;
-  colorAnswerBg.value = theme.answerBg || DEFAULTS.answerBg;
-  hexAnswerBg.value   = theme.answerBg || DEFAULTS.answerBg;
+  theme.answerBg = deriveAnswerBg(theme);
+  colorAnswerBg.value = theme.answerBg;
+  hexAnswerBg.value   = theme.answerBg;
   colorAnswer.value = theme.answerColor;
   hexAnswer.value   = theme.answerColor;
   colorHint.value   = theme.hintColor;
@@ -177,7 +195,7 @@ function updatePreview() {
   previewCard.style.opacity = op;
   previewBadge.style.color = accent;
   previewHint.style.color = theme.hintColor;
-  previewAnswerBox.style.background = theme.answerBg || DEFAULTS.answerBg;
+  previewAnswerBox.style.background = deriveAnswerBg(theme);
   previewAnswerBox.style.border = `1px solid ${theme.cardBorder}`;
   previewAnswerLbl.style.color = theme.cardBorder;
   previewAnswerText.style.color = theme.answerColor;

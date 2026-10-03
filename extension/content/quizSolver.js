@@ -99,6 +99,25 @@ window.__answerlyQuizSolverLoaded = true;
     opacity:     100,
   };
   let theme = { ...DEFAULT_THEME };
+  // A theme saved before answerBg existed has no such key, and falling back to a
+  // hardcoded dark box meant every light theme from that era rendered a black
+  // slab inside a pale card — the exact thing the setting was added to fix.
+  // Derive it from the card instead: light card, white box; dark card, the
+  // original dark box, so existing dark themes are untouched.
+  function answerBgFor(t) {
+    if (t && t.answerBg) return t.answerBg;
+    const bg = (t && t.cardBg) || DEFAULT_THEME.cardBg;
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(bg).trim());
+    if (!m) return DEFAULT_THEME.answerBg;
+    const n = parseInt(m[1], 16);
+    const lum = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    const L = 0.2126 * lum[0] + 0.7152 * lum[1] + 0.0722 * lum[2];
+    return L > 0.4 ? '#ffffff' : DEFAULT_THEME.answerBg;
+  }
+
 
   // ── Single source of truth ─────────────────────────────────────────────────
   // Storage is authoritative. Every entry point (bootstrap, storage.onChanged,
@@ -1996,7 +2015,7 @@ window.__answerlyQuizSolverLoaded = true;
         row.style.setProperty('border-color', theme.cardBorder, 'important');
         // The stylesheet hardcodes a dark box, which cannot blend into a light
         // LMS page however the rest of the card is themed.
-        row.style.setProperty('background', theme.answerBg || DEFAULT_THEME.answerBg, 'important');
+        row.style.setProperty('background', answerBgFor(theme), 'important');
 
         // Build the parts array — prefer server's clean answerParts array,
         // then fall back to matching the answer string against the known options list
@@ -2739,7 +2758,7 @@ window.__answerlyQuizSolverLoaded = true;
       // An answer already on screen keeps the colours it was built with, so a
       // theme change left a black box sitting inside a freshly pale card.
       document.querySelectorAll('.answerly-answer-row').forEach(r => {
-        r.style.setProperty('background', theme.answerBg || DEFAULT_THEME.answerBg, 'important');
+        r.style.setProperty('background', answerBgFor(theme), 'important');
         r.style.setProperty('border-color', theme.cardBorder, 'important');
         r.querySelectorAll('.answerly-answer-text').forEach(t => t.style.setProperty('color', theme.answerColor, 'important'));
       });

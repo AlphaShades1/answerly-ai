@@ -152,6 +152,21 @@ window.__answerlyScreenshotLoaded = true;
     return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.45 ? '#111118' : '#ffffff';
   }
 
+
+  // Same legacy case as the quiz cards: a theme saved before answerBg existed
+  // must not drop a dark well into a pale panel.
+  function ssAnswerBg(t) {
+    if (t && t.answerBg) return t.answerBg;
+    const bg = (t && t.cardBg) || SS_DEFAULT_THEME.cardBg;
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(bg).trim());
+    if (!m) return SS_DEFAULT_THEME.answerBg;
+    const n = parseInt(m[1], 16);
+    const l = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return (0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]) > 0.4 ? '#ffffff' : SS_DEFAULT_THEME.answerBg;
+  }
   function applySsTheme() {
     if (!widgetEl) return;
     const t = ssTheme || SS_DEFAULT_THEME;
@@ -161,8 +176,8 @@ window.__answerlyScreenshotLoaded = true;
       '--a-text':      t.answerColor || SS_DEFAULT_THEME.answerColor,
       '--a-accent':    t.accentColor || SS_DEFAULT_THEME.accentColor,
       '--a-muted':     t.hintColor   || SS_DEFAULT_THEME.hintColor,
-      '--a-field':     t.answerBg    || SS_DEFAULT_THEME.answerBg,
-      '--a-well':      t.answerBg    || SS_DEFAULT_THEME.answerBg,
+      '--a-field':     ssAnswerBg(t),
+      '--a-well':      ssAnswerBg(t),
       '--a-on-accent': ssReadableOn(t.accentColor || SS_DEFAULT_THEME.accentColor),
     };
     for (const k in vars) widgetEl.style.setProperty(k, vars[k]);
