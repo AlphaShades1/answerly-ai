@@ -209,7 +209,7 @@ body {
 }
 
 /* ── Sections shared ── */
-section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
+section { padding: 76px 24px; max-width: 1100px; margin: 0 auto; }
 .section-label {
   font-size: 11px;
   font-weight: 700;
@@ -222,7 +222,7 @@ section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
   font-size: clamp(32px, 5vw, 52px);
   font-weight: 800;
   line-height: 1.15;
-  margin-bottom: 60px;
+  margin-bottom: 42px;
   letter-spacing: -1px;
 }
 
@@ -236,18 +236,34 @@ section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
   text-align: left;
 }
 .feature-card {
+  position: relative;
+  overflow: hidden;
   flex: 1 1 280px;
   max-width: 340px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 28px;
-  transition: border-color 0.2s, transform 0.2s;
+  transition: border-color .22s, transform .22s, box-shadow .22s, background .22s;
+}
+/* a thin lit edge along the top, brightening on hover, so the cards read as
+   raised panels instead of flat rectangles */
+.feature-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(167,139,250,.55), transparent);
+  opacity: .5;
+  transition: opacity .22s;
 }
 .feature-card:hover {
-  border-color: rgba(124,92,252,0.5);
-  transform: translateY(-3px);
+  border-color: rgba(124,92,252,0.55);
+  transform: translateY(-5px);
+  background: linear-gradient(180deg, rgba(124,92,252,.07), rgba(124,92,252,0) 60%), var(--bg-card);
+  box-shadow: 0 18px 44px rgba(76,40,180,.28);
 }
+.feature-card:hover::before { opacity: 1; }
 .feature-icon {
   font-size: 28px;
   margin-bottom: 16px;
@@ -866,3 +882,95 @@ section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
 /* Inconclusive is not the same as down: a neutral grey, so a blocked request or
    a sleeping laptop does not show the viewer a red alarm. */
 .status-dot.unknown { background: #8a8a99; box-shadow: 0 0 0 3px rgba(138, 138, 153, 0.18); }
+
+/* ── Comparison table ─────────────────────────────────────────────────────
+   The "us" column is deliberately lifted out of the grid with its own tint,
+   border and glow, so the eye lands on it before reading a single row. */
+.compare { text-align: center; }
+.compare-sub {
+  color: var(--text-muted);
+  font-size: 16px;
+  margin: -28px auto 34px;
+  max-width: 560px;
+}
+.compare-wrap {
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  font-size: 14px;
+  min-width: 720px;
+}
+.compare-table th,
+.compare-table td {
+  padding: 15px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.compare-table thead th {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(255,255,255,.02);
+  line-height: 1.3;
+}
+.compare-table thead th span {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.compare-table .ct-feat {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 600;
+  min-width: 230px;
+}
+.compare-table tbody tr:last-child th,
+.compare-table tbody tr:last-child td { border-bottom: none; }
+.compare-table tbody tr:hover td { background: rgba(255,255,255,.015); }
+
+/* the Answerly column */
+.compare-table .ct-us {
+  background: linear-gradient(180deg, rgba(124,92,252,.14), rgba(124,92,252,.06));
+  border-left: 1px solid rgba(124,92,252,.45);
+  border-right: 1px solid rgba(124,92,252,.45);
+  color: var(--text);
+  font-weight: 600;
+}
+.compare-table thead .ct-us {
+  color: #c4b5fd;
+  background: linear-gradient(180deg, rgba(124,92,252,.30), rgba(124,92,252,.14));
+  border-top: 1px solid rgba(124,92,252,.45);
+  font-size: 14px;
+}
+.compare-table tbody tr:last-child .ct-us { border-bottom: 1px solid rgba(124,92,252,.45); }
+
+.compare-table .yes  { color: #34d399; font-size: 17px; font-weight: 800; }
+.compare-table .no   { color: #6b6b7e; font-size: 16px; }
+.compare-table .part { color: #fbbf24; font-size: 12px; font-weight: 600; }
+.compare-table .dash { color: #4a4a5c; }
+.compare-table em {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  font-weight: 500;
+}
+.compare-table .ct-us em { color: #a78bfa; }
+.compare-foot {
+  margin-top: 22px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+@media (max-width: 760px) {
+  .compare-sub { margin-top: -14px; }
+  .compare-table { font-size: 13px; }
+}

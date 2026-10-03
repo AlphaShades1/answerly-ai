@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Canvas New Quizzes vs Classic Quizzes: What Actually Changed</title>
+  <meta name="description" content="Canvas runs two different quiz engines. They look alike to students but behave very differently underneath. Here is what actually changes for you." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://getanswerlyai.com/blog/canvas-new-quizzes-vs-classic.html" />
+  <link rel="icon" href="../assets/icon.png" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Answerly AI" />
+  <meta property="og:title" content="Canvas New Quizzes vs Classic Quizzes: What Actually Changed" />
+  <meta property="og:description" content="Canvas runs two different quiz engines. They look alike to students but behave very differently underneath. Here is what actually changes for you." />
+  <meta property="og:url" content="https://getanswerlyai.com/blog/canvas-new-quizzes-vs-classic.html" />
+  <meta property="og:image" content="https://getanswerlyai.com/assets/icon.png" />
+  <meta name="twitter:card" content="summary" />
+
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"Article",
+    "headline":"How Canvas Quizzes Work: Question Types & Study Tips (2026)",
+    "description":"A clear breakdown of how Canvas LMS quizzes work — question types, autosave, grading, and study habits that raise scores.",
+    "author":{"@type":"Organization","name":"Answerly AI"},
+    "publisher":{"@type":"Organization","name":"Answerly AI","logo":{"@type":"ImageObject","url":"https://getanswerlyai.com/assets/icon.png"}},
+    "mainEntityOfPage":"https://getanswerlyai.com/blog/how-canvas-quizzes-work.html",
+    "datePublished":"2026-08-31",
+    "dateModified":"2026-09-07"
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"FAQPage",
+    "mainEntity":[
+      {"@type":"Question","name":"What question types can Canvas quizzes use?","acceptedAnswer":{"@type":"Answer","text":"Multiple choice, multiple answer (checkboxes), true/false, matching, fill-in-the-blank, dropdown, numerical, and free-response essay questions. Everything except essay questions is graded automatically."}},
+      {"@type":"Question","name":"Does Canvas save my quiz answers automatically?","acceptedAnswer":{"@type":"Answer","text":"Yes. Canvas autosaves each answer as you go, so a dropped connection usually won't lose your work. You still have to click Submit for the attempt to be graded."}},
+      {"@type":"Question","name":"How are Canvas quizzes graded?","acceptedAnswer":{"@type":"Answer","text":"Objective question types are graded instantly by Canvas. Essay and file-upload questions are graded manually by your instructor, so those scores appear later."}},
+      {"@type":"Question","name":"What is the difference between Classic Quizzes and New Quizzes?","acceptedAnswer":{"@type":"Answer","text":"Classic Quizzes is the original Canvas quiz engine; New Quizzes is the newer replacement. The student experience is similar, but New Quizzes usually shows one question per page and supports extra formats like categorization, ordering, and hot-spot questions. Your school chooses which engine is enabled."}},
+      {"@type":"Question","name":"Can I go back and change an answer on a Canvas quiz?","acceptedAnswer":{"@type":"Answer","text":"Usually yes, unless your instructor enabled lock questions after answering. That setting is shown on the quiz's front page before you start, and when it is on you cannot return to a question once you have moved past it."}},
+      {"@type":"Question","name":"What happens if my internet disconnects during a Canvas quiz?","acceptedAnswer":{"@type":"Answer","text":"Your saved answers are normally still there when you get back, because Canvas saves each answer as you select it. The timer does not pause, though, because it runs on the server, so a timed quiz keeps counting down while you are offline. Reconnect as quickly as you can and submit."}},
+      {"@type":"Question","name":"Why is my Canvas quiz score lower than what I calculated?","acceptedAnswer":{"@type":"Answer","text":"The most common cause is a multiple-answer question where you selected some but not all of the correct options, since most are all-or-nothing. The second most common is a fill-in-the-blank answer that was conceptually right but did not match the instructor's answer key text. Both show up in the quiz review if your instructor allows it."}},
+      {"@type":"Question","name":"Can instructors see if I left the quiz page?","acceptedAnswer":{"@type":"Answer","text":"Canvas keeps a quiz log for each attempt showing a timeline of when answers were selected and changed, and depending on the setup, when the page lost focus. It is standard LMS behavior and most instructors never open it, but the platform does record the shape of the attempt, not just the final score."}}
+    ]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../style.css?v=5" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    .article-wrap{max-width:720px;margin:0 auto;padding:120px 24px 80px}
+    .crumb{font-size:13px;color:var(--text-muted);margin-bottom:22px}
+    .crumb a{color:var(--text-muted);text-decoration:none}
+    .crumb a:hover{color:var(--purple)}
+    .article-wrap h1{font-size:clamp(30px,5vw,44px);font-weight:800;line-height:1.12;letter-spacing:-.02em;margin-bottom:14px}
+    .article-meta{font-size:13.5px;color:var(--text-muted);margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--border)}
+    .article-body h2{font-size:24px;font-weight:700;margin:42px 0 12px;letter-spacing:-.01em}
+    .article-body h3{font-size:18px;font-weight:600;margin:26px 0 8px;color:#e8e8f5}
+    .article-body p{color:#c8c8de;margin-bottom:16px;font-size:16.5px}
+    .article-body ul{margin:0 0 18px;padding-left:22px;color:#c8c8de}
+    .article-body li{margin-bottom:9px}
+    .article-body strong{color:#fff;font-weight:600}
+    .article-body a{color:var(--purple);text-decoration:none}
+    .article-body a:hover{text-decoration:underline}
+    .lede{font-size:19px!important;color:#d8d8ea!important;line-height:1.6}
+    .callout{background:var(--bg-card);border:1px solid var(--border);border-left:3px solid var(--purple);border-radius:10px;padding:18px 20px;margin:26px 0}
+    .callout p{margin:0;font-size:15.5px}
+    .cta-box{background:linear-gradient(135deg,rgba(124,92,252,.14),rgba(124,92,252,.04));border:1px solid rgba(124,92,252,.3);border-radius:16px;padding:30px 26px;margin:44px 0 10px;text-align:center}
+    .cta-box h3{margin:0 0 8px;font-size:21px;color:#fff}
+    .cta-box p{color:#c8c8de;margin:0 0 18px;font-size:15.5px}
+    .cta-box a{display:inline-block;background:var(--purple);color:#fff;padding:12px 26px;border-radius:50px;font-weight:600;text-decoration:none}
+    .cta-box a:hover{background:var(--purple-dark)}
+    .faq-block{margin-top:40px}
+    .faq-block h2{margin-bottom:6px}
+    .qa{border-top:1px solid var(--border);padding:18px 0}
+    .qa h3{margin:0 0 6px;font-size:16.5px;color:#fff}
+    .qa p{margin:0;font-size:15.5px}
+    .related{margin-top:44px;padding-top:24px;border-top:1px solid var(--border)}
+    .related a{color:var(--purple);text-decoration:none;font-weight:600}
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-logo">
+        <img src="../assets/icon.png" alt="Answerly AI" class="nav-icon" />
+        <span>Answerly AI</span>
+      </a>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="../#how">How It Works</a>
+        <a href="../#pricing">Pricing</a>
+        <a href="./">Blog</a>
+      </div>
+      <a href="https://chromewebstore.google.com/detail/answerly-ai-%E2%80%94-canvas-home/gmekadimanglmacabjkmaigckocobnnc" target="_blank" class="nav-cta">Get Started →</a>
+    </div>
+  </nav>
+
+  <main class="article-wrap">
+    <div class="crumb"><a href="../">Home</a> &nbsp;/&nbsp; <a href="./">Blog</a> &nbsp;/&nbsp; New Quizzes vs Classic</div>
+
+    <article>
+      <h1>Canvas New Quizzes vs Classic Quizzes: What Actually Changed</h1>
+      <div class="article-meta">Explainer &middot; Updated October 2026 &middot; ~8 min read</div>
+
+      <div class="article-body">
+        <p class="lede">Your school runs one of two Canvas quiz engines, and most students never find out which until something behaves unexpectedly. They look almost identical while you are taking a quiz. Underneath they are separate products, built by different teams, that record what you do in completely different ways.</p>
+
+        <h2>How to tell which one you are taking</h2>
+        <p>The fastest tell is the address bar. A <strong>Classic Quiz</strong> lives at a URL containing <code>/quizzes/</code> followed by a number. A <strong>New Quiz</strong> is technically an assignment, so its URL contains <code>/assignments/</code> instead, and the quiz loads inside that page.</p>
+        <p>The second tell is the interface. Classic renders as a plain list of questions in Canvas's own styling, with a Quiz Instructions block at the top and a question-navigation box in the sidebar. New Quizzes looks different: a slim left rail with numbered question buttons, a pin icon on each question, and its Submit button in the top right rather than at the bottom of the page.</p>
+
+        <h2>The differences that actually affect you</h2>
+        <h3>1. One question at a time behaves differently</h3>
+        <p>Both engines can show one question per page. In Classic, moving between questions reloads the page. New Quizzes is a single-page app, so questions swap instantly. That sounds cosmetic, but it changes what exists on the page at any moment: in one-at-a-time mode only the current question is in the document at all.</p>
+        <h3>2. Backtracking can be switched off</h3>
+        <p>New Quizzes lets instructors disable backtracking, so once you move forward you cannot return to an earlier question. Classic has no clean equivalent. If you normally skip hard questions and circle back, check this before you start.</p>
+        <h3>3. The question types are not identical</h3>
+        <p>New Quizzes added formats Classic never had, including hot spot, ordering and categorisation. It also changed how fill-in-the-blank matching works. If your instructor migrated an old quiz across, some questions may have converted imperfectly.</p>
+        <h3>4. Your attempt is recorded differently</h3>
+        <p>This is the biggest invisible difference. Classic posts a batch of events back to Canvas as you work: a session start, each question viewed, each question flagged, and whether the page lost or regained focus. Those are the entries an instructor reads in the quiz log.</p>
+        <p>New Quizzes does not use that system. It streams its telemetry to a separate analytics pipeline outside Canvas's own quiz-log endpoints, and it records your IP address, which instructors with the right permission can see. The practical result is that the two engines produce different logs, surfaced on different screens. An instructor fluent in one may not know where to find the other.</p>
+
+        <h2>Which one is harder?</h2>
+        <p>Neither is harder by itself, but New Quizzes gives instructors more levers: backtracking locks, per-question time limits, shuffled answer options, and question banks that serve a random subset to each student. If a course moved from Classic to New Quizzes and the quizzes suddenly feel less predictable, that is usually why. Not the questions, the settings now available around them.</p>
+
+        <h2>Why your school might be on either</h2>
+        <p>Instructure has been retiring Classic Quizzes for years, with the deadline pushed back more than once. Many institutions run both: older courses on Classic, newer ones built in New Quizzes. Some instructors stayed on Classic deliberately because its quiz log is more detailed and easier to read. So "my school uses X" is usually really "this course uses X".</p>
+
+        <h2>What this means for studying</h2>
+        <p>Three practical takeaways. Check the URL before a graded attempt so you know which engine you are in. If it is New Quizzes, find out whether backtracking is enabled before you plan your pacing. And do not assume the practice quiz and the real exam use the same engine or settings, because instructors frequently build them separately.</p>
+
+        <div class="faq-block">
+          <h2>Frequently asked questions</h2>
+          <div class="qa"><h3>Can I choose which quiz engine to take?</h3><p>No. The instructor picks when they build the quiz, and the choice is invisible to you until you open it.</p></div>
+          <div class="qa"><h3>Does New Quizzes track more than Classic?</h3><p>It records different things rather than strictly more. It captures your IP address, which Classic's quiz log does not surface the same way, while Classic is more granular about per-question viewing.</p></div>
+          <div class="qa"><h3>Why did my answers disappear when I went back?</h3><p>Almost always backtracking being disabled in New Quizzes, or a session timing out. Both engines save as you go, so a vanished answer usually means you are looking at a new attempt rather than the original.</p></div>
+          <div class="qa"><h3>Do both engines auto-save?</h3><p>Yes. Both save continuously rather than only on submit, which is why a browser crash rarely loses everything.</p></div>
+        </div>
+
+        <div class="related">
+          Keep reading: <a href="./canvas-quiz-log-what-instructors-see.html">Canvas Quiz Logs: What Instructors Actually See &rarr;</a>
+        </div>
+      </div>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-logo">
+        <img src="../assets/icon.png" alt="Answerly AI" class="nav-icon" />
+        <span>Answerly AI</span>
+      </div>
+      <div class="footer-links">
+        <a href="../">Home</a>
+        <a href="./">Blog</a>
+        <a href="../privacy.html">Privacy Policy</a>
+        <a href="mailto:AnswerlyAISupport@gmail.com">Support</a>
+      </div>
+      <p class="footer-copy">© 2026 Answerly AI. All rights reserved.</p>
+    </div>
+  </footer>
+
+</body>
+</html>
