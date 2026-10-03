@@ -2736,6 +2736,13 @@ window.__answerlyQuizSolverLoaded = true;
     const themeKey = currentCode ? 'answerlyTheme_' + currentCode : 'answerlyTheme';
     if (changes[themeKey]) {
       theme = { ...DEFAULT_THEME, ...changes[themeKey].newValue };
+      // An answer already on screen keeps the colours it was built with, so a
+      // theme change left a black box sitting inside a freshly pale card.
+      document.querySelectorAll('.answerly-answer-row').forEach(r => {
+        r.style.setProperty('background', theme.answerBg || DEFAULT_THEME.answerBg, 'important');
+        r.style.setProperty('border-color', theme.cardBorder, 'important');
+        r.querySelectorAll('.answerly-answer-text').forEach(t => t.style.setProperty('color', theme.answerColor, 'important'));
+      });
       render();                        // live theme update
     }
   });

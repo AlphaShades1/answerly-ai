@@ -22,9 +22,9 @@ window.__answerlyScreenshotLoaded = true;
     s.textContent = `
       #answerly-ss-widget {
         position: fixed; bottom: 20px; right: 20px; width: 310px;
-        background: #0f0f12; border: 1px solid #2e2e3e; border-radius: 14px;
+        background: var(--a-bg,#0f0f12); border: 1px solid var(--a-border,#2e2e3e); border-radius: 14px;
         box-shadow: 0 12px 40px rgba(0,0,0,.6), 0 0 0 1px rgba(124,92,252,.2);
-        z-index: 2147483647; color: #f0f0f5;
+        z-index: 2147483647; color: var(--a-text,#f0f0f5);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         font-size: 13px; user-select: none;
       }
@@ -32,33 +32,33 @@ window.__answerlyScreenshotLoaded = true;
 
       .answerly-ss-topbar {
         display:flex; align-items:center; justify-content:space-between;
-        padding:10px 12px 8px; border-bottom:1px solid #2e2e3e; cursor:grab;
+        padding:10px 12px 8px; border-bottom:1px solid var(--a-border,#2e2e3e); cursor:grab;
       }
       .answerly-ss-topbar:active { cursor:grabbing; }
-      .answerly-ss-drag  { font-size:16px; color:#555570; pointer-events:none; }
-      .answerly-ss-title { font-size:11px; font-weight:700; letter-spacing:.5px; color:#7c5cfc; text-transform:uppercase; }
+      .answerly-ss-drag  { font-size:16px; color:var(--a-muted,#555570); pointer-events:none; }
+      .answerly-ss-title { font-size:11px; font-weight:700; letter-spacing:.5px; color:var(--a-accent,#7c5cfc); text-transform:uppercase; }
       .answerly-ss-close {
-        background:none; border:none; color:#555570; cursor:pointer;
+        background:none; border:none; color:var(--a-muted,#555570); cursor:pointer;
         font-size:16px; line-height:1; padding:3px 5px; border-radius:4px;
         display:flex; align-items:center; transition:color .15s;
       }
-      .answerly-ss-close:hover { color:#f0f0f5; }
+      .answerly-ss-close:hover { color:var(--a-text,#f0f0f5); }
 
       .answerly-ss-preview {
-        margin:10px 12px; height:160px; background:#0a0a0e;
-        border:1px solid #2e2e3e; border-radius:8px;
+        margin:10px 12px; height:160px; background:var(--a-well,#0a0a0e);
+        border:1px solid var(--a-border,#2e2e3e); border-radius:8px;
         display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;
         cursor:pointer;
       }
-      .answerly-ss-preview:hover { border-color:#4a4a60; }
+      .answerly-ss-preview:hover { border-color:var(--a-accent,#4a4a60); }
       .answerly-ss-preview img { width:100%; height:100%; object-fit:contain; border-radius:7px; }
-      .answerly-ss-placeholder { display:flex; flex-direction:column; align-items:center; gap:6px; color:#555570; font-size:11px; }
+      .answerly-ss-placeholder { display:flex; flex-direction:column; align-items:center; gap:6px; color:var(--a-muted,#555570); font-size:11px; }
       .answerly-ss-thumbs { display:none; width:100%; height:100%; gap:6px; padding:6px; box-sizing:border-box; cursor:default; }
-      .answerly-ss-thumb { position:relative; flex:1; min-width:0; background:#111118; border:1px solid #2e2e3e; border-radius:6px; overflow:hidden; }
+      .answerly-ss-thumb { position:relative; flex:1; min-width:0; background:var(--a-well,#111118); border:1px solid var(--a-border,#2e2e3e); border-radius:6px; overflow:hidden; }
       .answerly-ss-thumb img { width:100%; height:100%; object-fit:contain; border-radius:0; }
       .answerly-ss-thumb-n {
         position:absolute; top:4px; left:4px; min-width:16px; height:16px; padding:0 4px; box-sizing:border-box;
-        border-radius:8px; background:#7c5cfc; color:#fff; font-size:10px; font-weight:700;
+        border-radius:8px; background:var(--a-accent,#7c5cfc); color:#fff; font-size:10px; font-weight:700;
         display:flex; align-items:center; justify-content:center;
       }
       .answerly-ss-thumb-x {
@@ -70,35 +70,35 @@ window.__answerlyScreenshotLoaded = true;
       .answerly-ss-placeholder svg { opacity:.4; }
 
       .answerly-ss-response {
-        margin:0 12px 10px; background:#1a1a22; border:1px solid #2e2e3e;
+        margin:0 12px 10px; background:var(--a-field,#1a1a22); border:1px solid var(--a-border,#2e2e3e);
         border-radius:8px; padding:10px 12px; font-size:12px; line-height:1.6;
-        color:#d0d0e0; max-height:200px; overflow-y:auto; display:none; user-select:text;
+        color:var(--a-text,#d0d0e0); max-height:200px; overflow-y:auto; display:none; user-select:text;
       }
       .answerly-ss-response::-webkit-scrollbar { width:4px; }
-      .answerly-ss-response::-webkit-scrollbar-thumb { background:#3a3a50; border-radius:2px; }
-      .answerly-ss-resp-hdr { font-size:10px; font-weight:700; letter-spacing:.5px; color:#7c5cfc; text-transform:uppercase; margin-bottom:6px; }
+      .answerly-ss-response::-webkit-scrollbar-thumb { background:var(--a-border,#3a3a50); border-radius:2px; }
+      .answerly-ss-resp-hdr { font-size:10px; font-weight:700; letter-spacing:.5px; color:var(--a-accent,#7c5cfc); text-transform:uppercase; margin-bottom:6px; }
 
       .answerly-ss-ctx { margin:0 12px 10px; }
       .answerly-ss-ctx textarea {
-        width:100%; background:#1a1a22; border:1px solid #2e2e3e; border-radius:8px;
-        padding:11px 12px; color:#f0f0f5; font-size:13px; outline:none; transition:border-color .15s;
+        width:100%; background:var(--a-field,#1a1a22); border:1px solid var(--a-border,#2e2e3e); border-radius:8px;
+        padding:11px 12px; color:var(--a-text,#f0f0f5); font-size:13px; outline:none; transition:border-color .15s;
         box-sizing:border-box; resize:vertical; min-height:52px; line-height:1.5;
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       }
-      .answerly-ss-ctx textarea::placeholder { color:#555570; }
-      .answerly-ss-ctx textarea:focus { border-color:#7c5cfc; }
+      .answerly-ss-ctx textarea::placeholder { color:var(--a-muted,#555570); }
+      .answerly-ss-ctx textarea:focus { border-color:var(--a-accent,#7c5cfc); }
 
       .answerly-ss-actions { display:flex; gap:8px; padding:0 12px 12px; }
       .answerly-ss-btn {
-        flex:1; padding:9px 8px; border-radius:8px; border:1px solid #2e2e3e;
-        background:#1a1a22; color:#f0f0f5; font-size:12px; font-weight:600;
+        flex:1; padding:9px 8px; border-radius:8px; border:1px solid var(--a-border,#2e2e3e);
+        background:var(--a-field,#1a1a22); color:var(--a-text,#f0f0f5); font-size:12px; font-weight:600;
         cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;
         transition:background .15s, border-color .15s;
       }
-      .answerly-ss-btn:hover:not(:disabled) { background:#22222e; border-color:#4a4a60; }
+      .answerly-ss-btn:hover:not(:disabled) { background:var(--a-field,#22222e); border-color:var(--a-accent,#4a4a60); }
       .answerly-ss-btn:disabled { opacity:.45; cursor:not-allowed; }
-      .answerly-ss-send { background:#7c5cfc; border-color:#7c5cfc; color:#fff; }
-      .answerly-ss-send:hover:not(:disabled) { background:#9171fd; border-color:#9171fd; }
+      .answerly-ss-send { background:var(--a-accent,#7c5cfc); border-color:var(--a-accent,#7c5cfc); color:var(--a-on-accent,#fff); }
+      .answerly-ss-send:hover:not(:disabled) { background:var(--a-accent,#9171fd); border-color:var(--a-accent,#9171fd); }
 
       .answerly-ss-spinner {
         width:11px; height:11px; border:2px solid rgba(255,255,255,.3);
@@ -128,6 +128,58 @@ window.__answerlyScreenshotLoaded = true;
     document.head.appendChild(s);
   }
 
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  // The widget used to be a fixed dark panel, which is conspicuous on a white
+  // LMS page no matter how the quiz cards are themed. Its stylesheet now reads
+  // CSS variables and this sets them from the saved theme, so it blends the
+  // same way everything else does.
+  const SS_DEFAULT_THEME = {
+    accentColor: '#7c5cfc', cardBg: '#0f0f12', cardBorder: '#2e2e3e',
+    answerBg: '#1a1a22', answerColor: '#f0f0f5', hintColor: '#555570',
+  };
+  let ssTheme = { ...SS_DEFAULT_THEME };
+
+  // White text vanishes on a pale accent, so pick the readable one instead of
+  // assuming the button is always dark.
+  function ssReadableOn(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+    if (!m) return '#fff';
+    const n = parseInt(m[1], 16);
+    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.45 ? '#111118' : '#ffffff';
+  }
+
+  function applySsTheme() {
+    if (!widgetEl) return;
+    const t = ssTheme || SS_DEFAULT_THEME;
+    const vars = {
+      '--a-bg':        t.cardBg      || SS_DEFAULT_THEME.cardBg,
+      '--a-border':    t.cardBorder  || SS_DEFAULT_THEME.cardBorder,
+      '--a-text':      t.answerColor || SS_DEFAULT_THEME.answerColor,
+      '--a-accent':    t.accentColor || SS_DEFAULT_THEME.accentColor,
+      '--a-muted':     t.hintColor   || SS_DEFAULT_THEME.hintColor,
+      '--a-field':     t.answerBg    || SS_DEFAULT_THEME.answerBg,
+      '--a-well':      t.answerBg    || SS_DEFAULT_THEME.answerBg,
+      '--a-on-accent': ssReadableOn(t.accentColor || SS_DEFAULT_THEME.accentColor),
+    };
+    for (const k in vars) widgetEl.style.setProperty(k, vars[k]);
+  }
+
+  function loadSsTheme(cb) {
+    chrome.storage.local.get('answerlySession', (sess) => {
+      const code = sess && sess.answerlySession && sess.answerlySession.code;
+      const key  = code ? 'answerlyTheme_' + code : 'answerlyTheme';
+      chrome.storage.local.get(key, (t) => {
+        ssTheme = { ...SS_DEFAULT_THEME, ...((t && t[key]) || {}) };
+        applySsTheme();
+        if (cb) cb();
+      });
+    });
+  }
+
   // ── Widget ─────────────────────────────────────────────────────────────────
   function buildWidget() {
     if (document.getElementById('answerly-ss-widget')) return;
@@ -135,6 +187,8 @@ window.__answerlyScreenshotLoaded = true;
 
     widgetEl = document.createElement('div');
     widgetEl.id = 'answerly-ss-widget';
+    applySsTheme();
+    loadSsTheme();
     widgetEl.innerHTML = `
       <div class="answerly-ss-topbar" id="answerly-ss-topbar">
         <span class="answerly-ss-drag">⊹</span>
@@ -754,6 +808,8 @@ window.__answerlyScreenshotLoaded = true;
     if (act !== undefined || changes.answerlyScreenshotStealthActive !== undefined) {
       syncFromStorage();
     }
+    // Live re-theme while the widget is open, same as the quiz cards do.
+    if (Object.keys(changes).some(k => k.indexOf('answerlyTheme') === 0)) loadSsTheme();
   });
 
   bootWhenReady();
