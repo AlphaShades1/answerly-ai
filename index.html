@@ -51,13 +51,18 @@
       },
       {
         "@type": "Question",
+        "name": "Does it work on New Quizzes as well as Classic?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Both. Canvas ships two quiz engines, Classic Quizzes (what most people mean by old Canvas) and New Quizzes, and they are built completely differently under the hood. Answerly AI detects which one your quiz is using and runs the matching engine, so the hint and answer buttons appear the same way in either." }
+      },
+      {
+        "@type": "Question",
         "name": "What question types does it support?",
         "acceptedAnswer": { "@type": "Answer", "text": "Multiple choice, true/false, multiple select (checkboxes), matching dropdowns, fill-in-the-blank, and free response. Anything built around a diagram or image is handled by the Screenshot Tool." }
       },
       {
         "@type": "Question",
         "name": "How accurate is the AI?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Answerly AI runs on current large language models and the model is upgraded as better ones ship. It is strong on factual and conceptual questions. For anything resting on a diagram, lab data or your specific course materials, the Screenshot Tool and Upload Notes give noticeably better results than text alone." }
+        "acceptedAnswer": { "@type": "Answer", "text": "Answerly AI runs on Google's Gemini, which is highly accurate on factual and conceptual questions. For anything resting on a diagram, lab data or your specific course materials, the Screenshot Tool and Upload Notes give noticeably better results than text alone." }
       },
       {
         "@type": "Question",
@@ -104,9 +109,9 @@
   <section class="hero">
     <div class="hero-grid">
       <div class="hero-copy">
-        <div class="hero-badge">&#10022; Built for Canvas &mdash; not a chatbot in another tab</div>
+        <div class="hero-badge">&#10022; AI-Powered Study Tool</div>
         <h1 class="hero-title">Solve any Canvas quiz <span class="gradient-text">without leaving the page</span></h1>
-        <p class="hero-sub">Hints, answers and screenshot analysis appear right on the question. Works on Classic Quizzes and New Quizzes, in Chrome and Firefox.</p>
+        <p class="hero-sub">Hints, answers and screenshot analysis appear right on the question. Works on both Canvas versions &mdash; Classic Quizzes (old Canvas) and New Quizzes &mdash; in Chrome and Firefox.</p>
         <div class="hero-btns">
           <a href="https://chromewebstore.google.com/detail/answerly-ai-%E2%80%94-canvas-home/gmekadimanglmacabjkmaigckocobnnc" target="_blank" class="btn-primary">Get Access &mdash; $9.99/mo</a>
           <a href="#demo" class="btn-ghost">Watch the demo &darr;</a>
@@ -126,9 +131,9 @@
   <!-- ── PROOF STRIP ── -->
   <section class="strip">
     <div class="strip-inner">
+      <div class="strip-item"><strong>Old and New Canvas</strong><span>Classic Quizzes and New Quizzes, both fully supported</span></div>
       <div class="strip-item"><strong>Every question type</strong><span>Multiple choice, select-all, dropdowns, matching, fill-in-blank</span></div>
       <div class="strip-item"><strong>Diagrams and images</strong><span>Screenshot anything the text solver cannot read</span></div>
-      <div class="strip-item"><strong>Your own notes</strong><span>Upload a study guide and get answers in your course's terms</span></div>
       <div class="strip-item"><strong>Nothing on screen</strong><span>Stealth modes leave the page looking untouched</span></div>
     </div>
   </section>
@@ -142,6 +147,17 @@
       <img src="assets/promo-comparison.png" alt="Canvas teacher logs with and without Answerly AI" />
     </div>
     <p class="trail-note">Real Canvas teacher logs. Privacy Guard blocks the tab-switch detection and event logging that produce the left-hand column.</p>
+  </section>
+
+
+  <!-- ── STEALTH ── -->
+  <section class="trail" id="stealth">
+    <div class="section-label">Stealth mode</div>
+    <h2 class="section-title">Solve without touching the page</h2>
+    <p class="lead-sub">The buttons go invisible and the answer is selected straight on the question. Hover and press your own key instead of clicking. Works the same on Classic Quizzes and New Quizzes.</p>
+    <div class="trail-img">
+      <img src="assets/shot-stealth.png" alt="Stealth mode: invisible buttons in the top-right of a Canvas question" />
+    </div>
   </section>
 
   <!-- ── SHOWCASE ── -->
@@ -168,15 +184,6 @@
       <div class="show-img"><img src="assets/shot-screenshot.png" alt="The Screenshot Tool answering a captured question" /></div>
     </div>
 
-    <div class="show-row">
-      <div class="show-copy">
-        <div class="show-tag">Stealth &amp; Customize</div>
-        <h3>Make it disappear</h3>
-        <p>Stealth modes hide the buttons entirely and fill answers silently. Or keep them visible and recolour everything &mdash; card, answer box, buttons and text &mdash; with the Blend In preset matching Canvas's own colours so the panel reads as part of the page.</p>
-        <p class="show-extra">Set a hotkey and solve without clicking at all.</p>
-      </div>
-      <div class="show-img"><img src="assets/shot-customize.png" alt="The Customize panel: presets and per-element colour controls" /></div>
-    </div>
 
     <div class="features-grid">
       <div class="feature-card">
@@ -185,9 +192,9 @@
         <p>Retaking a quiz? Your previous answers come back automatically. It only fills boxes you left empty, so nothing you already answered is changed.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#128737;</div>
-        <h3>Privacy Guard</h3>
-        <p>Blocks tab-switch detection, page-view tracking and quiz event logging while you work. Works across Canvas, Moodle, Blackboard and others.</p>
+        <div class="feature-icon">&#127912;</div>
+        <h3>Customize</h3>
+        <p>Recolour the card, answer box, buttons and text, or pick the Blend In preset that matches Canvas's own colours. Set a hotkey and solve without clicking.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">&#128196;</div>
@@ -228,7 +235,7 @@
         <div class="step-num">3</div>
         <div class="step-content">
           <h3>Start Solving</h3>
-          <p>Open any Canvas quiz, switch the solver on, and go.</p>
+          <p>Open any Canvas quiz &mdash; Classic or New Quizzes &mdash; switch the solver on, and go.</p>
         </div>
       </div>
     </div>
@@ -269,6 +276,11 @@
           </tr>
         </thead>
         <tbody>
+          <tr><td class="ct-feat">Works on Classic <em>and</em> New Quizzes</td>
+            <td class="ct-us"><span class="yes">&#10003;</span><em>both engines</em></td>
+            <td><span class="dash">&mdash;</span><em>not a Canvas tool</em></td>
+            <td><span class="dash">&mdash;</span><em>not a Canvas tool</em></td>
+            <td><span class="part">varies</span></td></tr>
           <tr><td class="ct-feat">Works inside the Canvas page</td>
             <td class="ct-us"><span class="yes">&#10003;</span></td>
             <td><span class="no">&#10007;</span><em>copy each question out</em></td>
@@ -354,6 +366,10 @@
         <div class="faq-a">Yes. Answerly AI works on all Canvas LMS installations regardless of which university or college hosts them.</div>
       </div>
       <div class="faq-item">
+        <button class="faq-q">Does it work on New Quizzes as well as Classic?</button>
+        <div class="faq-a">Both. Canvas ships two quiz engines &mdash; Classic Quizzes (what most people mean by old Canvas) and New Quizzes &mdash; and they are built completely differently under the hood. Answerly AI detects which one your quiz is using and runs the matching engine, so the hint and answer buttons appear the same way in either. You do not have to pick anything or change a setting.</div>
+      </div>
+      <div class="faq-item">
         <button class="faq-q">What question types does it support?</button>
         <div class="faq-a">Multiple choice, true/false, multiple select (checkboxes), matching dropdowns, fill-in-the-blank, and free response. Anything built around a diagram or image is handled by the Screenshot Tool.</div>
       </div>
@@ -363,7 +379,7 @@
       </div>
       <div class="faq-item">
         <button class="faq-q">How accurate is the AI?</button>
-        <div class="faq-a">Answerly AI runs on current large language models and the model is upgraded as better ones ship, so accuracy improves without you doing anything. It is strong on factual and conceptual questions. For anything resting on a diagram, lab data or your specific course materials, the Screenshot Tool and Upload Notes give noticeably better results than text alone.</div>
+        <div class="faq-a">Answerly AI runs on Google's Gemini, which is highly accurate on factual and conceptual questions. For anything resting on a diagram, lab data or your specific course materials, the Screenshot Tool and Upload Notes give noticeably better results than text alone.</div>
       </div>
       <div class="faq-item">
         <button class="faq-q">Can I cancel my subscription?</button>
