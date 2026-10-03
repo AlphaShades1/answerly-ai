@@ -27,6 +27,14 @@ const colorBg      = document.getElementById('color-bg');
 const hexBg        = document.getElementById('hex-bg');
 const colorBorder  = document.getElementById('color-border');
 const hexBorder    = document.getElementById('hex-border');
+const previewReveal = document.getElementById('preview-reveal');
+const previewSs     = document.getElementById('preview-ss');
+const previewSsBar  = document.getElementById('preview-ss-bar');
+const previewSsTitle= document.getElementById('preview-ss-title');
+const previewSsWell = document.getElementById('preview-ss-well');
+const previewSsField= document.getElementById('preview-ss-field');
+const previewSsBtn  = document.getElementById('preview-ss-btn');
+const previewSsSend = document.getElementById('preview-ss-send');
 const colorButton  = document.getElementById('color-button');
 const hexButton    = document.getElementById('hex-button');
 const colorAnswerBg = document.getElementById('color-answerbg');
@@ -184,6 +192,20 @@ function applyToUI() {
   opacityVal.textContent = theme.opacity + '%';
 }
 
+
+// The Send button's label sits on the accent colour, so white disappears on a
+// pale one. Mirrors ssReadableOn() in screenshotTool.js so the preview cannot
+// disagree with the real widget.
+function readableOn(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  if (!m) return '#fff';
+  const n = parseInt(m[1], 16);
+  const l = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return (0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]) > 0.45 ? '#111118' : '#ffffff';
+}
 function updatePreview() {
   const op = theme.opacity / 100;
   const accent = theme.accentColor || DEFAULTS.accentColor;
@@ -205,6 +227,30 @@ function updatePreview() {
   previewAnswerBox.style.border = `1px solid ${theme.cardBorder}`;
   previewAnswerLbl.style.color = theme.cardBorder;
   previewAnswerText.style.color = theme.answerColor;
+  previewAnswerText.style.fontWeight = theme.answerWeight || DEFAULTS.answerWeight;
+
+  const btn   = theme.buttonColor || DEFAULTS.buttonColor;
+  const field = deriveAnswerBg(theme);
+  previewReveal.style.color = btn;
+  previewReveal.style.borderColor = btn;
+
+  // Screenshot tool preview, painted from the same values applySsTheme() uses.
+  previewSs.style.background = theme.cardBg;
+  previewSs.style.border = '1px solid ' + theme.cardBorder;
+  previewSs.style.opacity = op;
+  previewSsBar.style.borderBottom = '1px solid ' + theme.cardBorder;
+  previewSsTitle.style.color = accent;
+  [previewSsWell, previewSsField].forEach(el => {
+    el.style.background = field;
+    el.style.borderColor = theme.cardBorder;
+    el.style.color = theme.hintColor;
+  });
+  previewSsBtn.style.background = field;
+  previewSsBtn.style.color = btn;
+  previewSsBtn.style.borderColor = btn;
+  previewSsSend.style.background = accent;
+  previewSsSend.style.color = readableOn(accent);
+  previewSsSend.style.borderColor = accent;
 }
 
 function clearActivePreset() {

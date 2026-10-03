@@ -151,6 +151,22 @@
     }
     .preview-answer-text { font-weight: 800; font-size: 14px; }
 
+
+    /* Screenshot tool preview */
+    .preview-ss { border-radius: 10px; overflow: hidden; margin-bottom: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .preview-ss-bar { padding: 8px 10px; display: flex; align-items: center; justify-content: center; }
+    .preview-ss-title { font-size: 9.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+    .preview-ss-body { padding: 9px 10px 10px; }
+    .preview-ss-well { height: 52px; border: 1px solid; border-radius: 6px; font-size: 10.5px;
+      display: flex; align-items: center; justify-content: center; margin-bottom: 7px; }
+    .preview-ss-field { border: 1px solid; border-radius: 6px; padding: 7px 9px; font-size: 10.5px; margin-bottom: 7px; }
+    .preview-ss-btns { display: flex; gap: 6px; }
+    .preview-ss-btn, .preview-ss-send { flex: 1; text-align: center; padding: 7px 6px;
+      border-radius: 6px; font-size: 10.5px; font-weight: 600; border: 1px solid transparent; }
+    /* Reveal button inside the card preview */
+    .preview-reveal { display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 4px 10px; border-radius: 6px; border: 1px solid; background: none; margin-bottom: 4px; }
     /* Preview button dot */
     .preview-btn-demo {
       display: inline-flex;
@@ -316,9 +332,25 @@
     <div class="preview-box" id="preview-card">
       <div class="preview-badge" id="preview-badge">⊙ Answerly AI</div>
       <div class="preview-hint" id="preview-hint">Think about what the UDP length field specifies for the full datagram.</div>
+      <div class="preview-reveal" id="preview-reveal">Show Answer</div>
       <div class="preview-answer-box" id="preview-answer-box">
         <span class="preview-answer-lbl" id="preview-answer-lbl">Answer</span>
         <div class="preview-answer-text" id="preview-answer-text">Each of the four fields is 2 bytes long.</div>
+      </div>
+    </div>
+    <!-- Screenshot tool preview -->
+    <div style="font-size:11px;color:#8888a0;margin-bottom:6px;">Screenshot tool:</div>
+    <div class="preview-ss" id="preview-ss">
+      <div class="preview-ss-bar" id="preview-ss-bar">
+        <span class="preview-ss-title" id="preview-ss-title">Answerly AI &mdash; Screenshot</span>
+      </div>
+      <div class="preview-ss-body">
+        <div class="preview-ss-well" id="preview-ss-well">Drag to select an area</div>
+        <div class="preview-ss-field" id="preview-ss-field">Add context (optional)&hellip;</div>
+        <div class="preview-ss-btns">
+          <div class="preview-ss-btn" id="preview-ss-btn">Select Area</div>
+          <div class="preview-ss-send" id="preview-ss-send">Send</div>
+        </div>
       </div>
     </div>
   </div>
