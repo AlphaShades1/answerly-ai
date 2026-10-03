@@ -532,7 +532,10 @@ window.__answerlyNQSolverLoaded = true;
     accentColor: '#7c5cfc',
     cardBg:      '#1a1a2e',
     cardBorder:  '#7c5cfc',
-    answerBg:    '#0f0f1e',
+    answerBg:    '#0f0f1e',
+    // Forced bold made the answer the only heavy text in the card, which is
+    // what the eye lands on first however well the colours blend.
+    answerWeight: 800,
     answerColor: '#ffffff',
     hintColor:   '#c0c0d8',
     opacity:     100,
@@ -2013,10 +2016,10 @@ window.__answerlyNQSolverLoaded = true;
           bodyHtml = parts.map((p, i) => `
             <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;${i < parts.length - 1 ? 'border-bottom:1px solid #2a2a4a;' : ''}">
               <span style="color:${accent};font-weight:900;flex-shrink:0;margin-top:1px;">✓</span>
-              <span style="color:${theme.answerColor};font-weight:800;font-size:14px;line-height:1.4;">${esc(p)}</span>
+              <span style="color:${theme.answerColor};font-weight:${theme.answerWeight || DEFAULT_THEME.answerWeight};font-size:14px;line-height:1.4;">${esc(p)}</span>
             </div>`).join('');
         } else {
-          bodyHtml = `<div class="answerly-nq-answer-text" style="color:${theme.answerColor}!important;font-weight:800!important;">${esc(parts[0] || answer)}</div>`;
+          bodyHtml = `<div class="answerly-nq-answer-text" style="color:${theme.answerColor}!important;font-weight:${theme.answerWeight || DEFAULT_THEME.answerWeight}!important;">${esc(parts[0] || answer)}</div>`;
         }
 
         const row = document.createElement('div');
@@ -2299,7 +2302,10 @@ window.__answerlyNQSolverLoaded = true;
       document.querySelectorAll('.answerly-nq-answer-row').forEach(r => {
         r.style.setProperty('background', answerBgFor(theme), 'important');
         r.style.setProperty('border-color', theme.cardBorder, 'important');
-        r.querySelectorAll('.answerly-nq-answer-text').forEach(t => t.style.setProperty('color', theme.answerColor, 'important'));
+        r.querySelectorAll('.answerly-nq-answer-text').forEach(t => {
+          t.style.setProperty('color', theme.answerColor, 'important');
+          t.style.setProperty('font-weight', String(theme.answerWeight || DEFAULT_THEME.answerWeight), 'important');
+        });
       });
       removeAll();
       injectStyles();
