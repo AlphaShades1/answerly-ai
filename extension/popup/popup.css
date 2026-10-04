@@ -190,14 +190,18 @@ body {
 
 /* ── Screenshot disclaimer ── */
 .screenshot-notice {
-  margin: 5px 12px 0;
-  padding: 5px 9px;
+  /* Tight vertical metrics on purpose: this notice is always on screen while
+     you are on a quiz page, and the popup has only a few px of headroom under
+     Chrome's 600px cap in its worst state (PG off + skipped-image warning).
+     Going past the cap clips the footer buttons off the bottom. */
+  margin: 4px 12px 0;
+  padding: 4px 9px;
   background: rgba(124,92,252,0.1);
   border: 1px solid rgba(124,92,252,0.25);
   border-radius: 6px;
   font-size: 11px;
   color: var(--text-muted);
-  line-height: 1.35;
+  line-height: 1.3;
   text-align: center;
 }
 .screenshot-notice strong { color: #a78bfa; }
