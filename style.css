@@ -1416,3 +1416,19 @@ section { padding: 96px 24px; max-width: 1180px; margin: 0 auto; }
 /* <picture> must not introduce a box of its own, or it breaks the layout
    rules that target the img directly. */
 picture { display: contents; }
+
+/* ── Inline code ──────────────────────────────────────────────────────────
+   The Canvas event-feed paths and chrome-extension:// URLs are long single
+   tokens; without an explicit wrap rule they push the page wider than the
+   viewport on a phone. */
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.89em;
+  background: rgba(149,117,255,.12);
+  border: 1px solid rgba(149,117,255,.22);
+  color: #cbb8ff;
+  padding: 1px 6px;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

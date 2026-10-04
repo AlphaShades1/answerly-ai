@@ -24,7 +24,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../style.css?v=10" />
+  <link rel="stylesheet" href="../style.css?v=11" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
   <style>
@@ -118,6 +118,22 @@
           "@type": "Answer",
           "text": "No, and Instructure says so in its own documentation: quiz log data is not intended to validate academic integrity and cannot establish exactly what a student did."
         }
+      },
+      {
+        "@type": "Question",
+        "name": "Can a website check for one specific extension?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Only if that extension exposes a web-accessible file and the page already knows its exact ID. It is a targeted probe, not a way to list what you have, and Manifest V3 extensions can defeat it with a dynamic resource URL."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does incognito or a guest profile help?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Against a proctoring extension, only if the extension is not enabled in that profile. Against Canvas itself there is nothing to hide from, since it never had visibility in the first place."
+        }
       }
     ]
   }
@@ -172,7 +188,7 @@
 
     <article>
       <h1>Does Canvas Detect Chrome Extensions?</h1>
-      <div class="article-meta">Explainer &middot; Updated October 2026 &middot; ~7 min read</div>
+      <div class="article-meta">Explainer &middot; Updated October 2026 &middot; ~6 min read</div>
 
       <div class="article-body">
         <p class="lede">This question gets asked constantly and answered badly. The honest answer has two halves, because Canvas and the proctoring software your school may have bolted onto it are completely different pieces of software with completely different powers.</p>
@@ -201,12 +217,53 @@
         <p>A lot of advice online says "Canvas can detect extensions" and stops there. That conflates the LMS with proctoring software and sends students worrying about the wrong thing. Canvas's visibility ends at its own browser tab. A proctoring extension's visibility does not.</p>
         <p>The opposite error is just as common: assuming that because Canvas cannot see extensions, nothing is recorded at all. Canvas records the shape of your attempt in detail, and that log exists whether or not any proctoring tool is installed.</p>
 
+
+        <h2>Why a website cannot see your extensions</h2>
+        <p>It is worth understanding the actual mechanism, because it tells you where the limits really are rather than leaving you to guess.</p>
+        <p>A web page runs as untrusted code in a sandbox. The list of installed extensions lives on the other side of that boundary, in the browser itself. The API that can read it, <code>chrome.management</code>, is only callable from an extension that has explicitly requested the <code>management</code> permission &mdash; and a page is not an extension. There is no equivalent for page JavaScript. It is not that Canvas chooses not to look; it is that nothing exists for it to call.</p>
+        <p>This is also why the question "can Canvas tell I have an extension installed" and "can Canvas tell something modified the page" are different questions. The second one has a less comfortable answer.</p>
+
+        <h2>The one way a page can probe for a specific extension</h2>
+        <p>Here is the caveat almost nobody includes, and the reason this article says "the honest answer".</p>
+        <p>A page cannot ask for a list. It can, however, guess. Every extension has a fixed ID, and extensions can declare certain files as <em>web-accessible resources</em>, meaning ordinary pages are allowed to load them. If an extension does that, any page can attempt to fetch a known file at <code>chrome-extension://&lt;the-id&gt;/&lt;the-file&gt;</code>. If the fetch succeeds, that extension is installed. If it fails, it is not.</p>
+        <p>Three things limit how much this matters in practice:</p>
+        <ul>
+          <li><strong>It only works per-extension.</strong> The page has to already know the exact ID and filename it is looking for. It cannot discover anything it was not explicitly built to look for.</li>
+          <li><strong>Someone has to build it deliberately.</strong> This is not a feature Canvas ships. It would be custom code written to hunt for a specific, named extension.</li>
+          <li><strong>Extensions can defend against it.</strong> Manifest V3 added <code>use_dynamic_url</code>, which randomises the resource URL per browsing session, so a fixed guess no longer resolves.</li>
+        </ul>
+        <p>There is no public evidence of Canvas doing this, and it would be an odd thing for an LMS to build. But "a website physically cannot know" is slightly too strong a claim, and you deserve the accurate version.</p>
+
+        <h2>Behavioural signals are the realistic concern</h2>
+        <p>Forget enumeration for a moment. A page can see its own DOM. If something inserts a visible panel into a question, changes an answer without a corresponding click, or fills a field faster than a human could type, all of that happens inside the page's own document where its JavaScript can observe it.</p>
+        <p>Nobody has to identify <em>which</em> extension did it. In practice this is the gap that matters, and it is the reason tools that avoid drawing anything on screen behave differently from tools that inject a large visible card.</p>
+
+        <h2>What proctoring tools actually ask for</h2>
+        <p>If an extension-based proctor is in play, its permissions are published in the Chrome Web Store listing. It is worth reading them once. The ones that matter:</p>
+        <ul>
+          <li><strong>Management.</strong> Read the list of installed extensions, and in some cases disable them for the duration of an exam.</li>
+          <li><strong>Tabs.</strong> See the URLs and titles of your open tabs, not merely that focus was lost.</li>
+          <li><strong>Desktop capture.</strong> Record the screen, including windows outside the browser.</li>
+          <li><strong>Camera and microphone.</strong> Granted through the normal browser prompt, which you have to accept.</li>
+        </ul>
+        <p>That is a categorically different level of access from a web page, and it is why the two halves of this question have opposite answers.</p>
+
+        <h2>What this means in practice</h2>
+        <p>Work out which situation you are in before worrying about anything else:</p>
+        <ul>
+          <li><strong>No proctoring.</strong> Your extensions are not visible. What exists is the Canvas attempt log, and the thing worth caring about is whether that log reads like an ordinary attempt.</li>
+          <li><strong>Extension-based proctoring.</strong> Assume everything installed is visible. Disabling is not reliable, because a disabled extension is still installed and still enumerable. Removal is the only honest answer.</li>
+          <li><strong>Lockdown browser.</strong> Your normal browser profile is not running at all, so nothing in it is relevant.</li>
+        </ul>
+
         <div class="faq-block">
           <h2>Frequently asked questions</h2>
           <div class="qa"><h3>Can my professor see what extensions I have installed?</h3><p>Not through Canvas. Only through proctoring software that you installed and granted permissions to.</p></div>
           <div class="qa"><h3>Does disabling an extension hide it?</h3><p>From proctoring tools that enumerate installed extensions, disabling is often not enough, because the extension is still installed. Removing it is the only reliable answer when a proctoring tool is in use.</p></div>
           <div class="qa"><h3>Can Canvas see my other tabs?</h3><p>Not their contents or addresses. Canvas can detect that its own page lost focus, which is a much weaker signal than knowing where you went.</p></div>
           <div class="qa"><h3>Is a quiz log proof of cheating?</h3><p>No, and Instructure says so in its own documentation: quiz log data is not intended to validate academic integrity and cannot establish exactly what a student did.</p></div>
+          <div class="qa"><h3>Can a website check for one specific extension?</h3><p>Only if that extension exposes a web-accessible file and the page already knows its exact ID. It is a targeted probe, not a way to list what you have, and Manifest V3 extensions can defeat it with a dynamic resource URL.</p></div>
+          <div class="qa"><h3>Does incognito or a guest profile help?</h3><p>Against a proctoring extension, only if the extension is not enabled in that profile. Against Canvas itself there is nothing to hide from, since it never had visibility in the first place.</p></div>
         </div>
 
         <div class="related">

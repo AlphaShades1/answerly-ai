@@ -24,7 +24,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../style.css?v=10" />
+  <link rel="stylesheet" href="../style.css?v=11" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
   <style>
@@ -118,6 +118,22 @@
           "@type": "Answer",
           "text": "Yes. Both save continuously rather than only on submit, which is why a browser crash rarely loses everything."
         }
+      },
+      {
+        "@type": "Question",
+        "name": "Does one engine grade more harshly?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No, but New Quizzes handles partial credit on multi-select questions more generously, so the same answers can score slightly differently."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Why does my quiz look different from my classmate's?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Usually a different engine, a different setting such as shuffled answers, or both. Instructors can also build multiple versions of the same assessment."
+        }
       }
     ]
   }
@@ -172,7 +188,7 @@
 
     <article>
       <h1>Canvas New Quizzes vs Classic Quizzes: What Actually Changed</h1>
-      <div class="article-meta">Explainer &middot; Updated October 2026 &middot; ~8 min read</div>
+      <div class="article-meta">Explainer &middot; Updated October 2026 &middot; ~7 min read</div>
 
       <div class="article-body">
         <p class="lede">Your school runs one of two Canvas quiz engines, and most students never find out which until something behaves unexpectedly. They look almost identical while you are taking a quiz. Underneath they are separate products, built by different teams, that record what you do in completely different ways.</p>
@@ -201,12 +217,58 @@
         <h2>What this means for studying</h2>
         <p>Three practical takeaways. Check the URL before a graded attempt so you know which engine you are in. If it is New Quizzes, find out whether backtracking is enabled before you plan your pacing. And do not assume the practice quiz and the real exam use the same engine or settings, because instructors frequently build them separately.</p>
 
+
+        <h2>They do not even report your activity the same way</h2>
+        <p>This is the deepest difference between the two engines and the one almost no guide covers, because it is invisible unless you watch the network traffic. The two engines do not just store different things; they use entirely different plumbing to send them.</p>
+
+        <h3>Classic posts a batch of events</h3>
+        <p>Classic Quizzes collects events in your browser and posts them back to Canvas periodically, to an address of the form <code>/courses/&lt;id&gt;/quizzes/&lt;id&gt;/submissions/&lt;id&gt;/events</code>. The client sends a small, fixed set of event types: the session starting, a question being viewed, a question being flagged, and the page gaining or losing focus.</p>
+        <p>There is a detail here that trips people up. <strong>"Answered question" is not one of the events your browser sends.</strong> The server derives it from the autosave that stores your answer. That is why an attempt log can show answers without the matching views: the answer arrives through the save path, the view arrives through the event path, and they are genuinely separate channels.</p>
+        <p>One more quirk worth knowing: Canvas queues these events in your browser's local storage and only clears the queue when the server confirms receipt. If delivery fails, it retries. A flaky connection mid-quiz does not usually lose your activity log; it delays it.</p>
+
+        <h3>New Quizzes streams somewhere else entirely</h3>
+        <p>New Quizzes does not post an event feed to Canvas at all. It requests temporary credentials from Canvas and then streams telemetry directly to Amazon Kinesis, a data-streaming service, on AWS infrastructure rather than your institution's Canvas host.</p>
+        <p>The practical consequences for you as a student are modest but real. The data takes a different path and can surface in the instructor's view on a different schedule. And because New Quizzes renders its questions inside an embedded frame built on a separate assessment platform, the page you are looking at is not structured like a Classic quiz page at all, even when it looks similar.</p>
+
+        <h2>What each one records</h2>
+        <div class="compare-wrap" style="margin:22px 0;">
+        <table class="compare-table">
+          <thead>
+            <tr><th class="ct-feat"></th><th>Classic Quizzes</th><th>New Quizzes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="ct-feat">Per-question view timing</td><td>Granular</td><td>Coarser</td></tr>
+            <tr><td class="ct-feat">Page focus lost / regained</td><td>Yes, explicitly</td><td>Not surfaced the same way</td></tr>
+            <tr><td class="ct-feat">Your IP address</td><td>Not in the quiz log</td><td>Yes</td></tr>
+            <tr><td class="ct-feat">Answer change history</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td class="ct-feat">Where the data goes</td><td>Your Canvas host</td><td>AWS stream, then Canvas</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>Neither log is the surveillance apparatus students imagine, and neither is nothing. Instructure's own documentation states plainly that quiz log data is not intended to validate academic integrity and cannot establish what a student actually did.</p>
+
+        <h2>Settings that behave differently</h2>
+        <p>If you have taken quizzes in both engines and felt that one was stricter, you were probably reacting to these:</p>
+        <ul>
+          <li><strong>Backtracking.</strong> New Quizzes lets an instructor stop you returning to earlier questions. Classic has no direct equivalent, and this single setting accounts for most of the "it felt harsher" reaction.</li>
+          <li><strong>One question at a time.</strong> Both support it, but it pairs with the backtracking lock in New Quizzes, which makes it far more restrictive.</li>
+          <li><strong>Partial credit.</strong> New Quizzes is considerably more flexible on multi-select scoring, so a half-right answer is more likely to earn something.</li>
+          <li><strong>Question types.</strong> New Quizzes adds types Classic never had, including categorisation, ordering and hot-spot questions.</li>
+          <li><strong>Moderation.</strong> Extra time and extra attempts are granted through different screens, which is why an instructor sometimes takes a while to find the right one.</li>
+        </ul>
+
+        <h2>Why your school is on one or the other</h2>
+        <p>Instructure has been migrating institutions from Classic to New Quizzes for years, and the timeline has moved repeatedly. The practical result is a long transition in which both engines coexist: an instructor may have older Classic quizzes still in a course alongside newer ones built in New Quizzes, and a department can be mid-migration while another is not.</p>
+        <p>This is also why a practice quiz and the real exam can behave differently. They may simply have been built in different engines, by the same instructor, months apart.</p>
+
         <div class="faq-block">
           <h2>Frequently asked questions</h2>
           <div class="qa"><h3>Can I choose which quiz engine to take?</h3><p>No. The instructor picks when they build the quiz, and the choice is invisible to you until you open it.</p></div>
           <div class="qa"><h3>Does New Quizzes track more than Classic?</h3><p>It records different things rather than strictly more. It captures your IP address, which Classic's quiz log does not surface the same way, while Classic is more granular about per-question viewing.</p></div>
           <div class="qa"><h3>Why did my answers disappear when I went back?</h3><p>Almost always backtracking being disabled in New Quizzes, or a session timing out. Both engines save as you go, so a vanished answer usually means you are looking at a new attempt rather than the original.</p></div>
           <div class="qa"><h3>Do both engines auto-save?</h3><p>Yes. Both save continuously rather than only on submit, which is why a browser crash rarely loses everything.</p></div>
+          <div class="qa"><h3>Does one engine grade more harshly?</h3><p>No, but New Quizzes handles partial credit on multi-select questions more generously, so the same answers can score slightly differently.</p></div>
+          <div class="qa"><h3>Why does my quiz look different from my classmate's?</h3><p>Usually a different engine, a different setting such as shuffled answers, or both. Instructors can also build multiple versions of the same assessment.</p></div>
         </div>
 
         <div class="related">
