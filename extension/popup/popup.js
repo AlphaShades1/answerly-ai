@@ -95,6 +95,11 @@ function renderSkippedImages(rec) {
   if (!box || !txt) return;
 
   const fresh = rec && rec.count > 0 && (Date.now() - rec.ts) < SKIPPED_FRESH_MS;
+  // The standing "images need the Screenshot Tool" notice says the same thing
+  // as this warning but in general terms, so hide it whenever this specific one
+  // is up. Two notices saying one thing is also what makes the popup scroll.
+  const ssNotice = document.querySelector('.screenshot-notice');
+  if (ssNotice) ssNotice.classList.toggle('hidden', !!fresh);
   if (!fresh) { box.classList.add('hidden'); return; }
 
   const n = rec.count;
