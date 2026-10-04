@@ -18,11 +18,15 @@
   <meta property="og:title" content="Canvas Quiz Solver — Instant AI Answers | Answerly AI" />
   <meta property="og:description" content="Chrome extension that instantly solves Canvas LMS quizzes and homework with AI — answers, hints, and screenshot analysis in one click." />
   <meta property="og:url" content="https://getanswerlyai.com/" />
-  <meta property="og:image" content="https://getanswerlyai.com/assets/icon.png" />
+  <meta property="og:image" content="https://getanswerlyai.com/assets/social-card.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Answerly AI, a Canvas quiz solver: hints, answers, screenshots and stealth mode" />
+  <meta name="twitter:image:alt" content="Answerly AI, a Canvas quiz solver: hints, answers, screenshots and stealth mode" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Canvas Quiz Solver — Answerly AI" />
   <meta name="twitter:description" content="Instantly solve Canvas quizzes and homework with AI. One-click answers, hints, and screenshot analysis." />
-  <meta name="twitter:image" content="https://getanswerlyai.com/assets/icon.png" />
+  <meta name="twitter:image" content="https://getanswerlyai.com/assets/social-card.png?v=1" />
 
   <!-- ── SEO: structured data (can show your ⭐ rating in Google) ── -->
   <script type="application/ld+json">
@@ -78,7 +82,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css?v=10" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -89,7 +93,7 @@
   <nav class="nav">
     <div class="nav-inner">
       <div class="nav-logo">
-        <img src="assets/icon.png?v=2" alt="Answerly AI" class="nav-icon" />
+        <img src="assets/icon.png?v=2" alt="Answerly AI" class="nav-icon" width="128" height="128" decoding="async" />
         <span>Answerly AI</span>
       </div>
       <div class="nav-links">
@@ -123,7 +127,10 @@
         </ul>
       </div>
       <div class="hero-shot">
-        <img src="assets/shot-hero.png?v=2" alt="Answerly AI showing a hint and the answer on a Canvas question" />
+        <picture>
+          <source srcset="assets/shot-hero.webp?v=2" type="image/webp" />
+          <img src="assets/shot-hero.png?v=2" alt="Answerly AI showing a hint and the answer on a Canvas question" width="1640" height="1120" fetchpriority="high" decoding="async" />
+        </picture>
       </div>
     </div>
   </section>
@@ -134,7 +141,10 @@
     <h2 class="section-title">Solve without touching the page</h2>
     <p class="lead-sub">Hover a question and press your key. The buttons are invisible, the answer fills in silently, and the page looks untouched &mdash; on Classic Quizzes and New Quizzes alike.</p>
     <div class="trail-img">
-      <img src="assets/shot-stealth.png?v=2" alt="Stealth mode: invisible buttons revealed on hover beside each Canvas question" />
+      <picture>
+          <source srcset="assets/shot-stealth.webp?v=2" type="image/webp" />
+          <img src="assets/shot-stealth.png?v=2" alt="Stealth mode: invisible buttons revealed on hover beside each Canvas question" width="1280" height="800" loading="lazy" decoding="async" />
+        </picture>
     </div>
   </section>
 
@@ -154,9 +164,12 @@
     <h2 class="section-title">Other tools leave a trail</h2>
     <p class="lead-sub">Canvas records more than your answers. It logs when you viewed each question and every time the page lost focus. Here is the same quiz, with and without <strong>Privacy Guard</strong>.</p>
     <div class="trail-img">
-      <img src="assets/promo-comparison.png?v=2" alt="Canvas teacher logs with and without Answerly AI" />
+      <picture>
+          <source srcset="assets/promo-comparison.webp?v=2" type="image/webp" />
+          <img src="assets/promo-comparison.png?v=2" alt="Canvas teacher logs with and without Answerly AI" width="1280" height="800" loading="lazy" decoding="async" />
+        </picture>
     </div>
-    <p class="trail-note">Real Canvas teacher logs. <strong>Privacy Guard</strong> blocks the tab-switch detection and event logging that produce the left-hand column, and it runs on both Canvas versions &mdash; Classic Quizzes and New Quizzes.</p>
+    <p class="trail-note">Real Canvas teacher logs. <strong>Privacy Guard</strong> blocks the tab-switch detection and event logging that produce the left-hand column, and it runs on both Canvas versions &mdash; Classic Quizzes and New Quizzes. More on <a href="blog/canvas-quiz-log-what-instructors-see.html">what a Canvas quiz log actually records</a>.</p>
   </section>
 
 
@@ -172,7 +185,10 @@
         <p>Click the button on any question for a hint that explains the reasoning, then reveal the answer when you want it. Multiple choice, select-all, dropdowns, matching and fill-in-the-blank all work the same way.</p>
         <p class="show-extra">Solve All answers every question on the page in one click.</p>
       </div>
-      <div class="show-img"><img src="assets/shot-solver.png?v=2" alt="Hint and answer on a Canvas question, with the extension popup beside it" /></div>
+      <div class="show-img"><picture>
+          <source srcset="assets/shot-solver.webp?v=2" type="image/webp" />
+          <img src="assets/shot-solver.png?v=2" alt="Hint and answer on a Canvas question, with the extension popup beside it" width="1280" height="800" loading="lazy" decoding="async" />
+        </picture></div>
     </div>
 
     <div class="show-row reverse">
@@ -181,7 +197,10 @@
         <h3>For the questions text cannot reach</h3>
         <p>Drag a box over a diagram, a graph, a chemical structure or a photo, add your own instructions if you want, and get the answer back in seconds &mdash; with the reasoning, not just a letter. This is what handles the questions that defeat ordinary solvers.</p>
       </div>
-      <div class="show-img"><img src="assets/shot-screenshot.png?v=2" alt="The Screenshot Tool answering a supply-and-demand graph question" /></div>
+      <div class="show-img"><picture>
+          <source srcset="assets/shot-screenshot.webp?v=2" type="image/webp" />
+          <img src="assets/shot-screenshot.png?v=2" alt="The Screenshot Tool answering a supply-and-demand graph question" width="1280" height="800" loading="lazy" decoding="async" />
+        </picture></div>
     </div>
 
 
@@ -369,7 +388,7 @@
         </tbody>
       </table>
     </div>
-    <p class="compare-foot">Built for Canvas from the ground up &mdash; not a chatbot with a Canvas tab open.</p>
+    <p class="compare-foot">Full write-up: <a href="blog/best-canvas-quiz-solver-comparison.html">the best Canvas quiz solvers in 2026, compared</a>. Built for Canvas from the ground up &mdash; not a chatbot with a Canvas tab open.</p>
   </section>
 
   <section class="pricing" id="pricing">
@@ -407,7 +426,7 @@
       </div>
       <div class="faq-item">
         <button class="faq-q">Does it work on New Quizzes as well as Classic?</button>
-        <div class="faq-a">Both. Canvas ships two quiz engines &mdash; Classic Quizzes (what most people mean by old Canvas) and New Quizzes &mdash; and they are built completely differently under the hood. Answerly AI detects which one your quiz is using and runs the matching engine, so the hint and answer buttons appear the same way in either. Stealth mode and Privacy Guard cover both as well. You do not have to pick anything or change a setting.</div>
+        <div class="faq-a">Both. Canvas ships two quiz engines &mdash; Classic Quizzes (what most people mean by old Canvas) and New Quizzes &mdash; and they are built completely differently under the hood. Answerly AI detects which one your quiz is using and runs the matching engine, so the hint and answer buttons appear the same way in either. Stealth mode and Privacy Guard cover both as well. You do not have to pick anything or change a setting. If you are unsure which you are on, see <a href="blog/canvas-new-quizzes-vs-classic.html">New Quizzes vs Classic Quizzes</a>.</div>
       </div>
       <div class="faq-item">
         <button class="faq-q">What question types does it support?</button>
@@ -415,7 +434,7 @@
       </div>
       <div class="faq-item">
         <button class="faq-q">Is it detectable?</button>
-        <div class="faq-a">Canvas cannot see your browser extensions &mdash; it is a website and websites are not given that list. What Canvas does record is the shape of your attempt: when each question was viewed and answered, and whether the page lost focus. Privacy Guard blocks that logging, and Stealth Mode hides the buttons so nothing is visible on screen. Separately, proctoring software such as HonorLock or Proctorio is not a website and can see installed extensions &mdash; if your exam is proctored, that is a different situation.</div>
+        <div class="faq-a">Canvas cannot see your browser extensions &mdash; it is a website and websites are not given that list. What Canvas does record is the shape of your attempt: when each question was viewed and answered, and whether the page lost focus. Privacy Guard blocks that logging, and Stealth Mode hides the buttons so nothing is visible on screen. Separately, proctoring software such as HonorLock or Proctorio is not a website and can see installed extensions &mdash; if your exam is proctored, that is a different situation. We go through this properly in <a href="blog/does-canvas-detect-chrome-extensions.html">does Canvas detect Chrome extensions?</a></div>
       </div>
       <div class="faq-item">
         <button class="faq-q">How accurate is the AI?</button>
@@ -434,6 +453,47 @@
 
 
 
+
+  <!-- ── FROM THE BLOG ── -->
+  <section class="homeblog">
+    <div class="section-label">Reading</div>
+    <h2 class="section-title">How Canvas actually works</h2>
+    <p class="lead-sub">The quiz engines, the logs, and what the tools around them really do. No filler.</p>
+    <div class="post-grid">
+      <a class="post-card" href="blog/does-canvas-detect-chrome-extensions.html">
+        <h3>Does Canvas detect Chrome extensions?</h3>
+        <p>What Canvas can and cannot see, and where proctoring software differs.</p>
+        <span class="post-more">Read &rarr;</span>
+      </a>
+      <a class="post-card" href="blog/canvas-quiz-log-what-instructors-see.html">
+        <h3>What your instructor sees in a quiz log</h3>
+        <p>Tab switches, answer timestamps and focus events, line by line.</p>
+        <span class="post-more">Read &rarr;</span>
+      </a>
+      <a class="post-card" href="blog/canvas-new-quizzes-vs-classic.html">
+        <h3>New Quizzes vs Classic Quizzes</h3>
+        <p>Two engines, built differently. How to tell which one you are taking.</p>
+        <span class="post-more">Read &rarr;</span>
+      </a>
+      <a class="post-card" href="blog/best-canvas-quiz-solver-comparison.html">
+        <h3>The Canvas quiz solvers, compared</h3>
+        <p>Answerly AI against ChatGPT, Chegg, Course Hero and answer-bot extensions.</p>
+        <span class="post-more">Read &rarr;</span>
+      </a>
+      <a class="post-card" href="blog/how-answerly-ai-works.html">
+        <h3>How Answerly AI works</h3>
+        <p>Every tool, every question type it handles, and what it cannot do.</p>
+        <span class="post-more">Read &rarr;</span>
+      </a>
+      <a class="post-card" href="blog/how-to-study-for-a-canvas-exam-fast.html">
+        <h3>Studying for a Canvas exam, fast</h3>
+        <p>Three hours and an exam tomorrow: where to actually spend them.</p>
+        <span class="post-more">Read &rarr;</span>
+      </a>
+    </div>
+    <a class="btn-ghost" href="blog/">All articles &rarr;</a>
+  </section>
+
   <!-- ── CLOSING CTA ── -->
   <section class="endcta">
     <div class="endcta-card">
@@ -448,7 +508,7 @@
   <footer class="footer">
     <div class="footer-inner">
       <div class="footer-logo">
-        <img src="assets/icon.png?v=2" alt="Answerly AI" class="nav-icon" />
+        <img src="assets/icon.png?v=2" alt="Answerly AI" class="nav-icon" width="128" height="128" loading="lazy" decoding="async" />
         <span>Answerly AI</span>
       </div>
       <div class="footer-links">

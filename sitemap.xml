@@ -2,62 +2,67 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://getanswerlyai.com/</loc>
-    <lastmod>2026-08-31</lastmod>
-    <changefreq>weekly</changefreq>
+    <lastmod>2026-10-03</lastmod>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://getanswerlyai.com/blog/</loc>
-    <lastmod>2026-08-31</lastmod>
-    <changefreq>weekly</changefreq>
+    <lastmod>2026-10-03</lastmod>
     <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://getanswerlyai.com/blog/how-answerly-ai-works.html</loc>
-    <lastmod>2026-09-07</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
   </url>
   <url>
     <loc>https://getanswerlyai.com/blog/best-canvas-quiz-solver-comparison.html</loc>
-    <lastmod>2026-09-07</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://getanswerlyai.com/blog/how-canvas-quizzes-work.html</loc>
-    <lastmod>2026-09-07</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://getanswerlyai.com/blog/best-study-tools-for-college.html</loc>
-    <lastmod>2026-09-07</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://getanswerlyai.com/blog/canvas-quiz-log-what-instructors-see.html</loc>
-    <lastmod>2026-09-07</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://getanswerlyai.com/blog/how-to-study-for-online-exams.html</loc>
-    <lastmod>2026-09-07</lastmod>
-    <changefreq>monthly</changefreq>
+    <lastmod>2026-10-03</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://getanswerlyai.com/blog/best-chrome-extensions-for-students.html</loc>
-    <lastmod>2026-09-07</lastmod>
-    <changefreq>monthly</changefreq>
+    <lastmod>2026-10-03</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://getanswerlyai.com/blog/best-study-tools-for-college.html</loc>
+    <lastmod>2026-10-03</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://getanswerlyai.com/blog/canvas-new-quizzes-vs-classic.html</loc>
+    <lastmod>2026-10-03</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://getanswerlyai.com/blog/canvas-quiz-log-what-instructors-see.html</loc>
+    <lastmod>2026-10-03</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://getanswerlyai.com/blog/does-canvas-detect-chrome-extensions.html</loc>
+    <lastmod>2026-10-03</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://getanswerlyai.com/blog/how-answerly-ai-works.html</loc>
+    <lastmod>2026-10-03</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://getanswerlyai.com/blog/how-canvas-quizzes-work.html</loc>
+    <lastmod>2026-10-03</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://getanswerlyai.com/blog/how-to-study-for-a-canvas-exam-fast.html</loc>
+    <lastmod>2026-10-03</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://getanswerlyai.com/blog/how-to-study-for-online-exams.html</loc>
+    <lastmod>2026-10-03</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://getanswerlyai.com/privacy.html</loc>
-    <lastmod>2026-08-31</lastmod>
-    <changefreq>yearly</changefreq>
+    <lastmod>2026-10-03</lastmod>
     <priority>0.3</priority>
   </url>
 </urlset>
