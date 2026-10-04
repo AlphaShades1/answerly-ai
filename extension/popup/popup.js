@@ -225,12 +225,18 @@ async function renderMain() {
   const isCanvas = /\/courses\/\d+\/(quizzes|assignments)/.test(url)
                 || /quiz-lti-[a-z0-9-]+\.instructure\.com/i.test(url);
   notCanvasNotice.classList.toggle('hidden', isCanvas);
-  // The image-questions notice now stays up on every page, including this one.
-  // It used to be hidden here because showing it beside the "not on Canvas"
-  // notice pushed the popup past Chrome's 600px cap and clipped the footer
-  // buttons. After the notice's padding and line-height were tightened, that
-  // combination measures 590px — the same as the worst on-Canvas state, and
-  // 10px under the cap. Re-measure both if this notice ever grows again.
+  // Hide the image-questions notice off a quiz page. Three notices stack here
+  // — this one, "not on Canvas", and the Privacy Guard timing warning — and
+  // together they push the popup past the 600px cap and make it scroll. This
+  // rule was removed once on the strength of a measurement taken in a preview
+  // browser that renders smaller than Chrome does on Windows; it was wrong,
+  // and real installs scrolled. Do not remove it again without testing in an
+  // actual unpacked build, off a quiz page, with Privacy Guard off.
+  //
+  // Nothing is lost by hiding it: the notice is advice about answering
+  // questions, and there are none on a page that is not a quiz.
+  const ssNotice = document.querySelector('.screenshot-notice');
+  if (ssNotice) ssNotice.classList.toggle('hidden', !isCanvas);
 
   // Load usage for THIS specific code (per-code storage so switching accounts is correct)
   const usageKey = 'answerlyUsage_' + currentSession.code;
