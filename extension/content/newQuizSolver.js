@@ -1861,89 +1861,11 @@ window.__answerlyNQSolverLoaded = true;
   // So anchor to the question wrapper itself and pin it, the way Classic's
   // header row gives it a fixed spot. Camera keeps its own slot so the two
   // never overlap and neither moves depending on whether the other is on.
-  // Where the question's own top row ends, measured rather than guessed.
-  //
-  // Real New Quizzes renders that row as a number badge, the interaction type
-  // and the points — "3  True or False  1 point" — and the attribute names on
-  // those nodes are not stable enough to target: an earlier attempt keyed off
-  // sdk-position-box-text, which does not exist on live pages, so every button
-  // silently fell through to the far-right corner. Geometry does not care what
-  // the nodes are called. Collect the children sitting on the wrapper's first
-  // visual row and take the right edge of the last one.
-  //
-  // Returns an offset in px from the wrapper's left edge, or null when the row
-  // cannot be read, in which case the caller keeps the old corner placement.
-  function nqHeaderRowEnd(qEl) {
-    let wrap;
-    try { wrap = qEl.getBoundingClientRect(); } catch { return null; }
-    if (!wrap.width) return null;
-    // Only leaves count. The row is a flex container that spans the full width
-    // of the question, so measuring containers would always return the right
-    // edge of the question itself and land the button back in the corner.
-    //
-    // And only leaves in the left-hand part of the row: Canvas pushes a pin
-    // icon to the far right of this same row with margin-left:auto. A gap rule
-    // is not enough to exclude it, because on a narrow window the gap between
-    // the points label and that icon shrinks to almost nothing, while its
-    // position stays hard right. Position is the stable signal.
-    // No depth limit. The previous version stopped recursing after three levels,
-    // which is fine for a hand-written fixture and useless against real New
-    // Quizzes: it is a React app and the badge, type and points sit far deeper
-    // than that. Nothing was found, the function returned null, and every
-    // button took the fallback into the right-hand corner.
-    const LEFT_ZONE = wrap.width * 0.55;
-    const cands = [];
-    let nodes;
-    try { nodes = qEl.querySelectorAll('*'); } catch { return null; }
-    for (const c of nodes) {
-      // closest(), not classList: the INJECTED class is on the button, but the
-      // leaves walked here are the <circle> and <path> inside its icon, which
-      // carry no class of ours. Measuring those made each placement land to the
-      // right of the previous one, so the camera drifted past the solver and
-      // every re-injection pushed both further toward the corner.
-      if (c.closest && c.closest('.' + INJECTED)) continue;   // our own buttons
-      if (c.children.length) continue;        // a leaf, not the row container
-      let r;
-      try { r = c.getBoundingClientRect(); } catch { continue; }
-      if (!r.width || !r.height) continue;
-      if (r.top - wrap.top > 80) continue;    // near the top of the question
-      if (r.height > 46) continue;            // a single line, not a text block
-      if (r.left - wrap.left >= LEFT_ZONE) continue;  // the pushed-right pin icon
-      cands.push({ mid: (r.top + r.bottom) / 2 - wrap.top, right: r.right - wrap.left });
-    }
-    if (!cands.length) return null;
-
-    // Keep only what shares a line with the highest candidate. A height cutoff
-    // alone is not enough: a one-line question stem is also short, also starts
-    // near the top, and is as wide as the question, so including it pushed the
-    // measurement to the far edge. The badge, type and points are laid out with
-    // align-items:center, so their vertical centres coincide while the stem's
-    // sits well below.
-    let rowMid = cands[0].mid;
-    for (const c of cands) if (c.mid < rowMid) rowMid = c.mid;
-    let end = null;
-    for (const c of cands) {
-      if (Math.abs(c.mid - rowMid) > 12) continue;
-      if (end === null || c.right > end) end = c.right;
-    }
-    if (end === null) return null;
-    return Math.min(Math.max(end + 12, 56), Math.max(120, LEFT_ZONE));
-  }
+  const NQ_BTN_SLOTS = { trigger: 8, camera: 36 };   // px from the right edge
 
   function placeNQButton(qEl, btn, slot) {
-    // Classic puts its buttons inline immediately after "Question N". Match
-    // that: just past the end of the question's own top row, on the LEFT.
-    //
-    // There is deliberately no right-hand fallback any more. Twice now a
-    // lookup failed on real New Quizzes markup and the fallback quietly put
-    // every button back in the far-right corner, which is the one outcome this
-    // code exists to prevent. When the row cannot be measured it now guesses a
-    // plain left-hand offset instead: possibly a few pixels off, but on the
-    // side a student is actually looking.
-    const rowEnd = nqHeaderRowEnd(qEl);
-    const left   = (rowEnd === null ? 150 : rowEnd) + (slot === 'camera' ? 28 : 0);
     try {
-      // A positioned ancestor is required for the offset below. position:
+      // A positioned ancestor is required for the offsets below. position:
       // relative does not move qEl, so this cannot disturb the Canvas layout.
       if (getComputedStyle(qEl).position === 'static') {
         qEl.style.setProperty('position', 'relative', 'important');
@@ -1951,8 +1873,8 @@ window.__answerlyNQSolverLoaded = true;
     } catch { /* detached node — appendChild below still works */ }
     btn.style.setProperty('position', 'absolute', 'important');
     btn.style.setProperty('top', '8px', 'important');
-    btn.style.setProperty('right', 'auto', 'important');
-    btn.style.setProperty('left', left + 'px', 'important');
+    btn.style.setProperty('right', (NQ_BTN_SLOTS[slot] || 8) + 'px', 'important');
+    btn.style.setProperty('left', 'auto', 'important');
     // The shared .answerly-nq-btn rule carries margin-left for inline layout,
     // which would shift a pinned button off its slot.
     btn.style.setProperty('margin', '0', 'important');
