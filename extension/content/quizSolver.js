@@ -2152,6 +2152,17 @@ window.__answerlyQuizSolverLoaded = true;
   }
 
   function renderResult(card, hint, answer, answerParts, options) {
+    // The backend defends `hint` with `|| ''` but not `answer`, so a reply the
+    // model failed to parse arrives as 200 with no error and no answer. That
+    // used to reach answer.toLowerCase() below and throw, leaving the card
+    // spinning forever — which reads to a student as the extension being
+    // broken rather than as one solve that did not land. Say so and let them
+    // retry instead.
+    if ((answer === undefined || answer === null || answer === '') &&
+        !(Array.isArray(answerParts) && answerParts.length)) {
+      return renderError(card, 'No answer came back — try again.');
+    }
+    answer = answer == null ? '' : String(answer);
     const accent = theme.accentColor || DEFAULT_THEME.accentColor;
     const area = card.querySelector('.answerly-hint-area');
     area.innerHTML = `
