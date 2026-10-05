@@ -307,7 +307,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const res = await fetchWithTimeout(`${BACKEND_URL}/api/solve-screenshot`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ image: message.image, context: message.questionText, stealth: true, fileContext, notesContext, quizTitle: message.quizTitle }),
+            // `images` carries the rest of a question that ran off the bottom of
+            // the screen. The backend already reads a list as one question; this
+            // relay was simply dropping it, so only the visible part was ever
+            // sent and rows below the fold came back unanswered.
+            body: JSON.stringify({ image: message.image, images: message.images, context: message.questionText, stealth: true, fileContext, notesContext, quizTitle: message.quizTitle }),
           });
           const data = await res.json();
           if (!res.ok) {

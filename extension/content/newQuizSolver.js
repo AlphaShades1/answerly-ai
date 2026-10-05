@@ -1431,6 +1431,45 @@ window.__answerlyNQSolverLoaded = true;
   // ── Crop helper ─────────────────────────────────────────────────────────────
   // viewportWidth/viewportHeight are the PARENT frame's dimensions (passed back
   // with the postMessage region), NOT the iframe's dimensions.
+  // Mirrors quizSolver.js: grab the part of the question below the fold so
+  // rows that did not fit on screen still reach the model. Top frame only —
+  // inside the legacy quiz-lti iframe the scroll that matters belongs to the
+  // parent document, and scrolling the wrong one would capture the same view
+  // twice. Native New Quizzes, which is every new install, runs in the top
+  // frame, so that path is the one that matters.
+  function captureNQOverflowSlices(qEl, maxExtra) {
+    return new Promise((resolve) => {
+      if (window.top !== window.self) return resolve([]);
+      const startY = window.scrollY;
+      const slices = [];
+      const finish = () => { window.scrollTo(0, startY); resolve(slices); };
+      let i = 0;
+      const step = () => {
+        if (i++ >= maxExtra) return finish();
+        let r;
+        try { r = qEl.getBoundingClientRect(); } catch { return finish(); }
+        if (r.bottom <= window.innerHeight + 2) return finish();
+        window.scrollBy(0, Math.max(1, window.innerHeight - 90));
+        setTimeout(() => {
+          sendSolve({ type: 'CAPTURE_SCREENSHOT' }, (shot) => {
+            if (chrome.runtime.lastError || !shot || shot.error || !shot.dataUrl) return finish();
+            let b;
+            try { b = qEl.getBoundingClientRect(); } catch { return finish(); }
+            const x = Math.max(0, b.left);
+            const y = Math.max(0, b.top);
+            const w = Math.min(b.right, window.innerWidth) - x;
+            const h = Math.min(b.bottom, window.innerHeight) - y;
+            if (w < 10 || h < 10) return finish();
+            cropNQStealthImage(shot.dataUrl, x, y, w, h, window.innerWidth, window.innerHeight)
+              .then((crop) => { if (crop) slices.push(crop); step(); })
+              .catch(finish);
+          });
+        }, 650);
+      };
+      step();
+    });
+  }
+
   function cropNQStealthImage(dataUrl, x, y, w, h, viewportWidth, viewportHeight) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -1594,8 +1633,11 @@ window.__answerlyNQSolverLoaded = true;
     });
 
     function solveCropped(cropped) {
+      captureNQOverflowSlices(qEl, 2).then((extras) => {
+      const payload = { type: 'SOLVE_SCREENSHOT_STEALTH', image: cropped, questionText: questionText.slice(0, 200) };
+      if (extras.length) payload.images = [cropped].concat(extras);
       sendSolve(
-        { type: 'SOLVE_SCREENSHOT_STEALTH', image: cropped, questionText: questionText.slice(0, 200) },
+        payload,
         (r) => {
           done();
           if (chrome.runtime.lastError || !r || r.error) return;
@@ -1682,6 +1724,7 @@ window.__answerlyNQSolverLoaded = true;
           }
         }
       );
+      });
     }
   }
 

@@ -1394,6 +1394,50 @@ window.__answerlyQuizSolverLoaded = true;
     document.addEventListener('keydown', escHandler);
   }
 
+  // ── Capture the part of a question that runs off the bottom of the screen ──
+  // captureVisibleTab only ever returns the visible viewport, so a matching
+  // question whose rows continue below the fold was being sent with those rows
+  // missing. The model then answered fewer rows than the page has, and the
+  // dropdown filler had to guess which answer belonged to which row.
+  //
+  // Only runs when the question genuinely overflows, so an ordinary question
+  // still costs exactly one image. Capped at two extra frames because the
+  // backend reads at most three per question. Chrome also rate-limits
+  // captureVisibleTab to roughly two calls a second, hence the wait between
+  // frames; it doubles as time for the page to paint after scrolling.
+  // Any failure falls back to the single visible capture rather than aborting.
+  function captureOverflowSlices(qEl, maxExtra) {
+    return new Promise((resolve) => {
+      const startY = window.scrollY;
+      const slices = [];
+      const finish = () => { window.scrollTo(0, startY); resolve(slices); };
+      let i = 0;
+      const step = () => {
+        if (i++ >= maxExtra) return finish();
+        let r;
+        try { r = qEl.getBoundingClientRect(); } catch { return finish(); }
+        if (r.bottom <= window.innerHeight + 2) return finish();   // nothing left below
+        window.scrollBy(0, Math.max(1, window.innerHeight - 90));
+        setTimeout(() => {
+          sendSolve({ type: 'CAPTURE_SCREENSHOT' }, (shot) => {
+            if (chrome.runtime.lastError || !shot || shot.error || !shot.dataUrl) return finish();
+            let b;
+            try { b = qEl.getBoundingClientRect(); } catch { return finish(); }
+            const x = Math.max(0, b.left);
+            const y = Math.max(0, b.top);
+            const w = Math.min(b.right, window.innerWidth) - x;
+            const h = Math.min(b.bottom, window.innerHeight) - y;
+            if (w < 10 || h < 10) return finish();
+            cropStealthImage(shot.dataUrl, x, y, w, h)
+              .then((crop) => { if (crop) slices.push(crop); step(); })
+              .catch(finish);
+          });
+        }, 650);
+      };
+      step();
+    });
+  }
+
   // ── Crop helper for stealth camera ────────────────────────────────────────
   function cropStealthImage(dataUrl, x, y, w, h) {
     return new Promise((resolve) => {
@@ -2578,8 +2622,13 @@ window.__answerlyQuizSolverLoaded = true;
           done(); return null;
         }).then(croppedDataUrl => {
           if (!croppedDataUrl) { done(); return; }
+          captureOverflowSlices(qEl, 2).then((extras) => {
+          const payload = { type: 'SOLVE_SCREENSHOT_STEALTH', image: croppedDataUrl, questionText: questionText.slice(0, 200) };
+          // Only send a list when there is actually more of the question to
+          // send; one image stays one image, and one billed vision call.
+          if (extras.length) payload.images = [croppedDataUrl].concat(extras);
           sendSolve(
-            { type: 'SOLVE_SCREENSHOT_STEALTH', image: croppedDataUrl, questionText: questionText.slice(0, 200) },
+            payload,
             (r) => {
               if (chrome.runtime.lastError || !r || r.error) {
                 done(); return;
@@ -2699,6 +2748,7 @@ window.__answerlyQuizSolverLoaded = true;
               if (matched) { triggerBtn.dataset.opened = 'true'; markSolved(qEl); }
             }
           );
+          });
         });
       }, () => { done(); });
     });
