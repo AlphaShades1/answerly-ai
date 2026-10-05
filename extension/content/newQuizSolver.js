@@ -1863,26 +1863,74 @@ window.__answerlyNQSolverLoaded = true;
   // never overlap and neither moves depending on whether the other is on.
   const NQ_BTN_SLOTS = { trigger: 8, camera: 36 };   // px from the right edge
 
-  function placeNQButton(qEl, btn, slot) {
-    // Classic puts its buttons inline immediately after "Question N", and a
-    // student who meets both engines should not have to hunt in two different
-    // corners for an invisible button. New Quizzes exposes that same spot as
-    // one stable, data-automation-attributed node, so use it.
+  // Where the question's own top row ends, measured rather than guessed.
+  //
+  // Real New Quizzes renders that row as a number badge, the interaction type
+  // and the points — "3  True or False  1 point" — and the attribute names on
+  // those nodes are not stable enough to target: an earlier attempt keyed off
+  // sdk-position-box-text, which does not exist on live pages, so every button
+  // silently fell through to the far-right corner. Geometry does not care what
+  // the nodes are called. Collect the children sitting on the wrapper's first
+  // visual row and take the right edge of the last one.
+  //
+  // Returns an offset in px from the wrapper's left edge, or null when the row
+  // cannot be read, in which case the caller keeps the old corner placement.
+  function nqHeaderRowEnd(qEl) {
+    let wrap;
+    try { wrap = qEl.getBoundingClientRect(); } catch { return null; }
+    if (!wrap.width) return null;
+    // Only leaves count. The row is a flex container that spans the full width
+    // of the question, so measuring containers would always return the right
+    // edge of the question itself and land the button back in the corner.
     //
-    // This is not a return to the old "whatever header the markup exposes"
-    // heuristic that landed the button anywhere from 32px to 171px down the
-    // question. That guessed between four different candidate elements; this
-    // names exactly one, and falls back to the pinned corner when it is absent.
-    const posBox = qEl.querySelector('[data-automation="sdk-position-box-text"]');
-    if (posBox) {
-      btn.style.setProperty('position', 'static', 'important');
-      btn.style.setProperty('top', 'auto', 'important');
+    // And only leaves in the left-hand part of the row: Canvas pushes a pin
+    // icon to the far right of this same row with margin-left:auto. A gap rule
+    // is not enough to exclude it, because on a narrow window the gap between
+    // the points label and that icon shrinks to almost nothing, while its
+    // position stays hard right. Position is the stable signal.
+    const LEFT_ZONE = wrap.width * 0.55;
+    let end = null;
+    const walk = (node, depth) => {
+      for (const c of node.children) {
+        if (c.classList && c.classList.contains(INJECTED)) continue;  // our own buttons
+        let r;
+        try { r = c.getBoundingClientRect(); } catch { continue; }
+        if (r.width && r.height &&
+            r.top - wrap.top <= 34 &&     // on the first row
+            r.height <= 46 &&             // a single line, not the question body
+            !c.children.length &&         // a leaf, not the row container
+            r.left - wrap.left < LEFT_ZONE) {
+          const rel = r.right - wrap.left;
+          if (end === null || rel > end) end = rel;
+        }
+        if (depth < 3) walk(c, depth + 1);
+      }
+    };
+    walk(qEl, 0);
+    if (end === null) return null;
+    return Math.min(Math.max(end + 12, 56), Math.max(120, LEFT_ZONE));
+  }
+
+  function placeNQButton(qEl, btn, slot) {
+    // Classic puts its buttons inline immediately after "Question N". Match
+    // that: sit just past the end of the question's own top row, on the left,
+    // rather than in the far-right corner where nobody looks for them.
+    const rowEnd = nqHeaderRowEnd(qEl);
+    if (rowEnd !== null) {
+      try {
+        if (getComputedStyle(qEl).position === 'static') {
+          qEl.style.setProperty('position', 'relative', 'important');
+        }
+      } catch { /* detached node */ }
+      btn.style.setProperty('position', 'absolute', 'important');
+      btn.style.setProperty('top', '8px', 'important');
       btn.style.setProperty('right', 'auto', 'important');
-      btn.style.setProperty('left', 'auto', 'important');
-      btn.style.setProperty('margin', '0 0 0 8px', 'important');
-      btn.style.setProperty('vertical-align', 'middle', 'important');
+      // Camera sits just after the solver button so the two never overlap and
+      // neither moves depending on whether the other is switched on.
+      btn.style.setProperty('left', (rowEnd + (slot === 'camera' ? 28 : 0)) + 'px', 'important');
+      btn.style.setProperty('margin', '0', 'important');
       btn.style.setProperty('z-index', '2147483000', 'important');
-      posBox.appendChild(btn);
+      qEl.appendChild(btn);
       return;
     }
     try {
