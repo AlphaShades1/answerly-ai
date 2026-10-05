@@ -89,6 +89,59 @@ window.__answerlyQuizSolverLoaded = true;
     }
   }, true);
 
+  // ── Stealth screenshot keybind ──────────────────────────────────────────────
+  // Its own key, not a mode of the solve keybind: both stealth modes can be on
+  // at once, so one key cannot mean two things. Mirrors the solve keybind above
+  // in every other respect — same mouse targeting, same blocked keys, same
+  // refusal to fire while the student is typing an answer.
+  let ssKeybind = { enabled: false, key: '' };
+  chrome.storage.local.get('answerlyScreenshotKeybind', (s) => {
+    if (s.answerlyScreenshotKeybind) ssKeybind = s.answerlyScreenshotKeybind;
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
+    if (changes.answerlyScreenshotKeybind) {
+      ssKeybind = changes.answerlyScreenshotKeybind.newValue || { enabled: false, key: '' };
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!ssKeybind.enabled || !ssKeybind.key) return;
+    if (!screenshotStealthActive) return;        // only while Screenshot Stealth is on
+    if (KEYBIND_BLOCKED.includes(ssKeybind.key)) return;
+    if (e.repeat) return;
+    if (e.metaKey || (e.ctrlKey && !e.altKey) || (e.altKey && !e.ctrlKey)) return;
+    const want = ssKeybind.key;
+    const hit  = want.length === 1
+      ? e.key.length === 1 && e.key.toLowerCase() === want.toLowerCase()
+      : e.key === want;
+    if (!hit) return;
+    const t = e.target;
+    if (t && (t.isContentEditable ||
+        (t.matches && t.matches('textarea, input[type="text"], input[type="number"], input[type="search"], input[type="email"], input[type="password"], input[type="tel"], input[type="url"], input:not([type])')))) return;
+
+    let qEl = null;
+    if (keybindMouseX >= 0) {
+      const el = document.elementFromPoint(keybindMouseX, keybindMouseY);
+      qEl = el && el.closest('div.question.display_question, div[id^="question_"].question, .question_holder > .question, div[data-question-type], .quiz-question');
+    }
+    if (!qEl) {
+      if (keybindMouseX >= 0) return;
+      const qs = findQuestions();
+      if (qs.length !== 1) return;
+      qEl = qs[0];
+    }
+    const cam = qEl.querySelector('.answerly-cam-btn');
+    if (cam) {
+      e.preventDefault();
+      // The camera sets dataset.busy for the life of one capture; clearing it
+      // here would let a second press start a capture on top of the first and
+      // bill twice for one question.
+      if (cam.dataset.busy === 'true') return;
+      delete cam.dataset.opened;
+      cam.click();
+    }
+  }, true);
+
   const DEFAULT_THEME = {
     accentColor: '#7c5cfc',
     cardBg:      '#1a1a2e',

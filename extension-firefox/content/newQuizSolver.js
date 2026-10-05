@@ -106,6 +106,56 @@ window.__answerlyNQSolverLoaded = true;
     }
   }, true);
 
+  // ── Stealth screenshot keybind ──────────────────────────────────────────────
+  // Mirrors quizSolver.js. New Quizzes needs its own copy for the same reason
+  // the solve keybind does: the Classic handler's question selectors match
+  // nothing in New Quizzes markup, so a shared implementation would find no
+  // question and silently do nothing on a native New Quiz.
+  let ssKeybind = { enabled: false, key: '' };
+  chrome.storage.local.get('answerlyScreenshotKeybind', (s) => {
+    if (s.answerlyScreenshotKeybind) ssKeybind = s.answerlyScreenshotKeybind;
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
+    if (changes.answerlyScreenshotKeybind) {
+      ssKeybind = changes.answerlyScreenshotKeybind.newValue || { enabled: false, key: '' };
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!ssKeybind.enabled || !ssKeybind.key) return;
+    if (!screenshotStealthActive) return;
+    if (KEYBIND_BLOCKED.includes(ssKeybind.key)) return;
+    if (e.repeat) return;
+    if (e.metaKey || (e.ctrlKey && !e.altKey) || (e.altKey && !e.ctrlKey)) return;
+    const want = ssKeybind.key;
+    const hit  = want.length === 1
+      ? e.key.length === 1 && e.key.toLowerCase() === want.toLowerCase()
+      : e.key === want;
+    if (!hit) return;
+    const t = e.target;
+    if (t && (t.isContentEditable ||
+        (t.matches && t.matches('textarea, input[type="text"], input[type="number"], input[type="search"], input[type="email"], input[type="password"], input[type="tel"], input[type="url"], input:not([type])')))) return;
+
+    let qEl = null;
+    if (keybindMouseX >= 0) {
+      const el = document.elementFromPoint(keybindMouseX, keybindMouseY);
+      qEl = el && el.closest('[data-automation="sdk-item-wrapper"]');
+    }
+    if (!qEl) {
+      if (keybindMouseX >= 0) return;
+      const qs = findNQQuestions();
+      if (qs.length !== 1) return;
+      qEl = qs[0];
+    }
+    const cam = qEl.querySelector('.answerly-nq-cam-btn');
+    if (cam) {
+      e.preventDefault();
+      if (cam.dataset.busy === 'true') return;   // a capture is already running
+      delete cam.dataset.opened;
+      cam.click();
+    }
+  }, true);
+
   // ── Maths recovery ──────────────────────────────────────────────────────────
   // Equations are rendered as pictures, not text: Canvas emits
   // <img class="equation_image" data-equation-content="\log_2 16 = x">, MathJax

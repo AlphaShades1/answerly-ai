@@ -119,6 +119,43 @@ document.addEventListener('mousedown', (e) => {
   }
 });
 
+// ── Screenshot stealth keybind ────────────────────────────────────────────────
+// Deliberately a parallel implementation rather than a refactor of the pair
+// above: that one is live for every paying user and a shared capture-mode flag
+// is the kind of change that breaks it quietly. The two cancel each other for
+// free, because each mousedown handler ends capture when the click lands on
+// anything that is not its own button.
+const ssKeybindEnabled = document.getElementById('ss-keybind-enabled');
+const ssKeybindCapture = document.getElementById('ss-keybind-capture');
+let ssKeybind = { enabled: false, key: '' };
+let ssKeybindReady = false;
+let capturingSsKey = false;
+chrome.storage.local.get('answerlyScreenshotKeybind', (s) => {
+  if (s.answerlyScreenshotKeybind) ssKeybind = s.answerlyScreenshotKeybind;
+  ssKeybindReady = true;
+  ssKeybindEnabled.checked   = !!ssKeybind.enabled;
+  ssKeybindCapture.textContent = prettyKey(ssKeybind.key);
+});
+ssKeybindEnabled.addEventListener('change', () => { ssKeybind.enabled = ssKeybindEnabled.checked; });
+ssKeybindCapture.addEventListener('click', () => {
+  capturingSsKey = true;
+  ssKeybindCapture.textContent = 'Press a key…';
+});
+document.addEventListener('keydown', (e) => {
+  if (!capturingSsKey) return;
+  if (BAD_KEYBIND_KEYS.includes(e.key)) return;
+  e.preventDefault();
+  capturingSsKey = false;
+  if (e.key !== 'Escape') ssKeybind.key = e.key;
+  ssKeybindCapture.textContent = prettyKey(ssKeybind.key);
+});
+document.addEventListener('mousedown', (e) => {
+  if (capturingSsKey && e.target !== ssKeybindCapture) {
+    capturingSsKey = false;
+    ssKeybindCapture.textContent = prettyKey(ssKeybind.key);
+  }
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function syncColorPair(colorInput, hexInput, key) {
   colorInput.addEventListener('input', () => {
@@ -286,6 +323,7 @@ document.getElementById('btn-save').addEventListener('click', () => {
   const payload = {};
   if (themeReady)   payload[themeKey] = theme;
   if (keybindReady) payload.answerlyStealthKeybind = keybind;
+  if (ssKeybindReady) payload.answerlyScreenshotKeybind = ssKeybind;
   chrome.storage.local.set(payload, () => {
     savedMsg.style.display = 'block';
     setTimeout(() => { savedMsg.style.display = 'none'; }, 3000);
