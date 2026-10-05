@@ -89,6 +89,14 @@ window.__answerlyNQSolverLoaded = true;
     if (keybindMouseX >= 0) {
       const el = document.elementFromPoint(keybindMouseX, keybindMouseY);
       qEl = el && el.closest('[data-automation="sdk-item-wrapper"]');
+      // Mirrors quizSolver.js: the cursor is often level with a question but not
+      // over it, and elementFromPoint then finds nothing.
+      if (!qEl) {
+        qEl = findNQQuestions().find(q => {
+          const r = q.getBoundingClientRect();
+          return keybindMouseY >= r.top && keybindMouseY <= r.bottom;
+        }) || null;
+      }
     }
     if (!qEl) {
       if (keybindMouseX >= 0) return;            // mouse moved but not over a question
@@ -140,6 +148,14 @@ window.__answerlyNQSolverLoaded = true;
     if (keybindMouseX >= 0) {
       const el = document.elementFromPoint(keybindMouseX, keybindMouseY);
       qEl = el && el.closest('[data-automation="sdk-item-wrapper"]');
+      // Mirrors quizSolver.js: the cursor is often level with a question but not
+      // over it, and elementFromPoint then finds nothing.
+      if (!qEl) {
+        qEl = findNQQuestions().find(q => {
+          const r = q.getBoundingClientRect();
+          return keybindMouseY >= r.top && keybindMouseY <= r.bottom;
+        }) || null;
+      }
     }
     if (!qEl) {
       if (keybindMouseX >= 0) return;
@@ -1431,6 +1447,31 @@ window.__answerlyNQSolverLoaded = true;
   // ── Crop helper ─────────────────────────────────────────────────────────────
   // viewportWidth/viewportHeight are the PARENT frame's dimensions (passed back
   // with the postMessage region), NOT the iframe's dimensions.
+  // ── Tell the model which words the dropdowns actually accept ───────────────
+  // A closed dropdown renders as "[ Choose ]", so its options are not in the
+  // screenshot and the model has to guess the wording. When it guesses a synonym
+  // the page cannot match it and that row is left blank: a body-parts question
+  // filled eight of ten rows and missed the two where the model said a word the
+  // list did not contain. The options are sitting in the DOM, so send them and
+  // let it pick rather than guess. Travels inside the existing questionText
+  // field, which the backend already passes to the prompt as context, so no
+  // server change is involved.
+  function dropdownOptionsNote(qEl) {
+    let sels;
+    try { sels = Array.from(qEl.querySelectorAll('select')); } catch { return ''; }
+    if (!sels.length) return '';
+    const seen = new Set();
+    sels.forEach(s => Array.from(s.options || []).forEach(o => {
+      const t = (o.text || '').trim();
+      // "[ Choose ]" and friends are placeholders, not answers.
+      if (t && t[0] !== '[' && !seen.has(t)) seen.add(t);
+    }));
+    if (!seen.size) return '';
+    return ' The dropdowns on this question accept only these options: '
+         + Array.from(seen).slice(0, 40).join(', ')
+         + '. Use these exact words, one per dropdown, top to bottom.';
+  }
+
   // Mirrors quizSolver.js: grab the part of the question below the fold so
   // rows that did not fit on screen still reach the model. Top frame only —
   // inside the legacy quiz-lti iframe the scroll that matters belongs to the
@@ -1634,7 +1675,7 @@ window.__answerlyNQSolverLoaded = true;
 
     function solveCropped(cropped) {
       captureNQOverflowSlices(qEl, 2).then((extras) => {
-      const payload = { type: 'SOLVE_SCREENSHOT_STEALTH', image: cropped, questionText: questionText.slice(0, 200) };
+      const payload = { type: 'SOLVE_SCREENSHOT_STEALTH', image: cropped, questionText: (questionText.slice(0, 200) + dropdownOptionsNote(qEl)).slice(0, 900) };
       if (extras.length) payload.images = [cropped].concat(extras);
       sendSolve(
         payload,

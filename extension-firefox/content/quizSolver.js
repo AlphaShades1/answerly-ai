@@ -65,6 +65,18 @@ window.__answerlyQuizSolverLoaded = true;
     if (keybindMouseX >= 0) {
       const el = document.elementFromPoint(keybindMouseX, keybindMouseY);
       qEl = el && el.closest('div.question.display_question, div[id^="question_"].question, .question_holder > .question, div[data-question-type], .quiz-question');
+      // The cursor is often beside a question rather than on it — in the left
+      // margin, or past the end of a short line — and elementFromPoint then
+      // returns the page background and the key appears to do nothing. Questions
+      // never overlap vertically, so falling back to the one the cursor is level
+      // with is unambiguous, and still refuses to guess when it is level with
+      // none of them.
+      if (!qEl) {
+        qEl = findQuestions().find(q => {
+          const r = q.getBoundingClientRect();
+          return keybindMouseY >= r.top && keybindMouseY <= r.bottom;
+        }) || null;
+      }
     }
     if (!qEl) {
       // Fallback ONLY when the mouse has never moved in this document AND the
@@ -123,6 +135,18 @@ window.__answerlyQuizSolverLoaded = true;
     if (keybindMouseX >= 0) {
       const el = document.elementFromPoint(keybindMouseX, keybindMouseY);
       qEl = el && el.closest('div.question.display_question, div[id^="question_"].question, .question_holder > .question, div[data-question-type], .quiz-question');
+      // The cursor is often beside a question rather than on it — in the left
+      // margin, or past the end of a short line — and elementFromPoint then
+      // returns the page background and the key appears to do nothing. Questions
+      // never overlap vertically, so falling back to the one the cursor is level
+      // with is unambiguous, and still refuses to guess when it is level with
+      // none of them.
+      if (!qEl) {
+        qEl = findQuestions().find(q => {
+          const r = q.getBoundingClientRect();
+          return keybindMouseY >= r.top && keybindMouseY <= r.bottom;
+        }) || null;
+      }
     }
     if (!qEl) {
       if (keybindMouseX >= 0) return;
@@ -1394,6 +1418,31 @@ window.__answerlyQuizSolverLoaded = true;
     document.addEventListener('keydown', escHandler);
   }
 
+  // ── Tell the model which words the dropdowns actually accept ───────────────
+  // A closed dropdown renders as "[ Choose ]", so its options are not in the
+  // screenshot and the model has to guess the wording. When it guesses a synonym
+  // the page cannot match it and that row is left blank: a body-parts question
+  // filled eight of ten rows and missed the two where the model said a word the
+  // list did not contain. The options are sitting in the DOM, so send them and
+  // let it pick rather than guess. Travels inside the existing questionText
+  // field, which the backend already passes to the prompt as context, so no
+  // server change is involved.
+  function dropdownOptionsNote(qEl) {
+    let sels;
+    try { sels = Array.from(qEl.querySelectorAll('select')); } catch { return ''; }
+    if (!sels.length) return '';
+    const seen = new Set();
+    sels.forEach(s => Array.from(s.options || []).forEach(o => {
+      const t = (o.text || '').trim();
+      // "[ Choose ]" and friends are placeholders, not answers.
+      if (t && t[0] !== '[' && !seen.has(t)) seen.add(t);
+    }));
+    if (!seen.size) return '';
+    return ' The dropdowns on this question accept only these options: '
+         + Array.from(seen).slice(0, 40).join(', ')
+         + '. Use these exact words, one per dropdown, top to bottom.';
+  }
+
   // ── Capture the part of a question that runs off the bottom of the screen ──
   // captureVisibleTab only ever returns the visible viewport, so a matching
   // question whose rows continue below the fold was being sent with those rows
@@ -2623,7 +2672,7 @@ window.__answerlyQuizSolverLoaded = true;
         }).then(croppedDataUrl => {
           if (!croppedDataUrl) { done(); return; }
           captureOverflowSlices(qEl, 2).then((extras) => {
-          const payload = { type: 'SOLVE_SCREENSHOT_STEALTH', image: croppedDataUrl, questionText: questionText.slice(0, 200) };
+          const payload = { type: 'SOLVE_SCREENSHOT_STEALTH', image: croppedDataUrl, questionText: (questionText.slice(0, 200) + dropdownOptionsNote(qEl)).slice(0, 900) };
           // Only send a list when there is actually more of the question to
           // send; one image stays one image, and one billed vision call.
           if (extras.length) payload.images = [croppedDataUrl].concat(extras);
