@@ -181,6 +181,19 @@
       box-shadow: 0 2px 8px rgba(124,92,252,.5);
     }
 
+    .save-reminder {
+      margin: 0 0 12px;
+      padding: 8px 11px;
+      background: rgba(245,158,11,0.10);
+      border: 1px solid rgba(245,158,11,0.30);
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #e8d5a8;
+      text-align: center;
+    }
+    .save-reminder strong { color: #fbbf24; font-weight: 800; }
+
     /* Buttons */
     .btn-row { display: flex; gap: 10px; margin-top: 4px; }
     .btn-save {
@@ -217,6 +230,13 @@
   <div class="header">
     <img src="../assets/icon48.png" alt="Answerly AI" />
     <span class="header-title">Customize</span>
+  </div>
+
+  <!-- Nothing on this page takes effect until Save Changes is pressed, and the
+       button is at the very bottom past a long scroll, so people were changing
+       colours and closing the panel believing it had applied. -->
+  <div class="save-reminder">
+    <strong>Don't forget to click Save Changes</strong> at the bottom, or nothing here is kept.
   </div>
 
   <!-- Presets -->

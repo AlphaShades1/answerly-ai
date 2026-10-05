@@ -1730,6 +1730,27 @@ window.__answerlyNQSolverLoaded = true;
   const NQ_BTN_SLOTS = { trigger: 8, camera: 36 };   // px from the right edge
 
   function placeNQButton(qEl, btn, slot) {
+    // Classic puts its buttons inline immediately after "Question N", and a
+    // student who meets both engines should not have to hunt in two different
+    // corners for an invisible button. New Quizzes exposes that same spot as
+    // one stable, data-automation-attributed node, so use it.
+    //
+    // This is not a return to the old "whatever header the markup exposes"
+    // heuristic that landed the button anywhere from 32px to 171px down the
+    // question. That guessed between four different candidate elements; this
+    // names exactly one, and falls back to the pinned corner when it is absent.
+    const posBox = qEl.querySelector('[data-automation="sdk-position-box-text"]');
+    if (posBox) {
+      btn.style.setProperty('position', 'static', 'important');
+      btn.style.setProperty('top', 'auto', 'important');
+      btn.style.setProperty('right', 'auto', 'important');
+      btn.style.setProperty('left', 'auto', 'important');
+      btn.style.setProperty('margin', '0 0 0 8px', 'important');
+      btn.style.setProperty('vertical-align', 'middle', 'important');
+      btn.style.setProperty('z-index', '2147483000', 'important');
+      posBox.appendChild(btn);
+      return;
+    }
     try {
       // A positioned ancestor is required for the offsets below. position:
       // relative does not move qEl, so this cannot disturb the Canvas layout.

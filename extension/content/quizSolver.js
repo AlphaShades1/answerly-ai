@@ -2593,7 +2593,26 @@ window.__answerlyQuizSolverLoaded = true;
                 if (textParts.length === selects.length) {
                   selects.forEach((sel, i) => { if (autoSelectDropdown(sel, textParts[i])) anyDropdown = true; });
                 } else {
-                  textParts.forEach(part => { selects.forEach(sel => { if (autoSelectDropdown(sel, part)) anyDropdown = true; }); });
+                  // Never fan one part across every dropdown. This branch used to
+                  // try each part against each <select>, and autoSelectDropdown
+                  // returns on its first hit, so a single part was written into
+                  // every dropdown that would accept it. On a matching question
+                  // that is the "every row got the same answer" report.
+                  //
+                  // The counts disagree mainly when rows sit below the fold and
+                  // never made it into the capture, so the model answered fewer
+                  // rows than the page has. Each part now claims at most one
+                  // dropdown: the first still-unset one that actually offers it.
+                  // Rows we have no answer for stay blank, which is visible and
+                  // correctable, unlike a confidently wrong duplicate.
+                  const claimed = new Set();
+                  textParts.forEach(part => {
+                    const want = part.trim().toLowerCase();
+                    const sel  = selects.find(s =>
+                      !claimed.has(s) && s.selectedIndex <= 0 &&
+                      Array.from(s.options).some(o => o.text.trim().toLowerCase() === want));
+                    if (sel && autoSelectDropdown(sel, part)) { claimed.add(sel); anyDropdown = true; }
+                  });
                 }
                 if (anyDropdown) matched = true;
               }
