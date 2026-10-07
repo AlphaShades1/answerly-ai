@@ -231,13 +231,18 @@
     if (/\spartial_credit\s/.test(c)) return 'partial';
     // New Quizzes marks the result with a data attribute rather than a class.
     var da = qEl.getAttribute('data-automation') || '';
-    var res = qEl.querySelector('[data-automation*="correct"], [data-automation*="incorrect"]');
-    if (res) {
-      var ra = res.getAttribute('data-automation') || '';
-      if (/incorrect/i.test(ra)) return 'incorrect';
-      if (/correct/i.test(ra)) return 'correct';
-    }
     if (/incorrect/i.test(da)) return 'incorrect';
+    // "incorrect" contains "correct", so [data-automation*="correct"] matches
+    // both markers and querySelector returns whichever comes first in the
+    // document. A results page that prints the correct answer above the
+    // student's wrong one therefore read as 'correct', and a wrong answer
+    // stored as verified is served back to the next student as fact.
+    //
+    // Look for a losing marker anywhere first, and only trust a winning one
+    // after confirming the node it matched is not an "incorrect" marker.
+    if (qEl.querySelector('[data-automation*="incorrect"]')) return 'incorrect';
+    var good = qEl.querySelector('[data-automation*="correct"]');
+    if (good && !/incorrect/i.test(good.getAttribute('data-automation') || '')) return 'correct';
     return null;                       // unknown — say nothing
   }
 
