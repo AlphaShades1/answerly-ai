@@ -59,6 +59,20 @@
   function extractScore() {
     var root = resultsRoot() || document.body;
 
+    // A0. New Quizzes. It prints the score with no prefix at all — "6 out of 10
+    // points" — so every prefixed pattern below misses it and the whole report
+    // was abandoned. That is why 500 reported results contained zero New
+    // Quizzes attempts: detection passed, this step returned nothing, and the
+    // reporter gave up silently.
+    //
+    // Gated on a New Quizzes results page so the loose "N out of M" wording can
+    // never be picked up off a Classic page, where a question's own points line
+    // would match it.
+    if (document.querySelector('[data-automation="sdk-item-wrapper"], [data-automation="sdk-quiz-score-percentage"], [data-automation="sdk-info-score"]')) {
+      var nq = firstMatch(document.body, /[\d.]+\s*out of\s*[\d.]+\s*points?/i);
+      if (nq) { var pnq = parsePair(nq); if (pnq) return pnq; }
+    }
+
     // A. "Score for this attempt: N out of M"
     var a = firstMatch(root, /Score for this attempt:?\s*[\d.]+\s*out of\s*[\d.]+/i);
     if (a) { var pa = parsePair(a); if (pa) return pa; }
@@ -229,6 +243,19 @@
     if (/\scorrect\s/.test(c) && !/\sincorrect\s/.test(c)) return 'correct';
     if (/\sincorrect\s/.test(c)) return 'incorrect';
     if (/\spartial_credit\s/.test(c)) return 'partial';
+    // New Quizzes results mark each question with an icon, not a class or a
+    // data attribute: a cross for wrong, a tick for right, with the wrong ones
+    // also carrying the words "Incorrect answer:".
+    //
+    // Order matters and is not cosmetic. A question answered wrongly shows BOTH
+    // icons, because it prints the student's wrong answer and the correct one
+    // beneath it. Testing for the tick first would therefore mark every wrong
+    // answer correct. Verified against a real 6-out-of-10 results page: this
+    // returns exactly 6 correct and 4 incorrect, with none unknown.
+    if (qEl.querySelector('svg[name="IconX"]') ||
+        /Incorrect answer\s*:/i.test(qEl.textContent || '')) return 'incorrect';
+    if (qEl.querySelector('svg[name="IconCheck"], svg[name="IconCheckMark"]')) return 'correct';
+
     // New Quizzes marks the result with a data attribute rather than a class.
     var da = qEl.getAttribute('data-automation') || '';
     if (/incorrect/i.test(da)) return 'incorrect';
