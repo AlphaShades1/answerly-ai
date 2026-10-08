@@ -2785,19 +2785,36 @@ window.__answerlyQuizSolverLoaded = true;
                 if (inputs.length) matched = autoFillTextInput(inputs, textParts.join('; '), textParts);
               }
               if (!matched && textParts.length > 0) {
+                // Strip **markdown bold**. The stealth prompt asks for plain
+                // text and mostly gets it, but a headline figure does come back
+                // wrapped in asterisks, and writing those into an essay box is
+                // visibly not something a student typed. Measured against the
+                // shipped code in a browser on 2026-10-07: without this the box
+                // read "**411.7 frogs** The population is above...".
+                const essay = textParts[0].replace(/\*\*/g, '').trim();
+                const writeInto = (el) => {
+                  el.focus();
+                  el.innerText = essay;
+                  ['input', 'change'].forEach(t =>
+                    el.dispatchEvent(new Event(t, { bubbles: true }))
+                  );
+                };
                 for (const iframe of qEl.querySelectorAll('iframe')) {
                   try {
                     const doc      = iframe.contentDocument || iframe.contentWindow?.document;
                     const editable = doc?.body;
-                    if (editable) {
-                      editable.focus();
-                      editable.innerText = textParts[0];
-                      ['input', 'change'].forEach(t =>
-                        editable.dispatchEvent(new Event(t, { bubbles: true }))
-                      );
-                      matched = true; break;
-                    }
+                    if (editable) { writeInto(editable); matched = true; break; }
                   } catch { /* cross-origin iframe — skip */ }
+                }
+                // Parity with newQuizSolver.js. Classic's editor has always
+                // been an iframe, so the loop above was enough; a rich-text
+                // editor that puts its editable surface straight in the page
+                // would have fallen through and written nothing at all. Same
+                // silent empty box that made this a support ticket on New
+                // Quizzes, so it is worth closing here before it happens.
+                if (!matched) {
+                  const ce = qEl.querySelector('[contenteditable="true"], [contenteditable=""]');
+                  if (ce) { try { writeInto(ce); matched = true; } catch {} }
                 }
               }
               // Mark the question solved so Solve All leaves it alone. Without
