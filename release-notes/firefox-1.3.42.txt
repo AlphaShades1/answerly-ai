@@ -1,10 +1,10 @@
 ================================================================
-ANSWERLY AI 1.3.41 - FIREFOX (AMO) SUBMISSION NOTES
+ANSWERLY AI 1.3.42 - FIREFOX (AMO) SUBMISSION NOTES
 Paste section 1 into "What's new in this version?"
 Paste section 2 into "Notes for reviewers"
 
-Upload 1.3.41. Skip 1.3.36 through 1.3.40 if none were published -
-1.3.41 contains everything in them. The 1.3.37 zip on disk is a
+Upload 1.3.42. Skip 1.3.36 through 1.3.40 if none were published -
+1.3.42 contains everything in them. The 1.3.37 zip on disk is a
 stale build from reverted work; do not upload it.
 ================================================================
 
@@ -54,7 +54,7 @@ currently published on AMO:
 No other file differs. Both code changes are additive fallbacks
 that run only after the existing logic has already failed.
 
-1.3.41 supersedes 1.3.36, 1.3.37 and 1.3.38, none of which were
+1.3.42 supersedes 1.3.36, 1.3.37 and 1.3.38, none of which were
 published.
 
 Change 1 - writing an essay answer (newQuizSolver.js)
