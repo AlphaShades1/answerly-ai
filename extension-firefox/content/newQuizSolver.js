@@ -2214,9 +2214,19 @@ window.__answerlyNQSolverLoaded = true;
             // It has inputs we could drive — the blocker is the picture, not the
             // question type, so say so rather than calling it an essay.
             ? 'Image-based question'
-            : (/essay/i.test(questionType) || !questionType
-                ? 'Essay question'
-                : `${questionType} question`));
+            // Native New Quizzes prints NO question-type label at all: measured
+            // 2026-10-08, the item wrapper carries no nested data-automation
+            // attributes and sdk-interaction-type-name-div does not exist, so
+            // questionType is always ''. The old fallback turned that into
+            // "Essay question" for EVERY unsupported question, which is exactly
+            // the mislabelling this block was written to avoid — an Ordering
+            // question was being announced as an essay. Say nothing specific
+            // when the page tells us nothing.
+            : (!questionType
+                ? 'This question'
+                : (/essay/i.test(questionType)
+                    ? 'Essay question'
+                    : `${questionType} question`)));
 
       // ── ? trigger button ──────────────────────────────────────────────────
       const btn = document.createElement('button');
