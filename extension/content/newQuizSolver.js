@@ -938,9 +938,16 @@ window.__answerlyNQSolverLoaded = true;
     });
 
     // ── Text / fill-in-blank inputs ─────────────────────────────────────────
+    // A native New Quizzes combobox IS an <input type="text">, so without the
+    // role filter every matching and dropdown question looked like a
+    // fill-in-the-blank and we tried to TYPE into controls that only accept a
+    // click on a popup option. Dropdown blanks are also readOnly, which the
+    // old filter ignored because it only checked `disabled`.
     const textInputEls = Array.from(
       qEl.querySelectorAll('input[type="text"], input[type="number"], textarea')
-    ).filter(el => !el.disabled && (el.offsetWidth || el.offsetHeight));
+    ).filter(el => !el.disabled && !el.readOnly &&
+                   el.getAttribute('role') !== 'combobox' &&
+                   (el.offsetWidth || el.offsetHeight));
 
     // ── Dropdowns (matching / inline select) ────────────────────────────────
     // Fail closed: on any error, behave exactly as the engine did before
@@ -948,7 +955,12 @@ window.__answerlyNQSolverLoaded = true;
     let dropdownRows = [];
     try { dropdownRows = nqDropdownRows(qEl); } catch { dropdownRows = []; }
 
-    return { questionText, questionType, options, inputOptionPairs, textInputEls, dropdownRows };
+    // Presence is cheap and synchronous; the options behind each one are not,
+    // so they are harvested later only if the question is actually solved.
+    let comboEls = [];
+    try { comboEls = nqComboEls(qEl); } catch { comboEls = []; }
+
+    return { questionText, questionType, options, inputOptionPairs, textInputEls, dropdownRows, comboEls };
   }
 
   // Screen-reader status text ("Not Selected" / "Selected") that Canvas hides
@@ -1296,12 +1308,166 @@ window.__answerlyNQSolverLoaded = true;
   // answers without repeating itself. Anything else is solved per-dropdown.
   function isNQMatching(rows) {
     if (rows.length < 2) return false;
+    // Fill-in-the-blank dropdowns also share one option list, so "same options"
+    // alone misreads them as matching — and matching is solved as a bijection,
+    // one option used once, which is wrong for blanks where the same word can
+    // be the answer twice. New Quizzes labels those blanks generically
+    // ("Question Blank 1 of 2") while real matching rows carry the prompt text
+    // ("Orange oval labelled A"), so the label tells the two apart. Both
+    // observed on live take pages, 2026-10-08.
+    if (rows.every(r => /^question blank \d+ of \d+$/i.test(String(r.label || '').trim()))) return false;
     const first = JSON.stringify([...rows[0].options].sort());
     return rows.every(r => JSON.stringify([...r.options].sort()) === first);
   }
 
   // Solves every dropdown in a question.
   // Calls done(filledCount, results) where results is [{ label, answer }].
+  // ── Native New Quizzes comboboxes ──────────────────────────────────────────
+  // Measured on a real take page (canvaslite, 2026-10-08): native New Quizzes
+  // renders BOTH matching rows and fill-in-the-blank dropdown blanks as
+  // Instructure UI comboboxes, and there is not a single <select> on the page:
+  //
+  //   <input type="text" role="combobox" aria-haspopup="listbox"
+  //          aria-label="Answer for prompt 1 Orange oval labelled A">
+  //
+  // nqDropdownRows() only ever queried select elements, so on native New
+  // Quizzes these questions were captured, answered correctly, and then filled
+  // nothing at all — silently, exactly like the essay bug. The select code was
+  // presumably right for the old quiz-lti iframe; Canvas enforced the native
+  // build on 2026-08-15 and the markup changed underneath it.
+  //
+  // Two things make this harder than a <select>:
+  //  * The options do not exist in the DOM until the control is opened, so they
+  //    cannot be read up front and are not visible in a screenshot either. The
+  //    model therefore cannot see the choices unless we harvest them first.
+  //  * The open listbox is portalled to document level, OUTSIDE the question,
+  //    so it must be looked up globally rather than within qEl.
+  const nqWait = (ms) => new Promise(r => setTimeout(r, ms));
+
+  function nqComboEls(qEl) {
+    try {
+      return Array.from(qEl.querySelectorAll('input[role="combobox"]'))
+        .filter(el => !el.disabled && (el.offsetWidth || el.offsetHeight));
+    } catch { return []; }
+  }
+
+  // "Answer for prompt 1 Orange oval labelled A" -> "Orange oval labelled A".
+  // The prefix is boilerplate New Quizzes adds for screen readers; the rest is
+  // the row prompt, which is what tells us which answer belongs to this row.
+  // Measured: aria-label is NULL on these; the text lives in the associated
+  // <label>, as "Answer for prompt 1 Orange oval labelled A". Strip that
+  // screen-reader prefix AFTER picking the source, not before — doing it first
+  // ran the strip against an empty string and left the prefix in the label,
+  // which is the text we hand the model to decide which row is which.
+  function nqComboLabel(cb) {
+    let l = cb.getAttribute('aria-label') || '';
+    if (!l.trim() && cb.labels && cb.labels[0]) l = cb.labels[0].innerText || '';
+    return l.replace(/^\s*answer\s+for\s+prompt\s+\d+\s*/i, '')
+            .replace(/\s+/g, ' ').trim().slice(0, 120);
+  }
+
+  const nqNorm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const NQ_PLACEHOLDER = /^(choose your answer\.*|select.*|\[.*\])$/i;
+
+  // Scope the listbox to THIS control via aria-controls, which New Quizzes sets
+  // to its own list id ("Selectable___0-list") while open. A global
+  // querySelector('[role="listbox"]') is wrong and was measurably wrong: open
+  // menus accumulate in the document, so the global lookup kept returning the
+  // first one and answers landed in the wrong rows — on a live matching
+  // question that produced row 2 = Ribosome, row 3 = Mitochondrion, row 1
+  // blank, from three correct answers.
+  function nqOpenListbox(cb) {
+    try { cb.focus(); cb.click(); } catch { return Promise.resolve(null); }
+    return (async () => {
+      // Poll rather than wait a fixed time: the listbox is a React portal and
+      // appears a frame or two later, sometimes slower on a loaded page.
+      for (let i = 0; i < 14; i++) {
+        await nqWait(55);
+        const id = cb.getAttribute('aria-controls');
+        const lb = id ? document.getElementById(id) : null;
+        if (lb && lb.querySelector('[role="option"]')) return lb;
+      }
+      return null;
+    })();
+  }
+
+  // Escape does NOT close these — verified on a live page, aria-expanded stayed
+  // "true" after a synthetic Escape keydown and the menus stacked up. Clicking
+  // the control toggles it shut, which is what actually works.
+  async function nqCloseListbox(cb) {
+    try {
+      if (cb.getAttribute('aria-expanded') === 'true') { cb.click(); await nqWait(120); }
+    } catch {}
+  }
+
+  // Open each control once to read its choices, then close it again. This is
+  // the only way to learn them, and it is why a combobox question cannot be
+  // answered from a screenshot alone.
+  async function nqHarvestCombos(qEl) {
+    const rows = [];
+    for (const cb of nqComboEls(qEl)) {
+      const lb = await nqOpenListbox(cb);
+      const options = lb
+        ? Array.from(lb.querySelectorAll('[role="option"]'))
+            .map(o => (o.textContent || '').trim())
+            .filter(t => t && !NQ_PLACEHOLDER.test(t))
+        : [];
+      await nqCloseListbox(cb);
+      if (options.length) rows.push({ comboEl: cb, label: nqComboLabel(cb), options });
+    }
+    return rows;
+  }
+
+  async function nqSelectCombo(cb, answer) {
+    const want = nqNorm(answer);
+    if (!cb || !want) return false;
+    const lb = await nqOpenListbox(cb);
+    if (!lb) return false;
+    const opts = Array.from(lb.querySelectorAll('[role="option"]'));
+    // Exact first, then prefix, then containment either way. Same ladder as
+    // autoSelectNQDropdown, so a model answer that is slightly longer or
+    // shorter than the option label still lands.
+    const hit = opts.find(o => nqNorm(o.textContent) === want)
+             || opts.find(o => nqNorm(o.textContent).startsWith(want))
+             || opts.find(o => want.startsWith(nqNorm(o.textContent)))
+             || opts.find(o => nqNorm(o.textContent).includes(want) && want.length > 2)
+             || opts.find(o => want.includes(nqNorm(o.textContent)) && nqNorm(o.textContent).length > 2);
+    if (!hit) { await nqCloseListbox(cb); return false; }
+    const chosen = nqNorm(hit.textContent);
+    try { hit.click(); } catch { await nqCloseListbox(cb); return false; }
+    await nqWait(130);
+    // Confirm the control actually took it rather than assuming the click won.
+    const v = nqNorm(cb.value);
+    return !!v && !NQ_PLACEHOLDER.test(v) && (v === chosen || chosen.startsWith(v) || v.startsWith(chosen));
+  }
+
+  // True when a row has not been answered yet, for either shape.
+  function nqRowIsEmpty(row) {
+    if (row && row.selectEl) return row.selectEl.selectedIndex <= 0;
+    if (row && row.comboEl) {
+      const v = nqNorm(row.comboEl.value);
+      return !v || NQ_PLACEHOLDER.test(v);
+    }
+    return false;
+  }
+
+  // One setter for both shapes, so every caller stops caring which one the
+  // page happens to use. A <select> stays synchronous underneath.
+  function setNQRowAnswer(row, answer) {
+    if (row && row.selectEl) return Promise.resolve(autoSelectNQDropdown(row.selectEl, answer));
+    if (row && row.comboEl)  return nqSelectCombo(row.comboEl, answer);
+    return Promise.resolve(false);
+  }
+
+  // Selects if the page has them, comboboxes otherwise. Never both: a question
+  // is one shape or the other, and harvesting comboboxes costs real time.
+  async function nqAnswerRows(qEl) {
+    let rows = [];
+    try { rows = nqDropdownRows(qEl); } catch { rows = []; }
+    if (rows.length) return rows;
+    return await nqHarvestCombos(qEl);
+  }
+
   function solveNQDropdowns(questionText, rows, done) {
     const baseQ = questionText.length > 800
       ? questionText.slice(0, 800).trim() + '...'
@@ -1313,14 +1479,17 @@ window.__answerlyNQSolverLoaded = true;
       sendSolve(
         { type: 'SOLVE_MATCHING', question: baseQ,
           rows: rows.map(r => ({ label: r.label, options: r.options })) },
-        (resp) => {
+        async (resp) => {
           if (!chrome.runtime.lastError && resp && resp.answers) {
             // Backend returns numbered keys: {"1": "answer", "2": "answer", ...}
-            rows.forEach((r, i) => {
+            // Sequential, not forEach: a combobox has to be opened to be set,
+            // and only one listbox can be open at a time. Setting them in
+            // parallel makes each one close the previous one's popup.
+            for (let i = 0; i < rows.length; i++) {
               const a = resp.answers[String(i + 1)];
-              if (a && autoSelectNQDropdown(r.selectEl, a)) filled++;
-              results.push({ label: r.label, answer: a || '—' });
-            });
+              if (a && await setNQRowAnswer(rows[i], a)) filled++;
+              results.push({ label: rows[i].label, answer: a || '—' });
+            }
             reportOutcome(resp, filled === rows.length,
               filled === rows.length ? undefined : `matching: ${filled}/${rows.length} dropdowns set`);
           }
@@ -1338,9 +1507,9 @@ window.__answerlyNQSolverLoaded = true;
       const q = row.label ? `${baseQ}\n\nFor: "${row.label}"` : baseQ;
       sendSolve(
         { type: 'SOLVE_QUESTION', question: q, options: row.options },
-        (resp) => {
+        async (resp) => {
           const ok = !chrome.runtime.lastError && resp && !resp.error;
-          const set = ok && autoSelectNQDropdown(row.selectEl, resp.answer);
+          const set = ok && await setNQRowAnswer(row, resp.answer);
           if (set) filled++;
           if (ok) reportOutcome(resp, set, set ? undefined : 'dropdown: no option matched');
           results.push({ label: row.label, answer: ok ? resp.answer : '—' });
@@ -1689,12 +1858,24 @@ window.__answerlyNQSolverLoaded = true;
     });
 
     function solveCropped(cropped) {
-      captureNQOverflowSlices(qEl, 2).then((extras) => {
-      const payload = { type: 'SOLVE_SCREENSHOT_STEALTH', image: cropped, questionText: (questionText.slice(0, 200) + dropdownOptionsNote(qEl)).slice(0, 900) };
+      captureNQOverflowSlices(qEl, 2).then(async (extras) => {
+      // A combobox shows "choose your answer..." until it is opened, so its
+      // choices are in NO screenshot — not the crop, not the overflow slices.
+      // Without harvesting them the model is being asked to pick from a list it
+      // cannot see, and any answer it invents will fail to match an option.
+      // Harvested AFTER the extra captures so an open menu never lands in one.
+      let comboRows = [];
+      try { if (nqComboEls(qEl).length) comboRows = await nqHarvestCombos(qEl); } catch { comboRows = []; }
+      const optionsNote = comboRows.length
+        ? ' The dropdowns on this question accept only these options: '
+          + Array.from(new Set([].concat(...comboRows.map(r => r.options)))).slice(0, 40).join(', ')
+          + '. Use these exact words, one per dropdown, top to bottom.'
+        : dropdownOptionsNote(qEl);
+      const payload = { type: 'SOLVE_SCREENSHOT_STEALTH', image: cropped, questionText: (questionText.slice(0, 200) + optionsNote).slice(0, 900) };
       if (extras.length) payload.images = [cropped].concat(extras);
       sendSolve(
         payload,
-        (r) => {
+        async (r) => {
           done();
           if (chrome.runtime.lastError || !r || r.error) return;
 
@@ -1751,16 +1932,28 @@ window.__answerlyNQSolverLoaded = true;
           // quizSolver.js fills the same questions). Mirrors that engine: one part
           // per dropdown when the counts agree, otherwise each part is tried
           // against the dropdowns still empty.
-          if (dropdownRows.length > 0 && textParts.length > 0) {
+          // Comboboxes when the page has them, selects otherwise. Already
+          // harvested above, so this does not reopen anything.
+          const answerRows = comboRows.length ? comboRows : dropdownRows;
+          if (answerRows.length > 0 && textParts.length > 0) {
             let set = 0;
-            if (textParts.length === dropdownRows.length) {
-              dropdownRows.forEach((r, i) => { if (autoSelectNQDropdown(r.selectEl, textParts[i])) set++; });
+            if (textParts.length === answerRows.length) {
+              // Sequential: only one listbox can be open at a time, so setting
+              // these in parallel would have each one dismiss the last.
+              for (let i = 0; i < answerRows.length; i++) {
+                if (await setNQRowAnswer(answerRows[i], textParts[i])) set++;
+              }
             } else {
-              textParts.forEach(part => {
-                const row = dropdownRows.find(r => r.selectEl.selectedIndex <= 0 &&
+              // Counts disagree — usually rows that ran off the bottom of the
+              // capture. Each part claims at most one row that actually offers
+              // it, so rows we have no answer for stay blank rather than
+              // getting a confident duplicate.
+              const claimed = new Set();
+              for (const part of textParts) {
+                const row = answerRows.find(r => !claimed.has(r) && nqRowIsEmpty(r) &&
                   r.options.some(o => o.trim().toLowerCase() === part.toLowerCase()));
-                if (row && autoSelectNQDropdown(row.selectEl, part)) set++;
-              });
+                if (row && await setNQRowAnswer(row, part)) { claimed.add(row); set++; }
+              }
             }
             matched = set > 0;
           }
@@ -1986,12 +2179,15 @@ window.__answerlyNQSolverLoaded = true;
       const sig = nqStemSig(qEl);
       if (nqUpToDate(qEl, sig)) return; // already built for THIS question
 
-      const { questionText, questionType, options, inputOptionPairs, textInputEls, dropdownRows } = extractNQData(qEl);
+      const { questionText, questionType, options, inputOptionPairs, textInputEls, dropdownRows, comboEls } = extractNQData(qEl);
       if (!questionText) return;
 
       const accent         = theme.accentColor || DEFAULT_THEME.accentColor;
       const hasChoices     = inputOptionPairs.length > 0;
-      const hasDropdowns   = dropdownRows.length > 0;
+      // Either shape counts. On native New Quizzes it is always the combobox
+      // one; the select branch is kept for anything still serving the older
+      // markup.
+      const hasDropdowns   = dropdownRows.length > 0 || comboEls.length > 0;
       const isFillInBlank  = textInputEls.length > 0 && !hasChoices && !hasDropdowns;
       // Maths whose fractions and exponents did not survive extraction is not a
       // question we can answer, however ordinary its inputs look. Treated the
@@ -2069,10 +2265,17 @@ window.__answerlyNQSolverLoaded = true;
           }
 
           if (hasDropdowns) {
-            solveNQDropdowns(questionText, dropdownRows, (filled) => {
-              if (filled) btn.dataset.opened = 'true';
-              else        btn.dataset.done   = '';   // allow retry
-            });
+            // Rows are resolved at click time, not at injection time: reading a
+            // combobox's choices means opening it, and doing that on every
+            // question as the page loads would pop menus open under the
+            // student's cursor.
+            nqAnswerRows(qEl).then((rows) => {
+              if (!rows.length) { btn.dataset.done = ''; return; }
+              solveNQDropdowns(questionText, rows, (filled) => {
+                if (filled) btn.dataset.opened = 'true';
+                else        btn.dataset.done   = '';   // allow retry
+              });
+            }).catch(() => { btn.dataset.done = ''; });
             return;
           }
 
