@@ -1,11 +1,11 @@
 ================================================================
-ANSWERLY AI 1.3.39 - FIREFOX (AMO) SUBMISSION NOTES
+ANSWERLY AI 1.3.40 - FIREFOX (AMO) SUBMISSION NOTES
 Paste section 1 into "What's new in this version?"
 Paste section 2 into "Notes for reviewers"
 
-Upload 1.3.39. Skip 1.3.36, 1.3.37 and 1.3.38 - none were
-published and 1.3.39 contains everything in them. The 1.3.37 zip
-on disk is a stale build from reverted work; do not upload it.
+Upload 1.3.40. Skip 1.3.36 through 1.3.39 if none of them were
+published - 1.3.40 contains everything in them. The 1.3.37 zip on
+disk is a stale build from reverted work; do not upload it.
 ================================================================
 
 
@@ -19,6 +19,11 @@ New Quizzes puts those answers in a rich-text editor, which the
 New Quizzes code path did not write to. Classic Quizzes already
 worked. Classic also now strips stray markdown characters out of
 a written answer before typing it in.
+
+Added: on question types that cannot be answered automatically
+(Categorization, Ordering, Hot Spot), the answer is now shown to
+you in a small dismissible note instead of nothing happening at
+all, so you can place it yourself.
 
 Fixed: quiz results on Canvas New Quizzes were not being recorded
 after you submitted an attempt, so New Quizzes were missing from
@@ -34,15 +39,15 @@ of 10"), which the reader did not recognise. It now reads both.
 Scope of this update, measured against 1.3.34, the version
 currently published on AMO:
 
-  content/newQuizSolver.js   +42 lines, 0 removed
-  content/quizSolver.js      +26 lines, 6 changed
-  content/scoreReporter.js   +38 lines, 6 changed
+  content/newQuizSolver.js   additive, ~95 lines
+  content/quizSolver.js      additive, ~40 lines
+  content/scoreReporter.js   additive, ~50 lines
   manifest.json              version string only
 
 No other file differs. Both code changes are additive fallbacks
 that run only after the existing logic has already failed.
 
-1.3.39 supersedes 1.3.36, 1.3.37 and 1.3.38, none of which were
+1.3.40 supersedes 1.3.36, 1.3.37 and 1.3.38, none of which were
 published.
 
 Change 1 - writing an essay answer (newQuizSolver.js)
@@ -72,7 +77,18 @@ editable surface sits in the page rather than in an iframe was not
 written to at all. Same read-only, same-page, user-initiated
 behaviour as change 1.
 
-Change 3 - reading a submitted score (scoreReporter.js)
+Change 3 - a note when nothing can be filled (newQuizSolver.js)
+---------------------------------------------------------------
+Three New Quizzes question types are drag-and-drop and cannot be
+filled in programmatically at all. Previously the extension's
+button did nothing visible on those, which users reasonably read
+as the extension being broken. It now shows a small dismissible
+note in the corner of the page with the answer text, and the user
+places it themselves. The note is created with explicit inline
+styles, is removed after a few seconds or on click, and contains
+only text already shown to the user.
+
+Change 4 - reading a submitted score (scoreReporter.js)
 -------------------------------------------------------
 scoreReporter.js reads the score off a quiz RESULTS page after the
 student has already submitted, so it can be sent to our backend
@@ -81,7 +97,9 @@ and does not alter the page, submit anything, or interact with a
 quiz. This release adds one score pattern for the New Quizzes
 format and per-question correct/incorrect detection for it. The
 Classic path is tested first and returns before any of the new
-code runs.
+code runs. It also now discards Canvas's own grading metadata
+instead of recording it as the student's answer on short-answer
+questions.
 
 Permissions and network
 -----------------------
