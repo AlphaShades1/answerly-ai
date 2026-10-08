@@ -1756,6 +1756,48 @@ window.__answerlyNQSolverLoaded = true;
           // was ever filled ("Au" typed, "Fe" dropped).
           if (!matched && textParts.length > 0 && textInputEls.length > 0)
             matched = autoFillNQText(textInputEls, textParts.join('; '), textParts);
+          // Essay / long-answer, the last resort. quizSolver.js has had this
+          // block for ages and New Quizzes never did, which is the whole bug:
+          // an essay here has no radio, no <select> and no <input> or
+          // <textarea> — New Quizzes renders its answer box as a rich-text
+          // editor in an iframe (or a contenteditable div), so extractNQData
+          // finds nothing fillable and every path above misses.
+          //
+          // The empty-answer essay branch further up does write to an iframe,
+          // but it is gated on the model returning NOTHING. For an essay the
+          // model returns a full paragraph in answerText, so that gate never
+          // opens and a perfectly good answer was dropped on the floor with no
+          // error shown. A student sees the capture happen and the box stay
+          // blank, which reads as the extension being broken.
+          //
+          // Reported from a real New Quizzes attempt at canvas.sfu.ca on
+          // 2026-10-07: eight consecutive screenshot solves, all ok=true with
+          // full paragraph answers in the solve log, nothing written to the
+          // page.
+          if (!matched && textParts.length > 0) {
+            // The stealth prompt asks for plain text, but answers do come back
+            // with **markdown bold** around the headline figure; writing the
+            // asterisks into an essay box is visibly not something a student
+            // typed.
+            const essay = textParts[0].replace(/\*\*/g, '').trim();
+            const writeInto = (el) => {
+              el.focus();
+              el.innerText = essay;
+              ['input', 'change'].forEach(t => el.dispatchEvent(new Event(t, { bubbles: true })));
+            };
+            for (const fr of qEl.querySelectorAll('iframe')) {
+              try {
+                const doc = fr.contentDocument || fr.contentWindow?.document;
+                if (doc?.body) { writeInto(doc.body); matched = true; break; }
+              } catch { /* cross-origin iframe — skip */ }
+            }
+            // Newer rich-text editors put the editable surface straight in the
+            // page instead of an iframe, so the loop above finds nothing.
+            if (!matched) {
+              const ce = qEl.querySelector('[contenteditable="true"], [contenteditable=""]');
+              if (ce) { try { writeInto(ce); matched = true; } catch {} }
+            }
+          }
           if (matched) {
             camBtn.dataset.opened = 'true';
             // Solve All skips a question only when its ? button is marked done;
