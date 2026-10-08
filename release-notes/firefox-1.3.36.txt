@@ -1,0 +1,84 @@
+================================================================
+ANSWERLY AI 1.3.36 — FIREFOX (AMO) SUBMISSION NOTES
+Paste section 1 into "What's new in this version?"
+Paste section 2 into "Notes for reviewers"
+================================================================
+
+
+----------------------------------------------------------------
+1) RELEASE NOTES  ("What's new in this version?")
+----------------------------------------------------------------
+Fixed: quiz results on Canvas New Quizzes were not being recorded
+after you submitted an attempt, so New Quizzes were missing from
+your result history while Classic Quizzes appeared normally.
+
+New Quizzes writes its score in a different format from Classic
+("6 out of 10 points" rather than "Score for this attempt: 6 out
+of 10"), which the reader did not recognise. It now reads both.
+
+Nothing about answering a quiz has changed in this release.
+
+
+----------------------------------------------------------------
+2) NOTES FOR REVIEWERS
+----------------------------------------------------------------
+Scope of this update (1.3.35 -> 1.3.36): two files.
+
+  content/scoreReporter.js   +27 lines, 0 removed
+  manifest.json              version string only
+
+No other file differs from 1.3.35. The change is additive; no
+existing line was modified or deleted.
+
+What the change does
+--------------------
+scoreReporter.js reads the score off a Canvas quiz RESULTS page
+after the student has already submitted the attempt, so the score
+can be sent to our own backend for the account holder's history.
+It is read-only DOM scraping of a page the user is already
+viewing. It does not alter the page, submit anything, or interact
+with the quiz.
+
+Canvas ships two quiz engines with different markup. The existing
+patterns only matched Classic Quizzes. This release adds:
+
+  * One extra score pattern for New Quizzes, which prints
+    "<n> out of <n> points" with no leading label.
+  * Per-question correct/incorrect detection for New Quizzes,
+    which marks verdicts with icon elements rather than the CSS
+    classes Classic uses.
+
+The Classic code path is tested first and returns before any of
+the new code runs, so existing behaviour is unchanged.
+
+Permissions and network
+-----------------------
+  * No new permissions. manifest.json differs from 1.3.35 only in
+    the version string; diff the two files to confirm.
+  * No new network requests, hosts or endpoints. The score is sent
+    to the same backend endpoint used since earlier versions
+    (POST /api/scores/report, answerly-ai-backend.onrender.com),
+    only when the user is signed in.
+  * No remote code execution. No eval, no new Function, no
+    injected <script>, no code fetched and run. All logic ships in
+    the package.
+  * No minification or obfuscation. All JavaScript is the original
+    hand-written source, commented, and readable as shipped.
+  * No build step, bundler or transpiler. The submitted ZIP is the
+    source tree.
+
+About the product
+-----------------
+Answerly AI is a paid study tool for Canvas. The user signs in
+with an activation code, and question text is sent to our backend,
+which calls a hosted AI model and returns an answer. There is no
+third-party analytics, advertising or tracking library in the
+package.
+
+The only other external addresses in the package are plain links
+the user can click (Stripe checkout and billing portal, our
+listing page, our Discord, a demo video on YouTube). Nothing is
+loaded from them into the extension.
+
+Happy to supply a test account and a sample Canvas quiz on
+request.

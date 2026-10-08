@@ -1,0 +1,116 @@
+================================================================
+ANSWERLY AI 1.3.39 - FIREFOX (AMO) SUBMISSION NOTES
+Paste section 1 into "What's new in this version?"
+Paste section 2 into "Notes for reviewers"
+
+Upload 1.3.39. Skip 1.3.36, 1.3.37 and 1.3.38 - none were
+published and 1.3.39 contains everything in them. The 1.3.37 zip
+on disk is a stale build from reverted work; do not upload it.
+================================================================
+
+
+----------------------------------------------------------------
+1) RELEASE NOTES  ("What's new in this version?")
+----------------------------------------------------------------
+Fixed: on Canvas New Quizzes, a written or essay question would be
+read correctly but the answer was never written into the answer
+box. The capture looked like it worked and the box stayed empty.
+New Quizzes puts those answers in a rich-text editor, which the
+New Quizzes code path did not write to. Classic Quizzes already
+worked. Classic also now strips stray markdown characters out of
+a written answer before typing it in.
+
+Fixed: quiz results on Canvas New Quizzes were not being recorded
+after you submitted an attempt, so New Quizzes were missing from
+your result history while Classic Quizzes appeared normally. New
+Quizzes writes its score in a different format from Classic
+("6 out of 10 points" rather than "Score for this attempt: 6 out
+of 10"), which the reader did not recognise. It now reads both.
+
+
+----------------------------------------------------------------
+2) NOTES FOR REVIEWERS
+----------------------------------------------------------------
+Scope of this update, measured against 1.3.34, the version
+currently published on AMO:
+
+  content/newQuizSolver.js   +42 lines, 0 removed
+  content/quizSolver.js      +26 lines, 6 changed
+  content/scoreReporter.js   +38 lines, 6 changed
+  manifest.json              version string only
+
+No other file differs. Both code changes are additive fallbacks
+that run only after the existing logic has already failed.
+
+1.3.39 supersedes 1.3.36, 1.3.37 and 1.3.38, none of which were
+published.
+
+Change 1 - writing an essay answer (newQuizSolver.js)
+-----------------------------------------------------
+Canvas ships two quiz engines with different markup, and this
+extension has a separate code path for each. On New Quizzes, an
+essay question's answer box is a rich-text editor rendered in an
+iframe, so the existing code found no input, textarea, radio or
+select to write to and silently did nothing. The Classic path has
+had this fallback for a long time; the New Quizzes path never got
+it.
+
+The new code runs only when every other fill attempt has failed.
+It writes the answer text into the question's own rich-text
+editor, in the page the user is already looking at, in response to
+the user clicking the extension's button on that question. It
+reads nothing from the iframe and sends nothing anywhere. A
+cross-origin iframe throws on access and is skipped.
+
+Change 2 - the same fallback on Classic Quizzes (quizSolver.js)
+---------------------------------------------------------------
+The Classic path already wrote essay answers into its iframe
+editor and was not affected by the bug above. Two smaller gaps in
+the same code are closed for parity: markdown asterisks around a
+figure were written into the box verbatim, and an editor whose
+editable surface sits in the page rather than in an iframe was not
+written to at all. Same read-only, same-page, user-initiated
+behaviour as change 1.
+
+Change 3 - reading a submitted score (scoreReporter.js)
+-------------------------------------------------------
+scoreReporter.js reads the score off a quiz RESULTS page after the
+student has already submitted, so it can be sent to our backend
+for the account holder's own history. It is read-only DOM scraping
+and does not alter the page, submit anything, or interact with a
+quiz. This release adds one score pattern for the New Quizzes
+format and per-question correct/incorrect detection for it. The
+Classic path is tested first and returns before any of the new
+code runs.
+
+Permissions and network
+-----------------------
+  * No new permissions. manifest.json differs from 1.3.34 only in
+    the version string; diff the two files to confirm.
+  * No new network requests, hosts or endpoints. The score goes to
+    the same backend endpoint used in earlier versions
+    (POST /api/scores/report, answerly-ai-backend.onrender.com),
+    only when the user is signed in.
+  * No remote code execution. No eval, no new Function, no
+    injected <script>, no code fetched and run. All logic ships in
+    the package.
+  * No minification or obfuscation. All JavaScript is the original
+    hand-written source, commented, and readable as shipped.
+  * No build step, bundler or transpiler. The submitted ZIP is the
+    source tree.
+
+About the product
+-----------------
+Answerly AI is a paid study tool for Canvas. The user signs in
+with an activation code, and question text is sent to our backend,
+which calls a hosted AI model and returns an answer. There is no
+third-party analytics, advertising or tracking library in the
+package.
+
+The only other external addresses in the package are plain links
+the user can click (Stripe checkout and billing portal, our
+listing page, our Discord, a demo video on YouTube). Nothing is
+loaded from them into the extension.
+
+Happy to supply a test account and a sample Canvas quiz on
+request.
