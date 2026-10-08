@@ -2799,23 +2799,34 @@ window.__answerlyQuizSolverLoaded = true;
                     el.dispatchEvent(new Event(t, { bubbles: true }))
                   );
                 };
-                for (const iframe of qEl.querySelectorAll('iframe')) {
-                  try {
-                    const doc      = iframe.contentDocument || iframe.contentWindow?.document;
-                    const editable = doc?.body;
-                    if (editable) { writeInto(editable); matched = true; break; }
-                  } catch { /* cross-origin iframe — skip */ }
-                }
-                // Parity with newQuizSolver.js. Classic's editor has always
-                // been an iframe, so the loop above was enough; a rich-text
-                // editor that puts its editable surface straight in the page
-                // would have fallen through and written nothing at all. Same
-                // silent empty box that made this a support ticket on New
-                // Quizzes, so it is worth closing here before it happens.
+                // Strict pass then loose, matching newQuizSolver.js: prefer a
+                // frame whose body is genuinely editable so an essay cannot
+                // land in some unrelated same-origin iframe, but keep the
+                // original any-body behaviour as a fallback so no editor that
+                // worked before stops working now.
+                // Same three-step order as newQuizSolver.js: an iframe whose
+                // body is genuinely editable, then a contenteditable element,
+                // then any same-origin iframe. The last step is the behaviour
+                // this file has always had, kept so nothing that worked before
+                // regresses, but demoted below contenteditable so a non-editor
+                // frame embedded in the question cannot swallow the answer.
+                const frames = Array.from(qEl.querySelectorAll('iframe'));
+                const tryFrames = (strict) => {
+                  for (const iframe of frames) {
+                    try {
+                      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+                      if (!doc?.body) continue;
+                      if (strict && !(doc.body.isContentEditable || doc.designMode === 'on')) continue;
+                      writeInto(doc.body); matched = true; return;
+                    } catch { /* cross-origin iframe — skip */ }
+                  }
+                };
+                tryFrames(true);
                 if (!matched) {
                   const ce = qEl.querySelector('[contenteditable="true"], [contenteditable=""]');
                   if (ce) { try { writeInto(ce); matched = true; } catch {} }
                 }
+                if (!matched) tryFrames(false);
               }
               // Mark the question solved so Solve All leaves it alone. Without
               // this the camera's answer was invisible to solveAllDirect(), which

@@ -1401,10 +1401,25 @@ window.__answerlyNQSolverLoaded = true;
       ? (opts.count === 1 ? '1 question' : opts.count + ' questions')
       : (opts.label ? esc(opts.label) : 'This question');
     const them = (opts.count && opts.count > 1) ? 'them' : 'it';
+    // opts.answer is the case where the screenshot DID come back with an answer
+    // and there was simply nothing on the page to write it into: the New
+    // Quizzes drag-and-drop types (Categorization, Ordering, Hot Spot). Telling
+    // the student to "use the screenshot tool" there would be absurd, since
+    // they just did. Show the answer instead so the capture is still worth
+    // something, and they can place it themselves.
+    if (opts.answer) {
+      msg.innerHTML =
+        '<div style="font-weight:' + (dim ? '600' : '700') + ';margin-bottom:3px">' +
+        '✏️ Fill this one in yourself</div>' +
+        '<div style="opacity:.8;margin-bottom:5px">' + what +
+        ' can’t be filled in automatically.</div>' +
+        '<div style="font-weight:600;line-height:1.45">' + esc(opts.answer) + '</div>';
+    } else {
     msg.innerHTML =
       '<div style="font-weight:' + (dim ? '600' : '700') + ';margin-bottom:3px">' +
       '📸 Screenshot needed</div>' +
       what + ' can’t be auto-answered — use the screenshot tool on ' + them + '.';
+    }
 
     const x = document.createElement('button');
     x.type = 'button';
@@ -1785,18 +1800,57 @@ window.__answerlyNQSolverLoaded = true;
               el.innerText = essay;
               ['input', 'change'].forEach(t => el.dispatchEvent(new Event(t, { bubbles: true })));
             };
-            for (const fr of qEl.querySelectorAll('iframe')) {
-              try {
-                const doc = fr.contentDocument || fr.contentWindow?.document;
-                if (doc?.body) { writeInto(doc.body); matched = true; break; }
-              } catch { /* cross-origin iframe — skip */ }
-            }
-            // Newer rich-text editors put the editable surface straight in the
-            // page instead of an iframe, so the loop above finds nothing.
+            // Two passes, strict then loose. An editor's body really is
+            // editable, so preferring that avoids writing an essay into some
+            // unrelated same-origin iframe that happens to sit in the question.
+            // The loose pass is kept because requiring body.isContentEditable
+            // outright would regress any editor that marks an inner node
+            // instead, and a question with one iframe is overwhelmingly an
+            // editor. Cross-origin frames throw on access and are skipped.
+            const frames = Array.from(qEl.querySelectorAll('iframe'));
+            const tryFrames = (strict) => {
+              for (const fr of frames) {
+                try {
+                  const doc = fr.contentDocument || fr.contentWindow?.document;
+                  if (!doc?.body) continue;
+                  if (strict && !(doc.body.isContentEditable || doc.designMode === 'on')) continue;
+                  writeInto(doc.body); matched = true; return;
+                } catch { /* cross-origin iframe — skip */ }
+              }
+            };
+            // Order is deliberate, strongest evidence of a real answer box
+            // first:
+            //  1. an iframe whose body is actually editable — a rich-text
+            //     editor and nothing else looks like this;
+            //  2. a contenteditable element, which is what a newer editor uses
+            //     when it does not wrap itself in an iframe;
+            //  3. any same-origin iframe at all.
+            // Step 3 is the behaviour quizSolver.js has always had and is kept
+            // so no editor that worked before stops working. It goes last
+            // because an embedded same-origin frame that is NOT an editor would
+            // otherwise beat a genuine contenteditable box and the answer would
+            // land somewhere invisible.
+            tryFrames(true);
             if (!matched) {
               const ce = qEl.querySelector('[contenteditable="true"], [contenteditable=""]');
               if (ce) { try { writeInto(ce); matched = true; } catch {} }
             }
+            if (!matched) tryFrames(false);
+          }
+          // Nothing on the page could take the answer. Until now this returned
+          // in silence, which is indistinguishable from the extension being
+          // broken — the exact report that came in on 2026-10-07 for essays.
+          // Essays are fixed; the drag-and-drop types genuinely cannot be
+          // filled, so say so and hand over the answer rather than swallowing
+          // a solve the student has already paid for.
+          if (!matched && answerText) {
+            const typeLabel = (() => {
+              try { return extractNQData(qEl).questionType || ''; } catch { return ''; }
+            })();
+            showNQScreenshotToast({
+              answer: answerText,
+              label: typeLabel ? typeLabel + ' question' : 'This question',
+            });
           }
           if (matched) {
             camBtn.dataset.opened = 'true';

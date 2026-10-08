@@ -282,6 +282,15 @@
     return t.replace(/\s+/g, ' ').trim().slice(0, 300);
   }
 
+  // Canvas's answer-definition block sits inside the same .answer container on
+  // short-answer and fill-in-blank questions, so scraping the container's text
+  // swept up the grading metadata with it. Observed 2026-10-08 on a real row:
+  //   "4168 Golgi Apparatus Golgi Apparatus exact_answer none 9267 4168
+  //    margin of error +/-"
+  // stored as the student's answer. Unusable as benchmark data, and worse than
+  // nothing, because it looks like a real answer that simply did not match.
+  var ANSWER_NOISE_RE = /exact_answer|margin of error|answer_weight|numerical_answer_type|answer_comment|answer_for_|answer_error_margin/i;
+
   function answerTexts(qEl, sel) {
     var out = [];
     Array.prototype.forEach.call(qEl.querySelectorAll(sel), function (a) {
@@ -289,6 +298,13 @@
       // Canvas appends markers like "You Answered" / "Correct Answer" to the
       // label; strip them or the stored text will not match the live option.
       t = t.replace(/^(you answered|correct answer|correct!|incorrect)\s*/i, '').trim();
+      // Drop a grading-metadata blob outright rather than trying to repair it.
+      // The clean value is usually present as its own sibling node in the same
+      // query, so dropping this one keeps the good answer and loses only noise.
+      if (ANSWER_NOISE_RE.test(t)) return;
+      // A bare database id prefix ("4168 Golgi Apparatus") on an otherwise
+      // clean label.
+      t = t.replace(/^\d{3,}\s+/, '').trim();
       if (t && out.indexOf(t) === -1 && t.length < 300) out.push(t.slice(0, 200));
     });
     return out;
