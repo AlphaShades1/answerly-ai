@@ -1,0 +1,103 @@
+================================================================
+ANSWERLY AI 1.3.43 - FIREFOX (AMO) SUBMISSION NOTES
+Paste section 1 into "What's new in this version?"
+Paste section 2 into "Notes for reviewers"
+
+Upload 1.3.43. Skip 1.3.36 through 1.3.42 if none were published -
+1.3.43 contains everything in them. The 1.3.37 zip on disk is a
+stale build from reverted work; do not upload it.
+================================================================
+
+
+----------------------------------------------------------------
+1) RELEASE NOTES  ("What's new in this version?")
+----------------------------------------------------------------
+Fixed: a question whose wording is entirely inside a picture got
+no extension button at all. A labelled diagram with dropdowns
+beside it, with no typed question text above it, was skipped
+outright. There was no button to click, the keyboard shortcut did
+nothing on it, and turning stealth mode off did not bring the
+button back. Every other question on the same quiz worked, which
+made it look like the question itself had broken the extension.
+
+These questions are now treated as picture questions and point
+you at the screenshot tool, the same as any other question whose
+answer is only in a figure. The fix applies to both Canvas quiz
+engines, Classic and New Quizzes.
+
+
+----------------------------------------------------------------
+2) NOTES FOR REVIEWERS
+----------------------------------------------------------------
+Scope of this update, measured against 1.3.34, the version
+currently published on AMO:
+
+  content/newQuizSolver.js   additive
+  content/quizSolver.js      additive
+  content/scoreReporter.js   additive
+  manifest.json              version string only
+
+No other file differs. 1.3.43 supersedes 1.3.36 through 1.3.42,
+none of which were published. The reviewer notes for those
+versions still apply and are reproduced in the 1.3.42 notes file;
+the only change new in 1.3.43 is the one described below.
+
+Change - questions whose text is only a picture
+------------------------------------------------
+Both quiz engines read the question wording out of the question's
+text container before deciding whether to attach the extension's
+button to it. When an instructor builds a question as nothing but
+an image - a labelled diagram, with the answer dropdowns rendered
+beside it - that container holds an <img> and no text, so the
+extraction correctly returned an empty string.
+
+Every place that attached a button then returned early on that
+empty string, so the question received no button of any kind,
+including the hidden one the keyboard shortcut looks for. The
+result was a silent dead end on exactly the question that most
+needed the screenshot tool.
+
+The fix substitutes a short placeholder ("See the image for this
+question.") when the extracted text is empty AND the question
+contains at least one answer control (a select, combobox, radio,
+checkbox, text input or textarea). A container with no answer
+controls in it is not a question and is still skipped, so no
+button is attached to page furniture.
+
+The placeholder routes the question down the existing
+picture-question path that was already in the product: the
+button tells the user to use the screenshot tool, and the
+bulk-solve pass counts the question as skipped rather than
+passing over it in silence. No new network request, no new data,
+and no new question-answering behaviour is introduced - a
+question that previously had no button now follows the same code
+path as any other question containing a figure.
+
+Permissions and network
+-----------------------
+  * No new permissions. manifest.json differs from 1.3.34 only in
+    the version string; diff the two files to confirm.
+  * No new network requests, hosts or endpoints.
+  * No remote code execution. No eval, no new Function, no
+    injected <script>, no code fetched and run. All logic ships in
+    the package.
+  * No minification or obfuscation. All JavaScript is the original
+    hand-written source, commented, and readable as shipped.
+  * No build step, bundler or transpiler. The submitted ZIP is the
+    source tree.
+
+About the product
+-----------------
+Answerly AI is a paid study tool for Canvas. The user signs in
+with an activation code, and question text is sent to our backend,
+which calls a hosted AI model and returns an answer. There is no
+third-party analytics, advertising or tracking library in the
+package.
+
+The only other external addresses in the package are plain links
+the user can click (Stripe checkout and billing portal, our
+listing page, our Discord, a demo video on YouTube). Nothing is
+loaded from them into the extension.
+
+Happy to supply a test account and a sample Canvas quiz on
+request.

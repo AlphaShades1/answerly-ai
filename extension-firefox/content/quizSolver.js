@@ -1741,7 +1741,8 @@ window.__answerlyQuizSolverLoaded = true;
       // impossible to inject whenever screenshot stealth had run first.
       if (qEl.querySelector('.answerly-btn:not(.answerly-cam-btn)')) return;
 
-      const { questionText, options, dropdownRows, textInputEls } = extractData(qEl);
+      const { questionText: rawStem, options, dropdownRows, textInputEls } = extractData(qEl);
+      const questionText = stemOrFallback(qEl, rawStem);
       if (!questionText) return;
 
       // Computed once, here, so every branch below (dropdown / stealth / normal)
@@ -2363,6 +2364,29 @@ window.__answerlyQuizSolverLoaded = true;
         || mathIsLossy(qEl);
   }
 
+  // A question whose stem is pure picture — a labelled diagram with the
+  // dropdowns sitting beside it — extracts as the empty string, because there
+  // is no text in it to extract. Every injection path used to `return` on that
+  // emptiness, so the question got no "?" button, no camera button, and the
+  // screenshot keybind found nothing under the cursor to click. The one
+  // question on the quiz that most needed the screenshot tool was the only one
+  // that could not reach it, and it failed silently in both modes.
+  //
+  // Standing a placeholder in keeps the question in play. It still reads as a
+  // screenshot question either way, because NEEDS_SCREENSHOT_RE matches the
+  // placeholder itself — so the "?" button points at the camera and Solve All
+  // counts it as skipped rather than passing over it without a word.
+  const IMAGE_ONLY_STEM = 'See the image for this question.';
+  const ANSWERABLE_SEL  = 'select, input[type="checkbox"], input[type="radio"], input[type="text"], textarea';
+
+  function stemOrFallback(qEl, questionText) {
+    if (questionText && questionText.trim()) return questionText;
+    // Only stand in for something actually answerable. A container with no
+    // inputs in it is not a question, and stays skipped as before.
+    try { return qEl.querySelector(ANSWERABLE_SEL) ? IMAGE_ONLY_STEM : ''; }
+    catch { return ''; }
+  }
+
   // ── "Use the screenshot tool" toast ─────────────────────────────────────────
   // Solve All now skips image questions instead of guessing. Skipping silently
   // would leave them blank with no explanation, so say so. Auto-dismisses after
@@ -2478,7 +2502,8 @@ window.__answerlyQuizSolverLoaded = true;
       // a re-render and can't be set by merely VIEWING a card.
       if (solvedQ.has(qEl) || isBusy(qEl)) return;
 
-      const { questionText, options, dropdownRows, textInputEls } = extractData(qEl);
+      const { questionText: rawStem, options, dropdownRows, textInputEls } = extractData(qEl);
+      const questionText = stemOrFallback(qEl, rawStem);
       if (!questionText) return;
 
       const hasChoices    = !!qEl.querySelector('input[type="checkbox"], input[type="radio"]');
@@ -2852,7 +2877,7 @@ window.__answerlyQuizSolverLoaded = true;
     questions.forEach(qEl => {
       if (qEl.querySelector('.answerly-cam-only')) return; // already injected
       const textEl = qEl.querySelector('.question_text, [data-question-text], .question-text, .formattedHtml');
-      const questionText = textEl ? textEl.innerText.trim() : '';
+      const questionText = stemOrFallback(qEl, textEl ? textEl.innerText.trim() : '');
       if (!questionText) return;
       const header =
         qEl.querySelector('.question_name') ||

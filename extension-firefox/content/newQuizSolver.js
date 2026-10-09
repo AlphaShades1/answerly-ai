@@ -301,6 +301,20 @@ window.__answerlyNQSolverLoaded = true;
         || nqMathIsLossy(qEl);
   }
 
+  // Same hole as Classic: a stem that is nothing but a picture extracts as the
+  // empty string, and returning early on it stripped the question of every
+  // button — including the camera button the screenshot keybind looks for.
+  // Native New Quizzes carries no question-type label either, so there was no
+  // second signal to fall back on. See quizSolver.js for the long version.
+  const NQ_IMAGE_ONLY_STEM = 'See the image for this question.';
+  const NQ_ANSWERABLE_SEL  = 'select, input[role="combobox"], input[type="checkbox"], input[type="radio"], input[type="text"], textarea';
+
+  function nqStemOrFallback(qEl, questionText) {
+    if (questionText && questionText.trim()) return questionText;
+    try { return qEl.querySelector(NQ_ANSWERABLE_SEL) ? NQ_IMAGE_ONLY_STEM : ''; }
+    catch { return ''; }
+  }
+
   function nqMathIsLossy(qEl) {
     try {
       const stemContainer = qEl.querySelector('div[tabindex="-1"]');
@@ -2105,7 +2119,7 @@ window.__answerlyNQSolverLoaded = true;
       const stemContent   = stemContainer
         ? stemContainer.querySelector('.user_content.enhanced')
         : qEl.querySelector('.user_content.enhanced');
-      const questionText = nqStemWithoutSelectOptions(stemContent) || nqStemText(stemContent);
+      const questionText = nqStemOrFallback(qEl, nqStemWithoutSelectOptions(stemContent) || nqStemText(stemContent));
       if (!questionText) return;
 
       const camBtn = document.createElement('button');
@@ -2179,7 +2193,8 @@ window.__answerlyNQSolverLoaded = true;
       const sig = nqStemSig(qEl);
       if (nqUpToDate(qEl, sig)) return; // already built for THIS question
 
-      const { questionText, questionType, options, inputOptionPairs, textInputEls, dropdownRows, comboEls } = extractNQData(qEl);
+      const { questionText: rawStem, questionType, options, inputOptionPairs, textInputEls, dropdownRows, comboEls } = extractNQData(qEl);
+      const questionText = nqStemOrFallback(qEl, rawStem);
       if (!questionText) return;
 
       const accent         = theme.accentColor || DEFAULT_THEME.accentColor;
@@ -2519,7 +2534,8 @@ window.__answerlyNQSolverLoaded = true;
       const btn = qEl.querySelector(`.answerly-nq-btn.${INJECTED}:not(.answerly-nq-cam-btn)`);
       if (btn?.dataset.opened) return;
 
-      const { questionText, options, inputOptionPairs, textInputEls, dropdownRows } = extractNQData(qEl);
+      const { questionText: rawStem, options, inputOptionPairs, textInputEls, dropdownRows } = extractNQData(qEl);
+      const questionText = nqStemOrFallback(qEl, rawStem);
       if (!questionText) return;
 
       const hasChoices    = inputOptionPairs.length > 0;
