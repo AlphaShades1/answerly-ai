@@ -307,12 +307,29 @@ window.__answerlyNQSolverLoaded = true;
   // Native New Quizzes carries no question-type label either, so there was no
   // second signal to fall back on. See quizSolver.js for the long version.
   const NQ_IMAGE_ONLY_STEM = 'See the image for this question.';
-  const NQ_ANSWERABLE_SEL  = 'select, input[role="combobox"], input[type="checkbox"], input[type="radio"], input[type="text"], textarea';
+
+  // Same breadth as Classic, and for the same reason — see quizSolver.js. New
+  // Quizzes needs it more, not less: its matching and dropdown controls are
+  // ARIA comboboxes rather than <select>, its essay box is an editor iframe,
+  // and categorization / ordering / hot spot expose no classic control at all.
+  // A shared stimulus cannot reach here: it lives outside sdk-item-wrapper, so
+  // findNQQuestions() never returns it.
+  const NQ_ANSWERABLE_SEL = [
+    'select', 'textarea', '[contenteditable="true"]',
+    'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"])',
+    '[role="combobox"]', '[role="listbox"]', '[role="radio"]',
+    '[role="checkbox"]', '[role="textbox"]',
+    '[draggable="true"]', 'iframe'
+  ].join(', ');
+
+  const NQ_STEM_MEDIA_SEL = 'img, svg, canvas, video, audio, object, embed, picture, math, iframe';
 
   function nqStemOrFallback(qEl, questionText) {
     if (questionText && questionText.trim()) return questionText;
-    try { return qEl.querySelector(NQ_ANSWERABLE_SEL) ? NQ_IMAGE_ONLY_STEM : ''; }
-    catch { return ''; }
+    try {
+      if (nqStemEl(qEl).querySelector(NQ_STEM_MEDIA_SEL)) return NQ_IMAGE_ONLY_STEM;
+      return qEl.querySelector(NQ_ANSWERABLE_SEL) ? NQ_IMAGE_ONLY_STEM : '';
+    } catch { return ''; }
   }
 
   function nqMathIsLossy(qEl) {

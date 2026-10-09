@@ -2377,14 +2377,35 @@ window.__answerlyQuizSolverLoaded = true;
   // placeholder itself — so the "?" button points at the camera and Solve All
   // counts it as skipped rather than passing over it without a word.
   const IMAGE_ONLY_STEM = 'See the image for this question.';
-  const ANSWERABLE_SEL  = 'select, input[type="checkbox"], input[type="radio"], input[type="text"], textarea';
+
+  // Deliberately broad. The question being asked is "is this a real question",
+  // never "which type is it" — an enumerated list of control types is how this
+  // bug happened once already, and a list that forgets input[type=number] or an
+  // essay's editor iframe would simply reproduce it on a different question.
+  // So: every input except the kinds that are not answers, plus the ARIA shapes
+  // New Quizzes builds its widgets from, plus drag handles and editor frames.
+  const ANSWERABLE_SEL = [
+    'select', 'textarea', '[contenteditable="true"]',
+    'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"])',
+    '[role="combobox"]', '[role="listbox"]', '[role="radio"]',
+    '[role="checkbox"]', '[role="textbox"]',
+    '[draggable="true"]', 'iframe'
+  ].join(', ');
+
+  // Media that can carry the whole question when there is no text beside it:
+  // a hot-spot image, a plotted graph, an embedded clip.
+  const STEM_MEDIA_SEL = 'img, svg, canvas, video, audio, object, embed, picture, math, iframe';
 
   function stemOrFallback(qEl, questionText) {
     if (questionText && questionText.trim()) return questionText;
-    // Only stand in for something actually answerable. A container with no
-    // inputs in it is not a question, and stays skipped as before.
-    try { return qEl.querySelector(ANSWERABLE_SEL) ? IMAGE_ONLY_STEM : ''; }
-    catch { return ''; }
+    try {
+      // A "text (no question)" block is a shared passage the other questions
+      // refer back to, not something to answer. It already feeds quiz context.
+      if (qEl.classList && qEl.classList.contains('text_only_question')) return '';
+      const stem = qEl.querySelector('.question_text, [data-question-text], .question-text') || qEl;
+      if (stem.querySelector(STEM_MEDIA_SEL)) return IMAGE_ONLY_STEM;
+      return qEl.querySelector(ANSWERABLE_SEL) ? IMAGE_ONLY_STEM : '';
+    } catch { return ''; }
   }
 
   // ── "Use the screenshot tool" toast ─────────────────────────────────────────

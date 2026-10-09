@@ -12,18 +12,24 @@ stale build from reverted work; do not upload it.
 ----------------------------------------------------------------
 1) RELEASE NOTES  ("What's new in this version?")
 ----------------------------------------------------------------
-Fixed: a question whose wording is entirely inside a picture got
-no extension button at all. A labelled diagram with dropdowns
-beside it, with no typed question text above it, was skipped
-outright. There was no button to click, the keyboard shortcut did
-nothing on it, and turning stealth mode off did not bring the
-button back. Every other question on the same quiz worked, which
-made it look like the question itself had broken the extension.
+Fixed: any question whose wording lives entirely inside a picture
+got no extension button at all. If an instructor builds a question
+as a labelled diagram with no typed text above it, there was
+nothing to click, the keyboard shortcut did nothing on it, and
+turning stealth mode off did not bring the button back. Every
+other question on the same quiz worked, so it looked like that one
+question had broken the extension.
 
-These questions are now treated as picture questions and point
-you at the screenshot tool, the same as any other question whose
-answer is only in a figure. The fix applies to both Canvas quiz
-engines, Classic and New Quizzes.
+This affected every question type, not one of them: multiple
+choice, true or false, multiple answer, matching, dropdowns,
+typed blanks, numeric, formula, essay, file upload, ordering,
+categorization and hot spot were all skipped when the question
+carried no text. Both Canvas quiz engines were affected, Classic
+and New Quizzes, and both are fixed.
+
+These questions are now treated as picture questions and point you
+at the screenshot tool, the same as any other question whose
+answer is only in a figure.
 
 
 ----------------------------------------------------------------
@@ -47,7 +53,7 @@ Change - questions whose text is only a picture
 Both quiz engines read the question wording out of the question's
 text container before deciding whether to attach the extension's
 button to it. When an instructor builds a question as nothing but
-an image - a labelled diagram, with the answer dropdowns rendered
+an image - a labelled diagram, with the answer controls rendered
 beside it - that container holds an <img> and no text, so the
 extraction correctly returned an empty string.
 
@@ -58,20 +64,38 @@ result was a silent dead end on exactly the question that most
 needed the screenshot tool.
 
 The fix substitutes a short placeholder ("See the image for this
-question.") when the extracted text is empty AND the question
-contains at least one answer control (a select, combobox, radio,
-checkbox, text input or textarea). A container with no answer
-controls in it is not a question and is still skipped, so no
-button is attached to page furniture.
+question.") when the extracted text is empty AND the question is
+recognisably a real question - that is, its stem contains media
+(an image, figure, canvas, embedded clip or equation) or the
+question contains at least one control a student could answer
+through.
 
-The placeholder routes the question down the existing
-picture-question path that was already in the product: the
-button tells the user to use the screenshot tool, and the
-bulk-solve pass counts the question as skipped rather than
-passing over it in silence. No new network request, no new data,
-and no new question-answering behaviour is introduced - a
-question that previously had no button now follows the same code
-path as any other question containing a figure.
+That second test is deliberately broad rather than a list of
+question types. It accepts any <input> except the kinds that are
+not answers (hidden, submit, button, reset), plus select,
+textarea, contenteditable regions, editor iframes, drag handles,
+and the ARIA roles New Quizzes builds its custom widgets from
+(combobox, listbox, radio, checkbox, textbox). An enumerated list
+of control types is what caused this bug in the first place, and
+a list that forgot numeric inputs or an essay's editor iframe
+would simply reproduce it on a different question type.
+
+Two things are still skipped, by design: a Canvas "text (no
+question)" block, which is a shared reading passage the other
+questions refer back to rather than something to answer, and a
+container with neither media nor any control in it.
+
+The placeholder routes the question down the picture-question
+path that was already in the product: the button tells the user
+to use the screenshot tool, and the bulk-solve pass counts the
+question as skipped rather than passing over it in silence. No
+new network request, no new data, and no new question-answering
+behaviour is introduced - a question that previously had no
+button now follows the same code path as any other question
+containing a figure.
+
+Verified against replica markup for both engines covering every
+Canvas question type in picture-only form, 31 cases in total.
 
 Permissions and network
 -----------------------
