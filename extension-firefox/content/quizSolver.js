@@ -1593,6 +1593,29 @@ window.__answerlyQuizSolverLoaded = true;
   // passes: exact → length-guarded includes (both directions) → letter/number
   // indicator ("B", "Option B", "B)", "2", "(3)"). Returns -1 if nothing is a
   // confident match, so a vague part never sweeps in the wrong box.
+  // The screenshot answer arrives as a headline plus its reasoning:
+  //   "**Oil** Parmigianino painted ... Acrylic paint was not invented until
+  //    the twentieth century ..."
+  // Option matching used to be handed that whole string, and matchOptionIndex
+  // accepts an option whose label merely APPEARS inside it, so the distractor
+  // the explanation named in order to rule it out was selected instead of the
+  // answer. Measured on a real Art History midterm (code ANS-UXVF, 2026-10-10):
+  // "Acrylic" was picked twice over "Oil" and "Tempera", and the attempt scored
+  // 68%% where the model's own answers were worth about 80%%. The better the
+  // explanation, the likelier it was to lose the mark.
+  //
+  // Only the headline is compared against option labels. The full text is left
+  // untouched for the essay and text-input paths, which genuinely want it.
+  // No headline and no line break means no explanation to strip, so the string
+  // is returned unchanged and nothing that worked before changes.
+  function answerHeadline(s) {
+    const t = String(s || '').trim();
+    const bold = t.match(/^\s*\*\*([\s\S]+?)\*\*/);
+    if (bold && bold[1].trim()) return bold[1].trim();
+    const first = t.split(/\r?\n/)[0].trim();
+    return (first && first.length < t.length) ? first : t;
+  }
+
   function matchOptionIndex(inputs, ansStr, qEl) {
     const a = String(ansStr || '').trim();
     if (!a) return -1;
@@ -2793,7 +2816,8 @@ window.__answerlyQuizSolverLoaded = true;
                 : [];
               const selects = Array.from(qEl.querySelectorAll('select'));
               let matched   = false;
-              if (textParts.length > 0) matched = autoSelectAnswer(qEl, textParts.join(", "), textParts);
+              const matchParts = textParts.map(answerHeadline);
+              if (textParts.length > 0) matched = autoSelectAnswer(qEl, matchParts.join(", "), matchParts);
               if (!matched && answerLetter && /^[a-e](,\s*[a-e])*$/.test(answerLetter))
                 matched = autoSelectAnswer(qEl, answerLetter);
               if (selects.length > 0 && textParts.length > 0) {

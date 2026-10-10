@@ -1059,6 +1059,29 @@ window.__answerlyNQSolverLoaded = true;
   // Classic engine's matchOptionIndex: exact → length-guarded includes (both
   // directions) → bare letter indicator. Returns -1 when nothing is a confident
   // match, so a vague part never sweeps in the wrong box.
+  // The screenshot answer arrives as a headline plus its reasoning:
+  //   "**Oil** Parmigianino painted ... Acrylic paint was not invented until
+  //    the twentieth century ..."
+  // Option matching used to be handed that whole string, and matchOptionIndex
+  // accepts an option whose label merely APPEARS inside it, so the distractor
+  // the explanation named in order to rule it out was selected instead of the
+  // answer. Measured on a real Art History midterm (code ANS-UXVF, 2026-10-10):
+  // "Acrylic" was picked twice over "Oil" and "Tempera", and the attempt scored
+  // 68%% where the model's own answers were worth about 80%%. The better the
+  // explanation, the likelier it was to lose the mark.
+  //
+  // Only the headline is compared against option labels. The full text is left
+  // untouched for the essay and text-input paths, which genuinely want it.
+  // No headline and no line break means no explanation to strip, so the string
+  // is returned unchanged and nothing that worked before changes.
+  function answerHeadline(s) {
+    const t = String(s || '').trim();
+    const bold = t.match(/^\s*\*\*([\s\S]+?)\*\*/);
+    if (bold && bold[1].trim()) return bold[1].trim();
+    const first = t.split(/\r?\n/)[0].trim();
+    return (first && first.length < t.length) ? first : t;
+  }
+
   function matchNQOptionIndex(inputOptionPairs, ansStr) {
     const a = String(ansStr || '').trim();
     if (!a) return -1;
@@ -1988,7 +2011,8 @@ window.__answerlyNQSolverLoaded = true;
             }
             matched = set > 0;
           }
-          if (!matched && textParts.length > 0) matched = autoSelectNQAnswer(qEl, textParts.join(', '), inputOptionPairs, textParts);
+          const matchParts = textParts.map(answerHeadline);
+          if (!matched && textParts.length > 0) matched = autoSelectNQAnswer(qEl, matchParts.join(', '), inputOptionPairs, matchParts);
           if (!matched && answerLetter && /^[a-e](,\s*[a-e])*$/.test(answerLetter))
             matched = autoSelectNQAnswer(qEl, answerLetter, inputOptionPairs);
           // Every part, not just the first: with two or more blanks only box 1

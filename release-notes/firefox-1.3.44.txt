@@ -37,6 +37,15 @@ that all looked identical to the tool being broken.
     captured, with no message saying why. It now tells you that
     nothing was selected and to drag a box around the question.
 
+Fixed: on a multiple-choice question answered from a screenshot,
+the extension could select a wrong option that the AI had named
+only in order to rule it out. If the answer came back as "Oil -
+acrylic paint was not invented until the twentieth century", the
+option "Acrylic" was selected instead of "Oil", because the whole
+explanation was being compared against the answer choices. The
+better the explanation, the more likely it was to lose the mark.
+Only the answer itself is now compared against the options.
+
 New: a question-mark button in the extension header opens a help
 page answering the questions we are asked most often - which
 questions need the screenshot tool, turning features on before a
@@ -85,13 +94,22 @@ Scope of this update, measured against 1.3.43:
    - No change to what is captured, how it is cropped, or where
      it is sent.
 
-4. popup/popup.html, popup.css, popup.js
+4. content/quizSolver.js, content/newQuizSolver.js
+   - Added answerHeadline(), which returns the leading bold span
+     of a model answer, or its first line, and otherwise returns
+     the string unchanged. Option matching for screenshot-answered
+     questions now compares that instead of the full answer text,
+     so an option named inside the explanation is no longer
+     selected. The full text is still used unchanged for essay and
+     text-input answers. Same change in both quiz engines.
+
+5. popup/popup.html, popup.css, popup.js
    - Added a help button in the header and a static help view
      containing the text in section 1. The view is plain markup
      with no remote content. Its two buttons open a YouTube
      tutorial URL and the project Discord invite in a new tab.
 
-5. popup/customize.html, customize.js
+6. popup/customize.html, customize.js
    - Added a read-only section that displays the currently bound
      shortcut, read via chrome.commands.getAll(), and explains
      where to change it. It captures no keystrokes.
