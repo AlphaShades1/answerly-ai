@@ -46,6 +46,16 @@ explanation was being compared against the answer choices. The
 better the explanation, the more likely it was to lose the mark.
 Only the answer itself is now compared against the options.
 
+Fixed: when the add-on updates while a quiz page is already open,
+the tools used to stop working with no explanation - the
+screenshot panel and its selection overlay disappeared mid-use,
+and the solver buttons stayed on the page but did nothing when
+clicked. A page open at the moment of an update can no longer
+reach the add-on at all, which is normal, but nothing said so.
+A small notice now appears explaining that Answerly was updated,
+with a button to reload the page. It can be dismissed and stays
+dismissed.
+
 New: a question-mark button in the extension header opens a help
 page answering the questions we are asked most often - which
 questions need the screenshot tool, turning features on before a
@@ -103,13 +113,25 @@ Scope of this update, measured against 1.3.43:
      selected. The full text is still used unchanged for essay and
      text-input answers. Same change in both quiz engines.
 
-5. popup/popup.html, popup.css, popup.js
+5. content/screenshotTool.js, quizSolver.js, newQuizSolver.js
+   - Added answerlyContextLost() and showAnswerlyReloadNotice().
+     When chrome.runtime.id is gone the page can no longer reach
+     the add-on, so instead of tearing the UI down silently (or
+     leaving dead buttons) a notice is appended to the page
+     explaining the update and offering location.reload(). It is
+     built with DOM methods and inline styles, since no stylesheet
+     can be injected at that point, and uses no extension API.
+     Dismissal is recorded as a data attribute on <html> so the
+     three scripts agree and the periodic re-check cannot re-raise
+     it.
+
+6. popup/popup.html, popup.css, popup.js
    - Added a help button in the header and a static help view
      containing the text in section 1. The view is plain markup
      with no remote content. Its two buttons open a YouTube
      tutorial URL and the project Discord invite in a new tab.
 
-6. popup/customize.html, customize.js
+7. popup/customize.html, customize.js
    - Added a read-only section that displays the currently bound
      shortcut, read via chrome.commands.getAll(), and explains
      where to change it. It captures no keystrokes.

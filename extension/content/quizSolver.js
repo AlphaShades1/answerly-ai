@@ -3098,8 +3098,82 @@ window.__answerlyQuizSolverLoaded = true;
     return true;
   }
 
+  // ── Extension updated out from under this page ─────────────────────────────
+  // Updating, reloading or disabling the extension orphans every content script
+  // already running in an open tab: chrome.runtime.id goes undefined and no
+  // chrome.* call can ever succeed again. That used to happen in total silence.
+  // The screenshot panel and its capture overlay were torn down mid-selection,
+  // and the solver buttons stayed on the page but did nothing when clicked —
+  // both of which read as the extension breaking in the middle of a quiz. A
+  // student reported exactly that on 2026-10-10 while sitting one: "it would go
+  // from the red cursor back to the normal cursor really fast". Publishing an
+  // update is itself what triggers it, so every release caused a wave of this.
+  //
+  // The page's DOM still belongs to us after the context dies, so say what
+  // happened instead of vanishing. location.reload() needs no chrome API, so
+  // the button still works. The element id is shared by all three content
+  // scripts: whichever notices first puts the notice up and the others find it
+  // already there, so a page running the solver and the screenshot tool at once
+  // still only shows one.
+  function answerlyContextLost() {
+    try { return !(chrome.runtime && chrome.runtime.id); } catch (e) { return true; }
+  }
+  function showAnswerlyReloadNotice() {
+    try {
+      if (!document.body) return;
+      if (document.getElementById('answerly-reload-notice')) return;
+      // Dismissal has to outlive this function: the reconciler calls back every
+      // second or two, so a flag held in one script's scope would just put the
+      // notice straight back, and a per-script flag would let the other two
+      // re-raise it anyway. The marker goes on <html>, which all three share.
+      if (document.documentElement.getAttribute('data-answerly-reload-dismissed')) return;
+      var box = document.createElement('div');
+      box.id = 'answerly-reload-notice';
+      // Inline styles on purpose: the extension's own stylesheet may already be
+      // gone, and nothing can be injected any more.
+      box.setAttribute('style',
+        'position:fixed;top:16px;left:50%;transform:translateX(-50%);' +
+        'z-index:2147483647;background:#1a1a22;color:#f0f0f5;' +
+        'border:1px solid #7c5cfc;border-radius:12px;padding:12px 14px;' +
+        'box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:340px;' +
+        'font:13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;');
+      var title = document.createElement('div');
+      title.setAttribute('style', 'font-weight:700;margin-bottom:4px;color:#c4b5fd;');
+      title.textContent = 'Answerly was updated';
+      var msg = document.createElement('div');
+      msg.setAttribute('style', 'color:#c0c0d8;line-height:1.45;margin-bottom:10px;');
+      msg.textContent = 'Reload this page to keep using it. Your quiz answers are not affected.';
+      var row = document.createElement('div');
+      row.setAttribute('style', 'display:flex;gap:8px;');
+      var go = document.createElement('button');
+      go.type = 'button';
+      go.textContent = 'Reload page';
+      go.setAttribute('style',
+        'flex:1;padding:7px 10px;border-radius:8px;border:none;background:#7c5cfc;' +
+        'color:#fff;font-weight:700;font-size:12px;cursor:pointer;');
+      go.addEventListener('click', function () { location.reload(); });
+      var no = document.createElement('button');
+      no.type = 'button';
+      no.textContent = 'Dismiss';
+      no.setAttribute('style',
+        'padding:7px 10px;border-radius:8px;border:1px solid #2e2e3e;' +
+        'background:transparent;color:#8888a0;font-size:12px;cursor:pointer;');
+      no.addEventListener('click', function () {
+        try { document.documentElement.setAttribute('data-answerly-reload-dismissed', '1'); } catch (e) {}
+        box.remove();
+      });
+      row.appendChild(go);
+      row.appendChild(no);
+      box.appendChild(title);
+      box.appendChild(msg);
+      box.appendChild(row);
+      document.body.appendChild(box);
+    } catch (e) { /* context is gone; nothing further is possible */ }
+  }
+
   let recheckPending = false;
   setInterval(() => {
+    if (answerlyContextLost()) { showAnswerlyReloadNotice(); return; }
     if (!stateReady) return;
     if (repairStaleModeButtons()) return;
     if (solverActive)                 { injectStyles(); injectButtons(); startObserver(); try { getRelatedQuestions(); } catch {} maybeShowNotesNudge(); }
