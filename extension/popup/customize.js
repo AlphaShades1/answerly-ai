@@ -73,6 +73,16 @@ chrome.storage.local.get('answerlySession', (sess) => {
   });
 });
 
+// ── Screenshot toggle shortcut (read-only, managed by browser commands API) ──
+const toggleSsShortcut = document.getElementById('toggle-ss-shortcut');
+if (toggleSsShortcut && chrome.commands?.getAll) {
+  chrome.commands.getAll((cmds) => {
+    const cmd = cmds.find(c => c.name === 'toggle-screenshot');
+    if (cmd?.shortcut) toggleSsShortcut.textContent = cmd.shortcut;
+    else toggleSsShortcut.textContent = 'Not set';
+  });
+}
+
 // ── Stealth keybind (global preference) ──────────────────────────────────────
 let keybind = { enabled: false, key: '' };
 function prettyKey(k) {

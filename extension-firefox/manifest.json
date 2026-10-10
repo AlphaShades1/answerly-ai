@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Answerly AI: Canvas Quiz & Homework Solver",
-  "version": "1.3.43",
+  "version": "1.3.44",
   "description": "AI-powered homework helper with quiz hints, answers, and a screenshot tool for Canvas LMS and other platforms.",
   "browser_specific_settings": {
     "gecko": {
@@ -69,6 +69,14 @@
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "commands": {
+    "toggle-screenshot": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+X"
+      },
+      "description": "Toggle Screenshot Tool on/off"
+    }
   },
   "web_accessible_resources": [
     {

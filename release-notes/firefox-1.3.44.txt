@@ -1,0 +1,101 @@
+================================================================
+ANSWERLY AI 1.3.44 - FIREFOX (AMO) SUBMISSION NOTES
+Paste section 1 into "What's new in this version?"
+Paste section 2 into "Notes for reviewers"
+
+Upload 1.3.44. It contains everything in 1.3.43 and earlier.
+================================================================
+
+
+----------------------------------------------------------------
+1) RELEASE NOTES  ("What's new in this version?")
+----------------------------------------------------------------
+New: a keyboard shortcut that shows or hides the screenshot tool
+on any website. Press Ctrl+Shift+X and the screenshot panel
+appears; press it again and it goes away. Previously the only way
+to open it was through the toolbar popup. The shortcut is handled
+by the browser, so it works on any page without opening the
+popup. You can change or clear it in the Add-ons Manager under
+"Manage Extension Shortcuts". The Customize page now shows which
+shortcut is currently bound and explains what it does.
+
+Fixed: selecting an area for a screenshot failed in three ways
+that all looked identical to the tool being broken.
+
+  - If you released the mouse button over the screenshot panel
+    itself, or outside the browser window, the selection never
+    finished and the capture overlay stayed on screen until you
+    pressed Escape. The panel sits above the overlay, so it was
+    swallowing the mouse release. Releasing the button anywhere
+    now completes the selection.
+
+  - The panel could intercept a drag that passed over it. It is
+    now click-through while you are selecting an area.
+
+  - A click that did not move far enough to be a box was thrown
+    away in silence. The overlay just vanished and nothing was
+    captured, with no message saying why. It now tells you that
+    nothing was selected and to drag a box around the question.
+
+New: a question-mark button in the extension header opens a help
+page answering the questions we are asked most often - which
+questions need the screenshot tool, turning features on before a
+quiz starts, how the keyboard shortcuts work, which question
+types cannot be filled in automatically, and how monthly code
+renewal works.
+
+
+----------------------------------------------------------------
+2) NOTES FOR REVIEWERS
+----------------------------------------------------------------
+Scope of this update, measured against 1.3.43:
+
+1. manifest.json
+   - version 1.3.43 -> 1.3.44
+   - Added a "commands" entry: one command, "toggle-screenshot",
+     suggested key Ctrl+Shift+X. No new permissions. The
+     permission list and host permissions are unchanged from the
+     previously reviewed version.
+
+2. background/background.js
+   - Added a chrome.commands.onCommand listener for that one
+     command. It flips the same stored flag the toolbar button
+     already flips, injects the existing content/screenshotTool.js
+     into the active tab, and sends the same messages the popup
+     sends. It does nothing when the user is not signed in.
+   - The listener is registered at the end of the file and is
+     guarded by "if (chrome.commands?.onCommand)". This is
+     deliberate: an unguarded reference throws at the top level
+     wherever the API is absent, which would prevent every
+     listener below it from registering.
+   - It ignores repeat firings within 400ms, so holding the key
+     down cannot toggle the panel more than once.
+
+3. content/screenshotTool.js
+   - The area-selection overlay now listens for mousemove and
+     mouseup on window during a drag instead of only on the
+     overlay element, so a release outside the overlay still
+     completes the selection. All listeners are removed when the
+     overlay closes.
+   - The panel is given pointer-events:none while the overlay is
+     open so it cannot intercept the drag, and the class is
+     removed afterwards.
+   - A selection smaller than 10x10 now shows a message instead
+     of cancelling silently. Escape still cancels without one.
+   - No change to what is captured, how it is cropped, or where
+     it is sent.
+
+4. popup/popup.html, popup.css, popup.js
+   - Added a help button in the header and a static help view
+     containing the text in section 1. The view is plain markup
+     with no remote content. Its two buttons open a YouTube
+     tutorial URL and the project Discord invite in a new tab.
+
+5. popup/customize.html, customize.js
+   - Added a read-only section that displays the currently bound
+     shortcut, read via chrome.commands.getAll(), and explains
+     where to change it. It captures no keystrokes.
+
+No new permissions, no new hosts, no remote code, and no change
+to the network endpoints the extension talks to. All added code
+is in the files listed above.

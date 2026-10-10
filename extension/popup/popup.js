@@ -58,7 +58,7 @@ const btnQuizLoader   = document.getElementById('btn-quiz-loader');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showView(id) {
-  ['view-activate', 'view-main', 'view-loading', 'view-support'].forEach(v => {
+  ['view-activate', 'view-main', 'view-loading', 'view-support', 'view-help'].forEach(v => {
     document.getElementById(v)?.classList.add('hidden');
   });
   document.getElementById(id).classList.remove('hidden');
@@ -452,6 +452,19 @@ btnMenu.addEventListener('click', (e) => {
 document.getElementById('menu-tutorial').addEventListener('click', () => {
   menuDropdown.classList.add('hidden');
   chrome.tabs.create({ url: 'https://www.youtube.com/channel/UCrMGuTUthvK7yNdbP8_wDBg' });
+});
+
+// ── Help / FAQ ────────────────────────────────────────────────────────────────
+document.getElementById('btn-help').addEventListener('click', () => {
+  document.querySelector('#view-help .help-body')?.scrollTo(0, 0);
+  showView('view-help');
+});
+document.getElementById('help-back').addEventListener('click', () => showView('view-main'));
+document.getElementById('help-tutorial').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'https://www.youtube.com/watch?v=HIp3uUznzc4' });
+});
+document.getElementById('help-discord').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'https://discord.gg/uxFXsMgqrE' });
 });
 
 document.getElementById('menu-subscription').addEventListener('click', () => {

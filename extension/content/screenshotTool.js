@@ -29,6 +29,10 @@ window.__answerlyScreenshotLoaded = true;
         font-size: 13px; user-select: none;
       }
       #answerly-ss-widget.answerly-stealth-hidden { visibility:hidden!important; opacity:0!important; }
+      /* The widget stacks ABOVE the selection overlay, so without this it ate the
+         mousedown/mouseup of any drag that touched it and the selection never
+         completed — the overlay just hung there. */
+      #answerly-ss-widget.answerly-ss-inert { pointer-events:none !important; }
 
       .answerly-ss-topbar {
         display:flex; align-items:center; justify-content:space-between;
@@ -323,8 +327,10 @@ window.__answerlyScreenshotLoaded = true;
             captures.push(cropped);
             showPreview();
           });
-        }, () => {
-          // User pressed Esc — nothing captured
+        }, (reason) => {
+          // Esc is a deliberate cancel and stays quiet; a selection too small to
+          // crop is a mistake the student needs told about.
+          if (reason === 'too-small') showErr('Nothing selected — drag a box around the question.');
         });
       });
     }, 150);
@@ -356,6 +362,7 @@ window.__answerlyScreenshotLoaded = true;
     overlay.appendChild(hint);
 
     document.body.appendChild(overlay);
+    document.getElementById('answerly-ss-widget')?.classList.add('answerly-ss-inert');
 
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);   // draw in CSS-pixel coordinates at device resolution
@@ -461,20 +468,18 @@ window.__answerlyScreenshotLoaded = true;
     img.onload = () => draw();
     img.src = fullDataUrl;
 
-    overlay.addEventListener('mousemove', (e) => {
+    // The press has to START on the overlay, but the release can land anywhere:
+    // on the widget a layer above it, outside the window, or on a page element
+    // that grabbed the pointer. Watching move/up on the overlay alone meant those
+    // releases were never seen — `selecting` stayed true and the overlay hung on
+    // screen until the user happened to find Escape. Both now listen on window in
+    // the capture phase, so a drag always finishes wherever the button comes up.
+    function onMove(e) {
       mouseX = e.clientX; mouseY = e.clientY;
       if (selecting) { curX = e.clientX; curY = e.clientY; drawn = true; }
       draw();
-    });
-
-    overlay.addEventListener('mousedown', (e) => {
-      startX = e.clientX; startY = e.clientY;
-      curX = e.clientX;   curY = e.clientY;
-      selecting = true; drawn = false;
-      e.preventDefault();
-    });
-
-    overlay.addEventListener('mouseup', (e) => {
+    }
+    function onUp(e) {
       if (!selecting) return;
       selecting = false;
       curX = e.clientX; curY = e.clientY;
@@ -484,23 +489,37 @@ window.__answerlyScreenshotLoaded = true;
       const w = Math.abs(curX - startX);
       const h = Math.abs(curY - startY);
 
-      overlay.remove();
-      removeEscListener();
+      teardown();
 
-      if (w < 10 || h < 10) {
-        onCancel(); // too small, treat as cancel
-        return;
-      }
+      // A press that barely moved used to cancel in total silence: the overlay
+      // vanished, the panel looked untouched, and nothing said why. That is
+      // indistinguishable from the tool being broken, so say what happened.
+      if (w < 10 || h < 10) { onCancel('too-small'); return; }
       onSelect({ x, y, w, h });
+    }
+
+    overlay.addEventListener('mousedown', (e) => {
+      startX = e.clientX; startY = e.clientY;
+      curX = e.clientX;   curY = e.clientY;
+      selecting = true; drawn = false;
+      e.preventDefault();
     });
 
+    window.addEventListener('mousemove', onMove, true);
+    window.addEventListener('mouseup',   onUp,   true);
+
     function escHandler(e) {
-      if (e.key === 'Escape') { overlay.remove(); removeEscListener(); onCancel(); }
-    }
-    function removeEscListener() {
-      document.removeEventListener('keydown', escHandler);
+      if (e.key === 'Escape') { teardown(); onCancel('escape'); }
     }
     document.addEventListener('keydown', escHandler);
+
+    function teardown() {
+      overlay.remove();
+      document.removeEventListener('keydown', escHandler);
+      window.removeEventListener('mousemove', onMove, true);
+      window.removeEventListener('mouseup',   onUp,   true);
+      document.getElementById('answerly-ss-widget')?.classList.remove('answerly-ss-inert');
+    }
   }
 
   // ── Crop helper ────────────────────────────────────────────────────────────

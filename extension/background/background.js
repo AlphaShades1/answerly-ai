@@ -436,3 +436,52 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
   });
 });
+
+// ── Keyboard shortcut: toggle the Screenshot Tool ────────────────────────────
+// Registered LAST, and behind a guard, on purpose. chrome.commands is absent in
+// some contexts, and an unguarded chrome.commands.onCommand throws at the top
+// level of this file — which killed every listener registered below it,
+// including the message router. That is what broke CAPTURE_SCREENSHOT and made
+// the screenshot tool stop responding after this shortcut was added.
+let ssHotkeyAt = 0;
+if (chrome.commands?.onCommand) {
+  chrome.commands.onCommand.addListener(async (command) => {
+    if (command !== 'toggle-screenshot') return;
+
+    // Holding the key repeats the command, which toggled the widget straight
+    // back off again and read as the tool "turning on twice" and glitching.
+    const now = Date.now();
+    if (now - ssHotkeyAt < 400) return;
+    ssHotkeyAt = now;
+
+    const stored = await new Promise(r => chrome.storage.local.get([
+      'answerlyScreenshotActive', 'answerlySession',
+    ], r));
+    if (!stored.answerlySession?.code) return;
+    const nowActive = !stored.answerlyScreenshotActive;
+
+    // Stealth is always cleared here: this shortcut is the NORMAL screenshot
+    // tool. A stealth flag left on from an earlier session hid the widget the
+    // instant it was built, so the key looked like it did nothing at all.
+    await new Promise(r => chrome.storage.local.set({
+      answerlyScreenshotActive: nowActive,
+      answerlyScreenshotStealthActive: false,
+    }, r));
+
+    if (nowActive) {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.url?.startsWith('http')) return;
+      try {
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content/screenshotTool.js'] });
+        chrome.tabs.sendMessage(tab.id, { type: 'SS_STEALTH_OFF' }).catch(() => {});
+        chrome.tabs.sendMessage(tab.id, { type: 'SCREENSHOT_TOOL_ON' }).catch(() => {});
+      } catch { /* tab not injectable */ }
+      return;
+    }
+
+    const allTabs = await chrome.tabs.query({});
+    for (const t of allTabs) {
+      try { await chrome.tabs.sendMessage(t.id, { type: 'SCREENSHOT_TOOL_OFF' }); } catch {}
+    }
+  });
+}
