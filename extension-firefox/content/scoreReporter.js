@@ -252,6 +252,18 @@
     // beneath it. Testing for the tick first would therefore mark every wrong
     // answer correct. Verified against a real 6-out-of-10 results page: this
     // returns exactly 6 correct and 4 incorrect, with none unknown.
+    // Everything from here down reads New Quizzes markup, and running it on
+    // Classic is actively harmful. Classic prints the words "Incorrect answer"
+    // as a label beside every distractor it lists, on right and wrong questions
+    // alike, so the text test below matched every single question. Observed on a
+    // real Classic practice quiz: 39 questions stored as "incorrect" and zero as
+    // "correct", on an attempt that actually scored 73%. Classic is already fully
+    // resolved by the class check above; if that did not settle it we genuinely do
+    // not know, and this file would rather say nothing than store a wrong verdict
+    // as fact.
+    if (qEl.classList && (qEl.classList.contains('display_question') ||
+        qEl.querySelector('.selected_answer, .correct_answer'))) return null;
+
     if (qEl.querySelector('svg[name="IconX"]') ||
         /Incorrect answer\s*:/i.test(qEl.textContent || '')) return 'incorrect';
     if (qEl.querySelector('svg[name="IconCheck"], svg[name="IconCheckMark"]')) return 'correct';

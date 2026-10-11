@@ -295,6 +295,20 @@ window.__answerlyNQSolverLoaded = true;
   }
 
   // The single gate, mirroring quizSolver.js's needsScreenshotFor().
+  // A question you have to LISTEN to. Mirrors quizSolver.js: the model cannot
+  // hear, and unlike a picture question there is no tool to fall back on, so
+  // declining is the only honest answer. Measured across real graded attempts,
+  // these scored 50.0% of 22 — chance on a binary choice. Narrow on purpose:
+  // it matches instructions to listen, not the subject of sound.
+  const NQ_NEEDS_HEARING_RE = /\b(?:click|press|hit|select)\s+(?:on\s+)?(?:the\s+)?play\b|\bplay button\b|\blisten (?:to the|again)\b|\bwhat you (?:hear|heard)\b|\byou (?:will )?hear\b/i;
+
+  function nqNeedsHearing(qEl, questionText) {
+    try {
+      if (qEl && qEl.querySelector('audio, [class*="audio-player"], [data-testid*="audio"]')) return true;
+    } catch (e) { /* detached node */ }
+    return NQ_NEEDS_HEARING_RE.test(questionText || '');
+  }
+
   function nqNeedsScreenshotFor(qEl, questionText) {
     return nqQuestionHasImage(qEl)
         || NQ_NEEDS_SCREENSHOT_RE.test(questionText || '')
@@ -1638,10 +1652,15 @@ window.__answerlyNQSolverLoaded = true;
         ' can’t be filled in automatically.</div>' +
         '<div style="font-weight:600;line-height:1.45">' + esc(opts.answer) + '</div>';
     } else {
-    msg.innerHTML =
-      '<div style="font-weight:' + (dim ? '600' : '700') + ';margin-bottom:3px">' +
-      '📸 Screenshot needed</div>' +
-      what + ' can’t be auto-answered — use the screenshot tool on ' + them + '.';
+    msg.innerHTML = opts.audio
+      ? '<div style="font-weight:' + (dim ? '600' : '700') + ';margin-bottom:3px">' +
+        '🔇 Audio question</div>' +
+        what + ' need' + (opts.count && opts.count > 1 ? '' : 's') +
+        ' you to listen. Answerly can’t hear audio, so ' + them +
+        ' stayed blank rather than being guessed.'
+      : '<div style="font-weight:' + (dim ? '600' : '700') + ';margin-bottom:3px">' +
+        '📸 Screenshot needed</div>' +
+        what + ' can’t be auto-answered — use the screenshot tool on ' + them + '.';
     }
 
     const x = document.createElement('button');
@@ -2253,7 +2272,8 @@ window.__answerlyNQSolverLoaded = true;
       // A picture question, or one that says "refer to the figure", cannot be
       // answered from its text either — same treatment as lossy maths.
       const needsShot      = nqNeedsScreenshotFor(qEl, questionText);
-      const isFreeText     = (!hasChoices && !hasDropdowns && !isFillInBlank) || needsShot;
+      const needsEars      = nqNeedsHearing(qEl, questionText);
+      const isFreeText     = (!hasChoices && !hasDropdowns && !isFillInBlank) || needsShot || needsEars;
       const showCamBtn     = screenshotStealthActive;
 
       // Everything with no input we can drive lands in the isFreeText branch —
@@ -2264,7 +2284,9 @@ window.__answerlyNQSolverLoaded = true;
       // Kept to a bare noun phrase ("Categorization question") so it reads
       // correctly in both places it appears: the normal-mode card and the
       // stealth toast, which wrap it in different sentences.
-      const unsupportedLabel = mathLossy
+      const unsupportedLabel = needsEars
+        ? 'This question'
+        : mathLossy
         ? 'Equation question'
         : (needsShot && (hasChoices || hasDropdowns || isFillInBlank)
             // It has inputs we could drive — the blocker is the picture, not the
@@ -2325,7 +2347,7 @@ window.__answerlyNQSolverLoaded = true;
             // like Categorization / Ordering / Hot Spot). Say so in the dim
             // toast instead of failing silently — a click that does nothing at
             // all reads as the extension being broken.
-            showNQScreenshotToast({ label: unsupportedLabel });
+            showNQScreenshotToast({ label: unsupportedLabel, audio: needsEars });
             btn.dataset.done = '';   // allow another click
             return;
           }
@@ -2570,6 +2592,7 @@ window.__answerlyNQSolverLoaded = true;
   function _solveAllPass() {
     let delay = 0;
     let skippedImages = 0;   // picture / lossy-maths questions left for the screenshot tool
+    let skippedAudio  = 0;   // listening questions: nothing we have can answer these
     findNQQuestions().forEach(qEl => {
       // Skip questions already answered by a previous pass
       const btn = qEl.querySelector(`.answerly-nq-btn.${INJECTED}:not(.answerly-nq-cam-btn)`);
@@ -2589,6 +2612,7 @@ window.__answerlyNQSolverLoaded = true;
       // above catches either one, and answering them means guessing — which
       // reads as a normal answer and is wrong most of the time. Counted so the
       // caller can tell the student why some questions were left blank.
+      if (nqNeedsHearing(qEl, questionText)) { skippedAudio++; return; }
       if (nqNeedsScreenshotFor(qEl, questionText)) { skippedImages++; return; }
       // Skip already-filled text inputs
       if (isFillInBlank && textInputEls[0].value?.trim()) return;
@@ -2624,7 +2648,7 @@ window.__answerlyNQSolverLoaded = true;
       }, delay);
       delay += 1200;
     });
-    return { delay, skippedImages }; // time this pass takes, and what it refused
+    return { delay, skippedImages, skippedAudio }; // time this pass takes, and what it refused
   }
 
   // The popup fires Solve All TWO ways so it reaches every frame: a runtime
@@ -2641,9 +2665,12 @@ window.__answerlyNQSolverLoaded = true;
     nqSolveAllRunning = true;
     injectStyles();
     injectButtons(); // ensure buttons exist so they can be marked done
-    const { delay: firstPassDuration, skippedImages } = _solveAllPass();
+    const { delay: firstPassDuration, skippedImages, skippedAudio } = _solveAllPass();
     // Only the first pass reports skips. The retry re-walks the same questions
     // and would skip them again, popping a second toast ~8s later.
+    // Audio is NOT recorded as a skipped image: the popup's nudge tells the
+    // student to use the screenshot tool, which cannot help them hear.
+    if (skippedAudio > 0) showNQScreenshotToast({ count: skippedAudio, audio: true });
     if (skippedImages > 0) {
       try { chrome.storage.local.set({ answerlySkippedImages: { ts: Date.now(), count: skippedImages } }); } catch {}
       showNQScreenshotToast({ count: skippedImages });

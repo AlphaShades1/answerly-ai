@@ -1857,6 +1857,11 @@ window.__answerlyQuizSolverLoaded = true;
         btn.addEventListener('click', async (e) => {
           e.preventDefault();
           e.stopPropagation();
+          if (questionNeedsHearing(qEl, questionText)) {
+            showScreenshotToast(1, { single: true, audio: true });
+            btn.dataset.opened = 'true';
+            return;
+          }
           if (needsScreenshot) {
             recordSkippedImages(1);
             showScreenshotToast(1, { single: true });
@@ -1971,6 +1976,11 @@ window.__answerlyQuizSolverLoaded = true;
         btn.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
+          if (questionNeedsHearing(qEl, questionText)) {
+            showScreenshotToast(1, { single: true, audio: true });
+            btn.dataset.opened = 'true';
+            return;
+          }
           if (needsScreenshot) {
             recordSkippedImages(1);
             showScreenshotToast(1, { single: true });
@@ -2068,6 +2078,11 @@ window.__answerlyQuizSolverLoaded = true;
           // Image question: the toast carries the message now, and the card is
           // never opened — so no empty "Thinking…" panel is left sitting on the
           // page under a question that is never going to be solved.
+          if (questionNeedsHearing(qEl, questionText)) {
+            showScreenshotToast(1, { single: true, audio: true });
+            btn.dataset.opened = 'true';
+            return;
+          }
           if (needsScreenshot) {
             recordSkippedImages(1);
             showScreenshotToast(1, { single: true });
@@ -2302,13 +2317,17 @@ window.__answerlyQuizSolverLoaded = true;
     // solveAllDirect staggers requests ~1200ms apart; a flat 8s retry used to
     // fire BEFORE the first pass finished dispatching on quizzes with 7+
     // questions, double-billing every one of them. Scale the retry to the pass.
-    const { delay: firstPassDuration, skippedImages } = solveAllDirect();
+    const { delay: firstPassDuration, skippedImages, skippedAudio } = solveAllDirect();
     // Only the first pass reports skips. The retry re-walks the same questions
     // and would skip them again, popping a second toast ~8s later.
     if (skippedImages > 0) {
       recordSkippedImages(skippedImages);   // popup keeps it after the toast goes
       showScreenshotToast(skippedImages);   // dim in stealth, full in normal
     }
+    // Audio is reported separately and NOT recorded as a skipped image: the
+    // popup's "use the screenshot tool" nudge is wrong advice for a question
+    // nothing we have can answer.
+    if (skippedAudio > 0) showScreenshotToast(skippedAudio, { audio: true });
     const retryIn = Math.max((firstPassDuration || 0) + 6000, 8000);
     setTimeout(solveAllDirect, retryIn);
     setTimeout(() => { solveAllRunning = false; }, retryIn + 5000);
@@ -2379,6 +2398,29 @@ window.__answerlyQuizSolverLoaded = true;
       // present, or if styled unicode letters are standing in for notation.
       return !!textEl.querySelector(LOSSY_MATH_SEL) || MATH_ALNUM_RE.test(txt);
     } catch { return false; }   // never let detection break solving
+  }
+
+  // A question you have to LISTEN to. The model cannot hear, and the screenshot
+  // tool cannot help either, so this is the one case where the honest move is to
+  // decline rather than route the student somewhere.
+  //
+  // Measured over real graded attempts: questions of this shape scored 50.0%
+  // across 22 of them — exactly chance on a binary choice — because the model
+  // guesses confidently instead of saying it cannot tell. A wrong answer the
+  // student trusts is worse than no answer, and it spends one of their 150
+  // daily solves to produce it.
+  //
+  // Deliberately narrow. It matches INSTRUCTIONS to listen, not the topic of
+  // sound: "click the play button" is an audio question, "which frequency range
+  // is audible to humans" is a perfectly answerable text one. An actual <audio>
+  // element is the only non-phrase signal trusted here.
+  const NEEDS_HEARING_RE = /\b(?:click|press|hit|select)\s+(?:on\s+)?(?:the\s+)?play\b|\bplay button\b|\blisten (?:to the|again)\b|\bwhat you (?:hear|heard)\b|\byou (?:will )?hear\b/i;
+
+  function questionNeedsHearing(qEl, questionText) {
+    try {
+      if (qEl && qEl.querySelector('audio, [class*="audio-player"], [data-testid*="audio"]')) return true;
+    } catch (e) { /* detached node */ }
+    return NEEDS_HEARING_RE.test(questionText || '');
   }
 
   function needsScreenshotFor(qEl, questionText) {
@@ -2490,7 +2532,16 @@ window.__answerlyQuizSolverLoaded = true;
     // survive being read as text. Saying "uses an image" would be wrong for the
     // second, and a student who sees a plainly-visible equation described as an
     // image reasonably concludes the extension is broken.
-    const body = opts.single
+    // The audio wording is a different message, not a variant of the same one:
+    // there is no tool to point at. Saying "use the screenshot tool" on a
+    // listening question would send the student in a circle.
+    const body = opts.audio
+      ? (opts.single
+          ? 'Answerly cannot hear audio, so this one is yours to answer. Guessing it would be a coin flip.'
+          : (count === 1 ? '1 question' : count + ' questions') +
+            ' need you to listen to audio. Answerly cannot hear, so ' +
+            (count === 1 ? 'it was' : 'they were') + ' skipped rather than guessed.')
+      : opts.single
       ? 'This question needs the screenshot tool — the text alone does not capture it, so it was skipped.'
       : (count === 1
           ? '1 question needs the screenshot tool, so it was skipped.'
@@ -2499,7 +2550,7 @@ window.__answerlyQuizSolverLoaded = true;
         'answering from the text alone would just be a guess.';
     msg.innerHTML =
       '<div style="font-weight:' + (dim ? '600' : '700') + ';margin-bottom:3px">' +
-      '📸 Screenshot needed</div>' + body;
+      (opts.audio ? '🔇 Audio question' : '📸 Screenshot needed') + '</div>' + body;
 
     const x = document.createElement('button');
     x.type = 'button';
@@ -2539,6 +2590,7 @@ window.__answerlyQuizSolverLoaded = true;
   function solveAllDirect() {
     let delay = 0;
     let skippedImages = 0;
+    let skippedAudio  = 0;
     findQuestions().forEach(qEl => {
       const btn = qEl.querySelector(`.answerly-btn.${INJECTED}:not(.answerly-cam-btn)`);
       // Skip if genuinely answered, or if a request for it is still in flight.
@@ -2561,6 +2613,7 @@ window.__answerlyQuizSolverLoaded = true;
       // points at the screenshot tool; Solve All used to send them anyway with
       // the image stripped out, so the model answered from the text alone and
       // guessed. Counted so the caller can explain the blanks.
+      if (questionNeedsHearing(qEl, questionText)) { skippedAudio++; return; }
       if (needsScreenshotFor(qEl, questionText)) { skippedImages++; return; }
 
       setTimeout(() => {
@@ -2655,7 +2708,7 @@ window.__answerlyQuizSolverLoaded = true;
       }, delay);
       delay += 1200;
     });
-    return { delay, skippedImages };
+    return { delay, skippedImages, skippedAudio };
   }
 
   // Records WHY a solve failed so the popup can tell "not logged in" / "daily
