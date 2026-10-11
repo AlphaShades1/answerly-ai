@@ -1099,6 +1099,28 @@ window.__answerlyNQSolverLoaded = true;
   function matchNQOptionIndex(inputOptionPairs, ansStr) {
     const a = String(ansStr || '').trim();
     if (!a) return -1;
+    // Case-sensitive exact match FIRST. normalizeText() lowercases, so "M3" and
+    // "m3" collapse to one string - a major third and a minor third - and
+    // whichever option happens to come first silently wins. Seen in real graded
+    // data: "M3" selected where "m3" was correct.
+    //
+    // The costly one is genetics. Options of AA / Aa / aa all normalise to "aa",
+    // so EVERY Punnett-square question selected the first option no matter what
+    // the model answered. Same collapse hits Co vs CO in chemistry and mS vs ms
+    // in units. None of it announced itself: the answer was right and the click
+    // landed on the wrong radio.
+    //
+    // Strictly additive. An exact case-sensitive hit cannot be the wrong option,
+    // and anything that does not hit falls through to the behaviour below
+    // unchanged. The trailing-punctuation variant is here because a model answer
+    // of "Aa." would otherwise miss the exact pass and hit the old collapse.
+    const aBare = a.replace(/[.)\]:,;]+$/, '').trim();
+    for (let i = 0; i < inputOptionPairs.length; i++) {
+      const raw = String((inputOptionPairs[i] || {}).labelText || '').trim();
+      if (!raw) continue;
+      const rawBare = raw.replace(/[.)\]:,;]+$/, '').trim();
+      if (raw === a || rawBare === aBare) return i;
+    }
     const aNorm  = normalizeText(a);
     const labels = inputOptionPairs.map(p => normalizeText(p.labelText));
     for (let i = 0; i < labels.length; i++) if (labels[i] && labels[i] === aNorm) return i;

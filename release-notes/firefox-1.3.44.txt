@@ -56,6 +56,14 @@ A small notice now appears explaining that Answerly was updated,
 with a button to reload the page. It can be dismissed and stays
 dismissed.
 
+Fixed: answer options that differ only by capital letters were
+not told apart, so the first one was always chosen. Genetics
+questions were the worst affected - options of AA, Aa and aa all
+looked identical, so every Punnett square question picked the
+first one no matter what the answer was. The same applied to
+music intervals (M3 and m3), chemistry (Co and CO) and units
+(mS and ms). These are now matched exactly.
+
 New: questions that ask you to listen to audio are now declined
 instead of guessed. Answerly cannot hear, so on questions like
 "click the play button and identify the chord" it was answering
@@ -138,7 +146,17 @@ Scope of this update, measured against 1.3.43:
      three scripts agree and the periodic re-check cannot re-raise
      it.
 
-6. content/quizSolver.js, content/newQuizSolver.js (audio)
+6. content/quizSolver.js, content/newQuizSolver.js (matching)
+   - matchOptionIndex() / matchNQOptionIndex() now try a
+     case-sensitive exact match against the option labels before
+     the existing normalised comparison. The normaliser
+     lowercases, which made AA / Aa / aa indistinguishable and
+     selected the first of them every time; likewise M3 vs m3,
+     Co vs CO, mS vs ms. Strictly additive - an exact
+     case-sensitive hit cannot be the wrong option, and anything
+     that does not hit falls through to the previous behaviour.
+
+7. content/quizSolver.js, content/newQuizSolver.js (audio)
    - Added questionNeedsHearing() / nqNeedsHearing(), matching an
      <audio> element or an instruction to listen ("click the play
      button", "listen to the", "what you heard"). Such questions
@@ -147,7 +165,7 @@ Scope of this update, measured against 1.3.43:
      pattern matches instructions to listen, not the topic of
      sound, so ordinary text questions about audio are unaffected.
 
-7. content/scoreReporter.js
+8. content/scoreReporter.js
    - verdictFor() no longer applies New Quizzes heuristics to
      Classic markup. Classic prints the words "Incorrect answer"
      beside every distractor it lists, so a text test intended for
@@ -157,13 +175,13 @@ Scope of this update, measured against 1.3.43:
      null (unknown) rather than guessing. Affects only the
      add-on's internal records.
 
-8. popup/popup.html, popup.css, popup.js
+9. popup/popup.html, popup.css, popup.js
    - Added a help button in the header and a static help view
      containing the text in section 1. The view is plain markup
      with no remote content. Its two buttons open a YouTube
      tutorial URL and the project Discord invite in a new tab.
 
-9. popup/customize.html, customize.js
+10. popup/customize.html, customize.js
    - Added a read-only section that displays the currently bound
      shortcut, read via chrome.commands.getAll(), and explains
      where to change it. It captures no keystrokes.
