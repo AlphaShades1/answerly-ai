@@ -400,7 +400,7 @@ function showActivateError(msg) {
 }
 
 btnBuy.addEventListener('click', () => {
-  chrome.tabs.create({ url: 'https://buy.stripe.com/9B6aEP1Pi4CZ6CP17Y67S00' });
+  chrome.tabs.create({ url: 'https://buy.stripe.com/8x28wHalO6L76CPaIy67S02' });
 });
 
 document.getElementById('btn-discord-activate').addEventListener('click', () => {
@@ -469,7 +469,7 @@ document.getElementById('help-discord').addEventListener('click', () => {
 
 document.getElementById('menu-subscription').addEventListener('click', () => {
   menuDropdown.classList.add('hidden');
-  chrome.tabs.create({ url: 'https://buy.stripe.com/9B6aEP1Pi4CZ6CP17Y67S00' });
+  chrome.tabs.create({ url: 'https://buy.stripe.com/8x28wHalO6L76CPaIy67S02' });
 });
 
 document.getElementById('menu-manage').addEventListener('click', () => {
