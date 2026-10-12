@@ -2277,47 +2277,75 @@ window.__answerlyNQSolverLoaded = true;
   // never overlap and neither moves depending on whether the other is on.
   const NQ_BTN_SLOTS = { trigger: 8, camera: 36 };   // px from the right edge
 
-  // Where the buttons go: immediately AFTER the "1 point" label, which is where
-  // the header visibly ends and exactly where Classic puts them.
+  // Where the buttons go: immediately after whatever element PRINTS the point
+  // value, so they sit to its right exactly as on Classic.
   //
-  // This deliberately does NOT try to identify "the header row" and append to
-  // it. That was the previous attempt, and on real New Quizzes markup the climb
-  // to a direct child of the wrapper landed on the container holding the ENTIRE
-  // question, so appendChild dropped the button underneath the answer options -
-  // reported with a screenshot showing it below "Rome". Anchoring to one
-  // specific element and inserting a sibling after it cannot do that: the
-  // button lands exactly one position to the right of the thing it matched, or
-  // nowhere at all, in which case the pin below still catches it.
-  const NQ_POINTS_RE = /^\d+(?:\.\d+)?\s*(?:point|points|pt|pts)$/i;
+  // Two earlier attempts failed and both failures are worth keeping written
+  // down, because each looked obviously correct.
+  //
+  //   1. Climbing to "the header row" and appending. The climb stopped at a
+  //      direct child of the item wrapper, which on real markup is the element
+  //      holding the WHOLE question, so the button was appended beneath the
+  //      answer options.
+  //   2. Matching an element whose text is exactly "1 point". When the build
+  //      prints "Multiple Choice  1 point" inside a single element, nothing
+  //      matches at all and the pinned corner takes over - which is the far
+  //      right, the thing we are trying to get away from.
+  //
+  // So: match on OWN text (direct text nodes only, so a wrapper containing the
+  // header reports nothing and cannot win), allow the label to be combined with
+  // other words, and require the element to sit ABOVE the stem so a stem that
+  // says "worth 2 points" can never be chosen. Geometry decides the last part
+  // rather than structure, because structure is what has been wrong twice.
+  const NQ_POINTS_RE = /\d+(?:\.\d+)?\s*(?:points?|pts?)\b/i;
+
+  function nqOwnText(el) {
+    let t = '';
+    for (let i = 0; i < el.childNodes.length; i++) {
+      const n = el.childNodes[i];
+      if (n.nodeType === 3) t += n.nodeValue;
+    }
+    return t.replace(/\s+/g, ' ').trim();
+  }
 
   function nqAnchorEl(qEl) {
     try {
       const stem = qEl.querySelector('div[tabindex="-1"] .user_content.enhanced, .user_content.enhanced');
-      const inStem = (el) => !!(stem && stem.contains(el));
+      // Everything at or below the stem (or the first answer control, when
+      // there is no stem element) is out of bounds for a header label.
+      let floor = Infinity;
+      const edge = stem || qEl.querySelector('input, select, textarea, [draggable="true"]');
+      if (edge) {
+        const r = edge.getBoundingClientRect();
+        if (r.width || r.height) floor = r.top;
+      }
 
-      // 1. The point value. The SMALLEST element whose own text is exactly
-      //    "1 point", so a wrapper that merely contains it cannot win - that
-      //    wrapper is how the button ended up at the bottom of the question.
-      let best = null, bestSize = Infinity;
-      qEl.querySelectorAll('span, div, p, td, li, label, strong, em').forEach(el => {
-        if (inStem(el)) return;
-        const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
-        if (!NQ_POINTS_RE.test(t)) return;
-        const size = el.querySelectorAll('*').length;
-        if (size < bestSize) { best = el; bestSize = size; }
-      });
-      if (best) return best;
+      const all = qEl.querySelectorAll('*');
+      let fallbackLabel = null;
+      for (let i = 0; i < all.length; i++) {
+        const el = all[i];
+        if (stem && stem.contains(el)) continue;
+        if (el.classList && el.classList.contains('answerly-nq-btn')) continue;
+        const own = nqOwnText(el);
+        if (!own || own.length > 80) continue;
+        const r = el.getBoundingClientRect();
+        const aboveStem = (floor === Infinity) || (r.top < floor - 1);
+        if (!aboveStem) continue;
+        if (NQ_POINTS_RE.test(own)) return el;          // the point value itself
+        if (!fallbackLabel && /^(multiple choice|true\/false|essay|matching|categorization|ordering|fill in the blank|numeric|formula|hot spot|multiple answer|file upload)/i.test(own)) {
+          fallbackLabel = el;                            // type label, if no points shown
+        }
+      }
+      if (fallbackLabel) return fallbackLabel;
 
-      // 2. The question-type label, on builds that print one.
       const type = qEl.querySelector('[data-automation="sdk-interaction-type-name-div"]');
-      if (type && !inStem(type)) return type;
-
-      // 3. The position number box.
+      if (type && !(stem && stem.contains(type))) return type;
       const pos = qEl.querySelector('[data-automation="sdk-position-box-text"]');
-      if (pos && !inStem(pos)) return pos.closest('[data-automation="sdk-position-box"]') || pos;
+      if (pos && !(stem && stem.contains(pos))) return pos.closest('[data-automation="sdk-position-box"]') || pos;
     } catch (e) { /* detached node */ }
     return null;
   }
+
 
 
   function placeNQButton(qEl, btn, slot) {
