@@ -2277,80 +2277,75 @@ window.__answerlyNQSolverLoaded = true;
   // never overlap and neither moves depending on whether the other is on.
   const NQ_BTN_SLOTS = { trigger: 8, camera: 36 };   // px from the right edge
 
-  // Find the row that prints the position number and "Multiple Choice  1 point",
-  // so the buttons sit at the TOP of the question the way Classic puts them in
-  // .question_name, rather than pinned out at the right edge where they are easy
-  // to miss entirely.
+  // Where the buttons go: immediately AFTER the "1 point" label, which is where
+  // the header visibly ends and exactly where Classic puts them.
   //
-  // Layered rather than one selector, because the obvious approach has already
-  // failed once here: anchoring to the type label landed the button 32px, 54px,
-  // 86px and 171px down depending on which of four shapes New Quizzes rendered,
-  // and at 171px it sat BELOW the answer options. Invisible in stealth mode,
-  // that reads as there being no button at all. Native New Quizzes makes it
-  // worse by printing no sdk-interaction-type-name-div whatsoever (measured
-  // 2026-10-08), so the single most obvious selector is absent on the build
-  // most students are actually sitting.
-  //
-  // Hence three independent routes, and the absolute pin below is kept as the
-  // floor. The worst case is therefore exactly the old behaviour - a button on
-  // the right - never a button that cannot be found.
-  function nqHeaderRow(qEl) {
+  // This deliberately does NOT try to identify "the header row" and append to
+  // it. That was the previous attempt, and on real New Quizzes markup the climb
+  // to a direct child of the wrapper landed on the container holding the ENTIRE
+  // question, so appendChild dropped the button underneath the answer options -
+  // reported with a screenshot showing it below "Rome". Anchoring to one
+  // specific element and inserting a sibling after it cannot do that: the
+  // button lands exactly one position to the right of the thing it matched, or
+  // nowhere at all, in which case the pin below still catches it.
+  const NQ_POINTS_RE = /^\d+(?:\.\d+)?\s*(?:point|points|pt|pts)$/i;
+
+  function nqAnchorEl(qEl) {
     try {
-      // 1. The position box or type label, whichever this build renders.
-      //    Climb to the row that holds them, but never as far as the wrapper.
-      const marker = qEl.querySelector(
-        '[data-automation="sdk-position-box-text"], [data-automation="sdk-interaction-type-name-div"]');
-      if (marker) {
-        let row = marker.parentElement;
-        for (let i = 0; i < 4 && row && row !== qEl && row.parentElement !== qEl; i++) {
-          row = row.parentElement;
-        }
-        if (row && row !== qEl && qEl.contains(row)) return row;
-      }
-      // 2. Native New Quizzes: no sdk attributes, but the header still prints
-      //    the point value. Only the first few blocks are considered, so a
-      //    "worth 2 points" sentence inside the stem cannot win.
-      const kids = Array.prototype.slice.call(qEl.children, 0, 4);
-      for (const k of kids) {
-        const t = ((k.innerText || k.textContent || '')).replace(/\s+/g, ' ').trim();
-        if (t && t.length <= 80 && /\b\d+(?:\.\d+)?\s*points?\b/i.test(t)) return k;
-      }
-      // 3. A short first block that is plainly a header and not the stem.
-      const first = qEl.children[0];
-      if (first) {
-        const t = ((first.innerText || first.textContent || '')).replace(/\s+/g, ' ').trim();
-        if (t && t.length <= 60 && !/\?$/.test(t)) return first;
-      }
+      const stem = qEl.querySelector('div[tabindex="-1"] .user_content.enhanced, .user_content.enhanced');
+      const inStem = (el) => !!(stem && stem.contains(el));
+
+      // 1. The point value. The SMALLEST element whose own text is exactly
+      //    "1 point", so a wrapper that merely contains it cannot win - that
+      //    wrapper is how the button ended up at the bottom of the question.
+      let best = null, bestSize = Infinity;
+      qEl.querySelectorAll('span, div, p, td, li, label, strong, em').forEach(el => {
+        if (inStem(el)) return;
+        const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!NQ_POINTS_RE.test(t)) return;
+        const size = el.querySelectorAll('*').length;
+        if (size < bestSize) { best = el; bestSize = size; }
+      });
+      if (best) return best;
+
+      // 2. The question-type label, on builds that print one.
+      const type = qEl.querySelector('[data-automation="sdk-interaction-type-name-div"]');
+      if (type && !inStem(type)) return type;
+
+      // 3. The position number box.
+      const pos = qEl.querySelector('[data-automation="sdk-position-box-text"]');
+      if (pos && !inStem(pos)) return pos.closest('[data-automation="sdk-position-box"]') || pos;
     } catch (e) { /* detached node */ }
     return null;
   }
 
+
   function placeNQButton(qEl, btn, slot) {
-    // Preferred: inline on the question's own header row, beside the point
-    // value, matching Classic. Camera lands after the trigger because the
-    // trigger is injected first, so the pair keeps a stable order.
-    const row = nqHeaderRow(qEl);
-    if (row) {
+    // Preferred: as a sibling immediately after the point value, so the button
+    // sits to its right exactly as it does on Classic.
+    const anchor = nqAnchorEl(qEl);
+    if (anchor && anchor.parentElement) {
       btn.style.setProperty('position', 'static', 'important');
       btn.style.setProperty('top', 'auto', 'important');
       btn.style.setProperty('right', 'auto', 'important');
       btn.style.setProperty('left', 'auto', 'important');
       btn.style.setProperty('margin', '0 0 0 8px', 'important');
-      // If Canvas lays the header out as flex with space-between, the last
-      // child gets thrown to the far right - which is the exact placement
-      // this change exists to get away from. margin-right:auto absorbs that
-      // free space so the button hugs the point value instead. Inert in a
-      // non-flex row, so it costs nothing on the layouts that behave.
-      btn.style.setProperty('margin-right', 'auto', 'important');
       btn.style.setProperty('vertical-align', 'middle', 'important');
       btn.style.setProperty('display', 'inline-flex', 'important');
+      btn.style.setProperty('flex', '0 0 auto', 'important');
       // The stylesheet sets pointer-events:none on the position box and type
-      // label so the header cannot swallow a click aimed at the button. Now
-      // that the button lives INSIDE that row, it has to opt back in or it
-      // would inherit the same deadness and never fire.
+      // label so the header cannot swallow a click meant for the button. Sitting
+      // among them, the button has to opt back in or it renders perfectly and
+      // never fires.
       btn.style.setProperty('pointer-events', 'auto', 'important');
       btn.style.setProperty('z-index', '2147483000', 'important');
-      row.appendChild(btn);
+      // Keep the pair in injection order and side by side: go after the last
+      // button already placed in this same parent, otherwise after the anchor.
+      const placed = Array.prototype.slice
+        .call(qEl.querySelectorAll('.answerly-nq-btn'))
+        .filter(b => b !== btn && b.parentElement === anchor.parentElement);
+      const after = placed.length ? placed[placed.length - 1] : anchor;
+      after.insertAdjacentElement('afterend', btn);
       return;
     }
 
