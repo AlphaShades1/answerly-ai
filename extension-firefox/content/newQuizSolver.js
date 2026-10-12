@@ -104,7 +104,7 @@ window.__answerlyNQSolverLoaded = true;
       if (qs.length !== 1) return;               // only the one-question-per-page case
       qEl = qs[0];
     }
-    const trigger = qEl.querySelector(`.answerly-nq-btn.${INJECTED}:not(.answerly-nq-cam-btn)`);
+    const trigger = nqScope(qEl).querySelector(`.answerly-nq-btn.${INJECTED}:not(.answerly-nq-cam-btn)`);
     if (trigger) {
       e.preventDefault();
       delete trigger.dataset.done;               // force a fresh solve, so usage still counts
@@ -2174,7 +2174,7 @@ window.__answerlyNQSolverLoaded = true;
             camBtn.dataset.opened = 'true';
             // Solve All skips a question only when its ? button is marked done;
             // without this it re-answered the question the camera just filled.
-            const solveBtn = qEl.querySelector(`.answerly-nq-btn.${INJECTED}:not(.answerly-nq-cam-btn)`);
+            const solveBtn = nqScope(qEl).querySelector(`.answerly-nq-btn.${INJECTED}:not(.answerly-nq-cam-btn)`);
             if (solveBtn) solveBtn.dataset.opened = 'true';
           }
         }
@@ -2203,7 +2203,10 @@ window.__answerlyNQSolverLoaded = true;
   }
 
   function nqClearInjected(qEl) {
-    qEl.querySelectorAll(`.${INJECTED}, .answerly-nq-card`).forEach(el => el.remove());
+    // Scope, not qEl: the buttons now live beside the header, which is
+    // OUTSIDE the wrapper. Clearing only within qEl left them behind and
+    // the next reconcile tick added another pair, every two seconds.
+    nqScope(qEl).querySelectorAll(`.${INJECTED}, .answerly-nq-card`).forEach(el => el.remove());
   }
 
   // Returns true when this wrapper already carries buttons for the CURRENT
@@ -2211,7 +2214,7 @@ window.__answerlyNQSolverLoaded = true;
   // question — in the latter case the stale ones are removed first so the caller
   // re-injects fresh.
   function nqUpToDate(qEl, sig) {
-    const existing = qEl.querySelector(`.answerly-nq-btn.${INJECTED}`);
+    const existing = nqScope(qEl).querySelector(`.answerly-nq-btn.${INJECTED}`);
     if (!existing) return false;
     if (existing.dataset.qsig === sig) return true;
     nqClearInjected(qEl);
@@ -2277,28 +2280,37 @@ window.__answerlyNQSolverLoaded = true;
   // never overlap and neither moves depending on whether the other is on.
   const NQ_BTN_SLOTS = { trigger: 8, camera: 36 };   // px from the right edge
 
-  // Where the buttons go: immediately after whatever element PRINTS the point
-  // value, so they sit to its right exactly as on Classic.
+  // The header is OUTSIDE the item wrapper on this build. Confirmed against a
+  // real native New Quizzes page on 2026-10-11: a probe over every descendant
+  // of [data-automation="sdk-item-wrapper"] found NOT ONE element whose own
+  // text mentions "point" or the question type. The wrapper holds the stem and
+  // the options; "1  Multiple Choice  1 point" is rendered above it, outside.
   //
-  // Two earlier attempts failed and both failures are worth keeping written
-  // down, because each looked obviously correct.
+  // That is why three attempts at anchoring inside the wrapper all failed and
+  // all fell through to the pinned corner, which is the far right - the exact
+  // thing being fixed.
   //
-  //   1. Climbing to "the header row" and appending. The climb stopped at a
-  //      direct child of the item wrapper, which on real markup is the element
-  //      holding the WHOLE question, so the button was appended beneath the
-  //      answer options.
-  //   2. Matching an element whose text is exactly "1 point". When the build
-  //      prints "Multiple Choice  1 point" inside a single element, nothing
-  //      matches at all and the pinned corner takes over - which is the far
-  //      right, the thing we are trying to get away from.
-  //
-  // So: match on OWN text (direct text nodes only, so a wrapper containing the
-  // header reports nothing and cannot win), allow the label to be combined with
-  // other words, and require the element to sit ABOVE the stem so a stem that
-  // says "worth 2 points" can never be chosen. Geometry decides the last part
-  // rather than structure, because structure is what has been wrong twice.
+  // So the search widens to the smallest ancestor that still belongs to THIS
+  // question: climb while the ancestor contains exactly one wrapper, and stop
+  // before one that holds two, which would be the list of all questions. That
+  // bound is what keeps a multi-question page from anchoring to a neighbour's
+  // header or, far worse, letting cleanup delete a neighbour's buttons.
+  function nqScope(qEl) {
+    try {
+      let scope = qEl, up = qEl.parentElement, hops = 0;
+      while (up && hops < 5) {
+        if (up.querySelectorAll('[data-automation="sdk-item-wrapper"]').length > 1) break;
+        scope = up; up = up.parentElement; hops++;
+      }
+      return scope;
+    } catch (e) { return qEl; }
+  }
+
   const NQ_POINTS_RE = /\d+(?:\.\d+)?\s*(?:points?|pts?)\b/i;
 
+  // Own text only: the text nodes that are DIRECT children. A wrapper around
+  // the header contributes nothing and so cannot win, which is what put the
+  // button underneath the answer options on the first attempt.
   function nqOwnText(el) {
     let t = '';
     for (let i = 0; i < el.childNodes.length; i++) {
@@ -2310,9 +2322,10 @@ window.__answerlyNQSolverLoaded = true;
 
   function nqAnchorEl(qEl) {
     try {
-      const stem = qEl.querySelector('div[tabindex="-1"] .user_content.enhanced, .user_content.enhanced');
-      // Everything at or below the stem (or the first answer control, when
-      // there is no stem element) is out of bounds for a header label.
+      const scope = nqScope(qEl);
+      const stem = qEl.querySelector('.user_content');
+      // A label has to sit above the stem. Decided geometrically, because
+      // structure is what has been wrong every previous time.
       let floor = Infinity;
       const edge = stem || qEl.querySelector('input, select, textarea, [draggable="true"]');
       if (edge) {
@@ -2320,8 +2333,8 @@ window.__answerlyNQSolverLoaded = true;
         if (r.width || r.height) floor = r.top;
       }
 
-      const all = qEl.querySelectorAll('*');
-      let fallbackLabel = null;
+      let points = null, typeLabel = null;
+      const all = scope.querySelectorAll('*');
       for (let i = 0; i < all.length; i++) {
         const el = all[i];
         if (stem && stem.contains(el)) continue;
@@ -2329,22 +2342,22 @@ window.__answerlyNQSolverLoaded = true;
         const own = nqOwnText(el);
         if (!own || own.length > 80) continue;
         const r = el.getBoundingClientRect();
-        const aboveStem = (floor === Infinity) || (r.top < floor - 1);
-        if (!aboveStem) continue;
-        if (NQ_POINTS_RE.test(own)) return el;          // the point value itself
-        if (!fallbackLabel && /^(multiple choice|true\/false|essay|matching|categorization|ordering|fill in the blank|numeric|formula|hot spot|multiple answer|file upload)/i.test(own)) {
-          fallbackLabel = el;                            // type label, if no points shown
-        }
+        if (!(r.width || r.height)) continue;
+        if (floor !== Infinity && r.top >= floor - 1) continue;
+        if (!points && NQ_POINTS_RE.test(own)) points = el;
+        else if (!typeLabel && /^(multiple choice|true\/false|essay|matching|categorization|ordering|fill in the blank|numeric|formula|hot spot|multiple answer|file upload)/i.test(own)) typeLabel = el;
       }
-      if (fallbackLabel) return fallbackLabel;
+      if (points) return points;
+      if (typeLabel) return typeLabel;
 
-      const type = qEl.querySelector('[data-automation="sdk-interaction-type-name-div"]');
-      if (type && !(stem && stem.contains(type))) return type;
-      const pos = qEl.querySelector('[data-automation="sdk-position-box-text"]');
-      if (pos && !(stem && stem.contains(pos))) return pos.closest('[data-automation="sdk-position-box"]') || pos;
+      const type = scope.querySelector('[data-automation="sdk-interaction-type-name-div"]');
+      if (type) return type;
+      const pos = scope.querySelector('[data-automation="sdk-position-box-text"]');
+      if (pos) return pos.closest('[data-automation="sdk-position-box"]') || pos;
     } catch (e) { /* detached node */ }
     return null;
   }
+
 
 
 
@@ -2370,7 +2383,7 @@ window.__answerlyNQSolverLoaded = true;
       // Keep the pair in injection order and side by side: go after the last
       // button already placed in this same parent, otherwise after the anchor.
       const placed = Array.prototype.slice
-        .call(qEl.querySelectorAll('.answerly-nq-btn'))
+        .call(nqScope(qEl).querySelectorAll('.answerly-nq-btn'))
         .filter(b => b !== btn && b.parentElement === anchor.parentElement);
       const after = placed.length ? placed[placed.length - 1] : anchor;
       after.insertAdjacentElement('afterend', btn);
