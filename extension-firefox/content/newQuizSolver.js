@@ -1140,6 +1140,35 @@ window.__answerlyNQSolverLoaded = true;
   // Preferring it is what stops an option that legitimately CONTAINS a comma
   // ("Short, terse") being split into fragments that match nothing.
   function autoSelectNQAnswer(qEl, answer, inputOptionPairs, parts) {
+    // Compare against the headline, not the reasoning. The explanation
+    // routinely names the distractor it is ruling out ("Oil ... acrylic was not
+    // invented until the twentieth century"), and the fuzzy passes below will
+    // select it. Idempotent, and a no-op on an answer that has no explanation
+    // to strip, so the paths that already pass a clean string are unaffected.
+    answer = answerHeadline(answer);
+    if (Array.isArray(parts)) parts = parts.map(answerHeadline);
+
+    // Case-sensitive exact match, before anything that normalises. The
+    // normaliser lowercases, so AA / Aa / aa collapse to one string and the
+    // first option wins every time - every Punnett-square question answered
+    // with the same wrong option regardless of what the model said. Likewise
+    // M3 vs m3, Co vs CO, mS vs ms. matchOptionIndex() already got this, but
+    // the single-radio path does its own matching and never calls it, which is
+    // the most common question type on any quiz.
+    {
+      const rawA = String(answer || '').trim();
+      const bareA = rawA.replace(/[.)\]:,;]+$/, '').trim();
+      if (bareA) {
+        for (const pair of (inputOptionPairs || [])) {
+          const raw = String((pair && pair.labelText) || '').trim();
+          if (!raw) continue;
+          if (raw === rawA || raw.replace(/[.)\]:,;]+$/, '').trim() === bareA) {
+            clickNQInput(pair.input); return true;
+          }
+        }
+      }
+    }
+
     if (!inputOptionPairs || inputOptionPairs.length === 0) return false;
 
     const answerNorm  = normalizeText(answer);
