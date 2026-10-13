@@ -644,9 +644,12 @@ window.__answerlyNQSolverLoaded = true;
     cardBg:      '#1a1a2e',
     cardBorder:  '#7c5cfc',
     answerBg:    '#0f0f1e',
-    buttonColor: '#a090f0',
-    // Forced bold made the answer the only heavy text in the card, which is
-    // what the eye lands on first however well the colours blend.
+    buttonColor: '#a090f0',
+
+    // Forced bold made the answer the only heavy text in the card, which is
+
+    // what the eye lands on first however well the colours blend.
+
     answerWeight: 800,
     answerColor: '#ffffff',
     hintColor:   '#c0c0d8',
@@ -2264,36 +2267,101 @@ window.__answerlyNQSolverLoaded = true;
     });
   }
 
-  // ── Put the button in the same place on every question ─────────────────────
-  // This used to append into whatever "header" the markup happened to expose,
-  // which is four different elements depending on how New Quizzes nested the
-  // position box and type label. Measured across those four shapes, the button
-  // landed 32px, 54px, 86px and 171px down the question — and at 171px it sits
-  // *below* the answer options. Invisible in stealth mode, that reads as the
-  // button simply not being there, which is what users reported.
+  // ── Put the buttons right after "1 point", the way Classic does ─────────────
+  // Classic appends its buttons into the question header, so they sit just after
+  // the points label. New Quizzes cannot be done the same way, and the reason is
+  // the whole story of why this took several attempts: the header row is NOT
+  // inside sdk-item-wrapper. Measured on the real take page, the structure is
   //
-  // So anchor to the question wrapper itself and pin it, the way Classic's
-  // header row gives it a fixed spot. Camera keeps its own slot so the two
-  // never overlap and neither moves depending on whether the other is on.
-  const NQ_BTN_SLOTS = { trigger: 8, camera: 36 };   // px from the right edge
+  //   [sdk-take-item-question]
+  //     section  (header row: position box, type label, points label)
+  //     [sdk-item-wrapper]   <- the question we inject into
+  //
+  // Every lookup in this file - idempotency (nqUpToDate), the stale-mode repair,
+  // teardown, the camera guard - finds our buttons through the wrapper. Moving the
+  // buttons INTO the header puts them outside every one of those lookups, which
+  // is how earlier attempts ended up with duplicated or orphaned buttons.
+  //
+  // So the buttons stay children of the wrapper, and are positioned over the
+  // header row instead. Nothing up the chain clips (all overflow:visible, no
+  // transforms, measured), so a negative top is safe. The offset is measured
+  // from the live rects every pass rather than hardcoded, because the type label
+  // and points text vary per question and the page reflows on resize.
+  //
+  // Order and spacing match Classic exactly: 8px gap, camera, 8px gap, "?".
+  // If the header cannot be found - another layout, a shared stimulus, a page
+  // still rendering - it falls back to the old pinned corner, so the worst case
+  // is precisely the behaviour that shipped before this.
+  const NQ_BTN_SLOTS = { trigger: 8, camera: 36 };   // fallback: px from the right edge
+  const NQ_BTN_SIZE = 26;
+  const NQ_BTN_GAP  = 8;
+
+  // Where this question's header row ends, relative to qEl, or null.
+  function nqHeaderAnchor(qEl) {
+    try {
+      const item = qEl.closest('[data-automation="sdk-take-item-question"]');
+      if (!item) return null;
+      // Scoped to THIS question's header, and never anything inside the wrapper.
+      const pick = sel => Array.from(item.querySelectorAll(sel)).find(el => !qEl.contains(el));
+      const anchor = pick('[data-automation="sdk-points-possible-div"]') ||
+                     pick('[data-automation="sdk-interaction-type-name-div"]') ||
+                     pick('[data-automation="sdk-position-box-text"]');
+      if (!anchor) return null;
+      const a = anchor.getBoundingClientRect();
+      const q = qEl.getBoundingClientRect();
+      // Not laid out yet (React mid-render, display:none): try again next pass.
+      if (!a.width || !a.height || !q.width) return null;
+      return { left: a.right - q.left, midY: (a.top + a.height / 2) - q.top };
+    } catch { return null; }
+  }
+
+  function setPx(el, prop, value) {
+    // Only write when it changes, so a pass that finds everything in place does
+    // no DOM work at all.
+    if (el.style.getPropertyValue(prop) !== value) el.style.setProperty(prop, value, 'important');
+  }
+
+  function layoutNQButtons(qEl) {
+    const btns = Array.from(qEl.children).filter(el => el.classList && el.classList.contains('answerly-nq-btn'));
+    if (!btns.length) return;
+    // Classic's order: camera first, then the ? trigger.
+    btns.sort((x, y) => (x.classList.contains('answerly-nq-cam-btn') ? 0 : 1) -
+                        (y.classList.contains('answerly-nq-cam-btn') ? 0 : 1));
+    const anc = nqHeaderAnchor(qEl);
+    btns.forEach((b, i) => {
+      if (anc) {
+        setPx(b, 'left',  Math.round(anc.left + NQ_BTN_GAP + i * (NQ_BTN_SIZE + NQ_BTN_GAP)) + 'px');
+        setPx(b, 'top',   Math.round(anc.midY - NQ_BTN_SIZE / 2) + 'px');
+        setPx(b, 'right', 'auto');
+      } else {
+        const slot = b.classList.contains('answerly-nq-cam-btn') ? 'camera' : 'trigger';
+        setPx(b, 'left',  'auto');
+        setPx(b, 'top',   '8px');
+        setPx(b, 'right', NQ_BTN_SLOTS[slot] + 'px');
+      }
+    });
+  }
+
+  function layoutAllNQButtons() {
+    try { findNQQuestions().forEach(layoutNQButtons); } catch { /* page mid-render */ }
+  }
 
   function placeNQButton(qEl, btn, slot) {
     try {
-      // A positioned ancestor is required for the offsets below. position:
-      // relative does not move qEl, so this cannot disturb the Canvas layout.
+      // A positioned ancestor is required for the offsets. position: relative
+      // does not move qEl, so this cannot disturb the Canvas layout.
       if (getComputedStyle(qEl).position === 'static') {
         qEl.style.setProperty('position', 'relative', 'important');
       }
-    } catch { /* detached node — appendChild below still works */ }
+    } catch { /* detached node - appendChild below still works */ }
     btn.style.setProperty('position', 'absolute', 'important');
-    btn.style.setProperty('top', '8px', 'important');
-    btn.style.setProperty('right', (NQ_BTN_SLOTS[slot] || 8) + 'px', 'important');
-    btn.style.setProperty('left', 'auto', 'important');
     // The shared .answerly-nq-btn rule carries margin-left for inline layout,
-    // which would shift a pinned button off its slot.
+    // which would shift a positioned button off its spot.
     btn.style.setProperty('margin', '0', 'important');
     btn.style.setProperty('z-index', '2147483000', 'important');
+    btn.dataset.nqSlot = slot;
     qEl.appendChild(btn);
+    layoutNQButtons(qEl);
   }
 
   // ── Inject buttons ─────────────────────────────────────────────────────────
@@ -2816,6 +2884,9 @@ window.__answerlyNQSolverLoaded = true;
         scheduled = false;
         if (solverActive) injectButtons();
         else if (screenshotStealthActive) injectCameraOnlyButtons();
+        // A re-render can move the header without touching our buttons.
+        // Style writes are not childList mutations, so this cannot re-fire us.
+        layoutAllNQButtons();
       }, 250);
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -2906,9 +2977,12 @@ window.__answerlyNQSolverLoaded = true;
       document.querySelectorAll('.answerly-nq-answer-row').forEach(r => {
         r.style.setProperty('background', answerBgFor(theme), 'important');
         r.style.setProperty('border-color', theme.cardBorder, 'important');
-        r.querySelectorAll('.answerly-nq-answer-text').forEach(t => {
-          t.style.setProperty('color', theme.answerColor, 'important');
-          t.style.setProperty('font-weight', String(theme.answerWeight || DEFAULT_THEME.answerWeight), 'important');
+        r.querySelectorAll('.answerly-nq-answer-text').forEach(t => {
+
+          t.style.setProperty('color', theme.answerColor, 'important');
+
+          t.style.setProperty('font-weight', String(theme.answerWeight || DEFAULT_THEME.answerWeight), 'important');
+
         });
       });
       removeAll();
@@ -3075,12 +3149,34 @@ window.__answerlyNQSolverLoaded = true;
     } catch (e) { /* context is gone; nothing further is possible */ }
   }
 
+  // Resizing reflows the header and the wrapper differently, so the offset has
+  // to be re-read. Debounced: a drag fires this dozens of times a second.
+  let nqResizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(nqResizeTimer);
+    nqResizeTimer = setTimeout(layoutAllNQButtons, 120);
+  });
+  // Canvas's web fonts arrive AFTER the buttons are first placed, and swapping
+  // them in widens the type and points labels with no DOM mutation and no resize
+  // - so neither of the hooks above sees it. Measured in the harness: a pure
+  // reflow left the buttons sitting on top of the label until the 2s timer came
+  // round. Re-measure the moment fonts finish instead.
+  try {
+    if (document.fonts) {
+      document.fonts.ready.then(layoutAllNQButtons).catch(() => {});
+      if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', layoutAllNQButtons);
+    }
+  } catch { /* FontFaceSet unavailable: the timer still covers it */ }
+
   let nqRecheckPending = false;
   setInterval(() => {
     if (answerlyContextLost()) { showAnswerlyReloadNotice(); return; }
     if (!isNQPage()) return;
     if (solverActive)                 { injectStyles(); injectButtons(); startObserver(); try { getRelatedQuestions(); } catch {} maybeShowNotesNudge(); }
     else if (screenshotStealthActive) { injectStyles(); injectCameraOnlyButtons(); startObserver(); }
+    // Re-measure every pass: the offset over the header row is read from live
+    // rects, and fonts, zoom and the course sidebar can all reflow the page.
+    if (solverActive || screenshotStealthActive) layoutAllNQButtons();
     else if (!nqRecheckPending) {
       // Nothing should be on the page. Re-verify against storage now and then so
       // one bad read can never leave it permanently bare.
