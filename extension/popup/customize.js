@@ -5,6 +5,17 @@ const DEFAULTS = {
   answerColor: '#ffffff',
   hintColor:   '#c0c0d8',
   opacity:     100,
+  // Same defaults the content scripts fall back to. Without them a student with
+  // no saved theme, or anyone who pressed Reset, saw "undefined" in the Buttons
+  // field. answerBg is deliberately absent: deriveAnswerBg() works it out from
+  // the card, and a fixed default here would put a black box in a light theme.
+  buttonColor:  '#a090f0',
+  answerWeight: 800,
+  // Screenshot drag box, read by all three selection overlays. The defaults
+  // are the purple box and red crosshair it always had.
+  selectionColor:   '#7c5cfc',
+  crosshairColor:   '#ff3b3b',
+  selectionOpacity: 100,
 };
 
 const PRESETS = {
@@ -48,6 +59,15 @@ const opacityVal   = document.getElementById('opacity-val');
 const savedMsg     = document.getElementById('saved-msg');
 const keybindEnabled = document.getElementById('keybind-enabled');
 const keybindCapture = document.getElementById('keybind-capture');
+const colorSelection = document.getElementById('color-selection');
+const hexSelection   = document.getElementById('hex-selection');
+const colorCrosshair = document.getElementById('color-crosshair');
+const hexCrosshair   = document.getElementById('hex-crosshair');
+const selOpacitySlider = document.getElementById('selection-opacity-slider');
+const selOpacityVal    = document.getElementById('selection-opacity-val');
+const previewSelBox    = document.getElementById('preview-sel-box');
+const previewSelBadge  = document.getElementById('preview-sel-badge');
+const previewSelCross  = document.getElementById('preview-sel-cross');
 
 // Preview elements
 const previewCard      = document.getElementById('preview-card');
@@ -167,12 +187,14 @@ document.addEventListener('mousedown', (e) => {
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function syncColorPair(colorInput, hexInput, key) {
+// keepPreset: the drag box is not part of any preset, so changing it should not
+// un-highlight the preset the cards are still on.
+function syncColorPair(colorInput, hexInput, key, keepPreset) {
   colorInput.addEventListener('input', () => {
     hexInput.value = colorInput.value;
     theme[key] = colorInput.value;
     updatePreview();
-    clearActivePreset();
+    if (!keepPreset) clearActivePreset();
   });
   hexInput.addEventListener('input', () => {
     const val = hexInput.value.trim();
@@ -180,7 +202,7 @@ function syncColorPair(colorInput, hexInput, key) {
       colorInput.value = val;
       theme[key] = val;
       updatePreview();
-      clearActivePreset();
+      if (!keepPreset) clearActivePreset();
     }
   });
 }
@@ -192,6 +214,23 @@ syncColorPair(colorButton, hexButton, 'buttonColor');
 syncColorPair(colorAnswerBg, hexAnswerBg, 'answerBg');
 syncColorPair(colorAnswer, hexAnswer, 'answerColor');
 syncColorPair(colorHint,   hexHint,   'hintColor');
+syncColorPair(colorSelection, hexSelection, 'selectionColor', true);
+syncColorPair(colorCrosshair, hexCrosshair, 'crosshairColor', true);
+
+selOpacitySlider.addEventListener('input', () => {
+  theme.selectionOpacity = parseInt(selOpacitySlider.value);
+  selOpacityVal.textContent = theme.selectionOpacity + '%';
+  updatePreview();
+});
+
+// A theme saved before the drag box settings existed has none of these keys.
+function dragBoxOf(t) {
+  return {
+    selectionColor:   t.selectionColor || DEFAULTS.selectionColor,
+    crosshairColor:   t.crosshairColor || DEFAULTS.crosshairColor,
+    selectionOpacity: t.selectionOpacity != null ? t.selectionOpacity : DEFAULTS.selectionOpacity,
+  };
+}
 
 opacitySlider.addEventListener('input', () => {
   theme.opacity = parseInt(opacitySlider.value);
@@ -206,17 +245,18 @@ opacitySlider.addEventListener('input', () => {
 // showing the old hardcoded dark in the picker would tell the student their
 // light theme is fine when the page will render a black box. Derive it the same
 // way the content scripts do so the swatch matches what they will actually see.
+const DARK_ANSWER_BG = '#0f0f1e';   // the content scripts' default answer box
 function deriveAnswerBg(t) {
   if (t && t.answerBg) return t.answerBg;
   const bg = (t && t.cardBg) || DEFAULTS.cardBg;
   const m = /^#?([0-9a-f]{6})$/i.exec(String(bg).trim());
-  if (!m) return DEFAULTS.answerBg;
+  if (!m) return DARK_ANSWER_BG;
   const n = parseInt(m[1], 16);
   const l = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => {
     const c = v / 255;
     return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   });
-  return (0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]) > 0.4 ? '#ffffff' : DEFAULTS.answerBg;
+  return (0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]) > 0.4 ? '#ffffff' : DARK_ANSWER_BG;
 }
 function applyToUI() {
   colorAccent.value = theme.accentColor || DEFAULTS.accentColor;
@@ -237,6 +277,13 @@ function applyToUI() {
   hexHint.value     = theme.hintColor;
   opacitySlider.value = theme.opacity;
   opacityVal.textContent = theme.opacity + '%';
+  const box = dragBoxOf(theme);
+  colorSelection.value = box.selectionColor;
+  hexSelection.value   = box.selectionColor;
+  colorCrosshair.value = box.crosshairColor;
+  hexCrosshair.value   = box.crosshairColor;
+  selOpacitySlider.value = box.selectionOpacity;
+  selOpacityVal.textContent = box.selectionOpacity + '%';
 }
 
 
@@ -298,6 +345,16 @@ function updatePreview() {
   previewSsSend.style.background = accent;
   previewSsSend.style.color = readableOn(accent);
   previewSsSend.style.borderColor = accent;
+
+  // Drag box preview, from the same values the overlays read.
+  const box = dragBoxOf(theme);
+  previewSelBox.style.borderColor = box.selectionColor;
+  previewSelBox.querySelectorAll('i').forEach(h => { h.style.background = box.selectionColor; });
+  previewSelBadge.style.background = box.selectionColor;
+  previewSelBadge.style.color = readableOn(box.selectionColor);
+  previewSelBox.style.opacity   = box.selectionOpacity / 100;
+  previewSelCross.style.color   = box.crosshairColor;
+  previewSelCross.style.opacity = box.selectionOpacity / 100;
 }
 
 function clearActivePreset() {
@@ -305,10 +362,14 @@ function clearActivePreset() {
 }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
-document.querySelectorAll('.preset-btn').forEach(btn => {
+// [data-preset] matters: the two keybind buttons borrow the .preset-btn look,
+// and with this bound to them too a click on "Not set" replaced the theme with
+// PRESETS[undefined] - nothing at all - so the next Save wiped every colour the
+// student had picked. Presets style the cards only, so the drag box is kept.
+document.querySelectorAll('.preset-btn[data-preset]').forEach(btn => {
   btn.addEventListener('click', () => {
     const key = btn.dataset.preset;
-    theme = { ...PRESETS[key] };
+    theme = { ...PRESETS[key], ...dragBoxOf(theme) };
     applyToUI();
     updatePreview();
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));

@@ -180,6 +180,39 @@ window.__answerlyQuizSolverLoaded = true;
     opacity:     100,
   };
   let theme = { ...DEFAULT_THEME };
+
+  // The drag box was always purple with a red crosshair, whatever the student
+  // had themed. Its colours and opacity now live in the same saved theme as
+  // everything else (Customize page). Same helper as screenshotTool.js so every
+  // drag box agrees.
+  function selectionStyle(t) {
+    const hex = v => (/^#[0-9a-f]{6}$/i.test(String(v || '').trim()) ? String(v).trim() : null);
+    const box = hex(t && t.selectionColor) || '#7c5cfc';
+    const op  = Number(t && t.selectionOpacity);
+    const n   = parseInt(box.slice(1), 16);
+    return {
+      box,
+      cross: hex(t && t.crosshairColor) || '#ff3b3b',
+      // Floored at 10%: a box you cannot see is a crop you cannot aim.
+      alpha: Number.isFinite(op) ? Math.min(100, Math.max(10, op)) / 100 : 1,
+      hint:  'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',.4)',
+    };
+  }
+  // Read fresh every time an overlay opens. Camera-only stealth never loads the
+  // theme, so the in-memory copy can still be the defaults.
+  function loadSelectionStyle(cb) {
+    try {
+      chrome.storage.local.get('answerlySession', (sess) => {
+        if (chrome.runtime.lastError) return;
+        const code = sess && sess.answerlySession && sess.answerlySession.code;
+        const key  = code ? 'answerlyTheme_' + code : 'answerlyTheme';
+        chrome.storage.local.get(key, (t) => {
+          if (chrome.runtime.lastError || !t) return;
+          cb(selectionStyle(t[key]));
+        });
+      });
+    } catch (e) { /* extension reloaded under the page; keep what we have */ }
+  }
   // A theme saved before answerBg existed has no such key, and falling back to a
   // hardcoded dark box meant every light theme from that era rendered a black
   // slab inside a pale card — the exact thing the setting was added to fix.
@@ -1387,17 +1420,26 @@ window.__answerlyQuizSolverLoaded = true;
     const img = new Image();
     let startX = 0, startY = 0, curX = 0, curY = 0;
     let mouseX = 0, mouseY = 0, selecting = false, drawn = false;
+    // In-memory theme first, then the saved one, so a saved choice is never
+    // drawn over with the defaults.
+    let sel = selectionStyle(theme);
+    hint.style.borderColor = sel.hint;
+    loadSelectionStyle((s) => {
+      sel = s; hint.style.borderColor = s.hint;
+      if (img.complete && img.naturalWidth) draw();
+    });
 
     function drawCrosshair(x, y) {
       const size = 12, gap = 4;
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 3;
-      ctx.strokeStyle = '#ff3b3b'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.globalAlpha = sel.alpha;
+      ctx.strokeStyle = sel.cross; ctx.lineWidth = 2; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(x - size, y); ctx.lineTo(x - gap, y); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x + gap,  y); ctx.lineTo(x + size, y); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x, y - gap); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x, y + gap);  ctx.lineTo(x, y + size); ctx.stroke();
-      ctx.fillStyle = '#ff3b3b'; ctx.shadowBlur = 0;
+      ctx.fillStyle = sel.cross; ctx.shadowBlur = 0;
       ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
@@ -1417,10 +1459,13 @@ window.__answerlyQuizSolverLoaded = true;
           ctx.clearRect(x, y, w, h);
           if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, W, H);
           ctx.restore();
-          ctx.strokeStyle = '#7c5cfc'; ctx.lineWidth = 2;
+          ctx.save();
+          ctx.globalAlpha = sel.alpha;
+          ctx.strokeStyle = sel.box; ctx.lineWidth = 2;
           ctx.strokeRect(x, y, w, h);
-          const hs = 7; ctx.fillStyle = '#7c5cfc';
+          const hs = 7; ctx.fillStyle = sel.box;
           [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([hx,hy]) => ctx.fillRect(hx-hs/2,hy-hs/2,hs,hs));
+          ctx.restore();
         }
       }
       drawCrosshair(mouseX, mouseY);

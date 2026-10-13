@@ -164,6 +164,22 @@
     .preview-ss-btns { display: flex; gap: 6px; }
     .preview-ss-btn, .preview-ss-send { flex: 1; text-align: center; padding: 7px 6px;
       border-radius: 6px; font-size: 10.5px; font-weight: 600; border: 1px solid transparent; }
+    /* Drag box preview, on a white page because that is what it is drawn over */
+    .preview-sel { position: relative; height: 104px; border-radius: 10px; background: #ffffff;
+      border: 1px solid #2e2e3e; overflow: hidden; margin-bottom: 20px; padding: 30px 16px 0; }
+    .preview-sel-line { height: 8px; border-radius: 4px; background: #d5d9dd; margin-bottom: 12px; }
+    .preview-sel-box { position: absolute; left: 10px; top: 24px; width: 220px; height: 66px;
+      border: 2px solid #7c5cfc; }
+    .preview-sel-box i { position: absolute; width: 7px; height: 7px; background: #7c5cfc; }
+    .preview-sel-box .tl { left: -4.5px; top: -4.5px; }
+    .preview-sel-box .tr { right: -4.5px; top: -4.5px; }
+    .preview-sel-box .bl { left: -4.5px; bottom: -4.5px; }
+    .preview-sel-box .br { right: -4.5px; bottom: -4.5px; }
+    .preview-sel-badge { position: absolute; left: -3px; top: -24px; height: 18px; padding: 0 6px;
+      border-radius: 4px; background: #7c5cfc; color: #fff; white-space: nowrap;
+      font: bold 11px/18px -apple-system, sans-serif; }
+    .preview-sel-cross { position: absolute; left: 216px; top: 76px; color: #ff3b3b;
+      filter: drop-shadow(0 0 1.5px rgba(0,0,0,.8)); }
     /* Reveal button inside the card preview */
     .preview-reveal { display: inline-block; font-size: 11px; font-weight: 600;
       padding: 4px 10px; border-radius: 6px; border: 1px solid; background: none; margin-bottom: 4px; }
@@ -318,6 +334,35 @@
     </div>
   </div>
 
+  <!-- Screenshot drag box -->
+  <div class="section">
+    <h3>Screenshot Drag Box</h3>
+    <div class="toggle-desc" style="margin-bottom:4px;">The box you drag to pick an area, in every screenshot mode: the Screenshot Tool and the stealth camera, on old and New Quizzes.</div>
+    <div class="color-row">
+      <span class="color-label">Box color</span>
+      <div class="color-controls">
+        <input type="color" id="color-selection" value="#7c5cfc" />
+        <input type="text" id="hex-selection" value="#7c5cfc" maxlength="7" />
+      </div>
+    </div>
+    <div class="color-row">
+      <span class="color-label">Crosshair color</span>
+      <div class="color-controls">
+        <input type="color" id="color-crosshair" value="#ff3b3b" />
+        <input type="text" id="hex-crosshair" value="#ff3b3b" maxlength="7" />
+      </div>
+    </div>
+    <div class="slider-row" style="padding-top:10px;">
+      <span class="color-label">Opacity</span>
+      <input type="range" id="selection-opacity-slider" min="10" max="100" value="100" />
+      <div class="slider-labels">
+        <span>Faint</span>
+        <span class="opacity-val" id="selection-opacity-val">100%</span>
+        <span>Solid</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Screenshot Toggle Shortcut -->
   <div class="section">
     <h3>Screenshot Toggle Shortcut</h3>
@@ -411,6 +456,18 @@
           <div class="preview-ss-send" id="preview-ss-send">Send</div>
         </div>
       </div>
+    </div>
+    <!-- Drag box preview -->
+    <div style="font-size:11px;color:#8888a0;margin-bottom:6px;">Drag box:</div>
+    <div class="preview-sel" id="preview-sel">
+      <div class="preview-sel-line" style="width:88%"></div>
+      <div class="preview-sel-line" style="width:72%"></div>
+      <div class="preview-sel-line" style="width:80%"></div>
+      <div class="preview-sel-box" id="preview-sel-box">
+        <span class="preview-sel-badge" id="preview-sel-badge">220 &times; 66</span>
+        <i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i>
+      </div>
+      <svg class="preview-sel-cross" id="preview-sel-cross" width="26" height="26" viewBox="-13 -13 26 26"><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="-12" y1="0" x2="-4" y2="0"/><line x1="4" y1="0" x2="12" y2="0"/><line x1="0" y1="-12" x2="0" y2="-4"/><line x1="0" y1="4" x2="0" y2="12"/></g><circle r="2" fill="currentColor"/></svg>
     </div>
   </div>
 

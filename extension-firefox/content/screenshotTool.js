@@ -144,6 +144,39 @@ window.__answerlyScreenshotLoaded = true;
   };
   let ssTheme = { ...SS_DEFAULT_THEME };
 
+  // The drag box was always purple with a red crosshair, whatever the student
+  // had themed. Its colours and opacity now live in the same saved theme as
+  // everything else (Customize page). quizSolver.js and newQuizSolver.js
+  // carry the same helper for the stealth camera's box, so all three agree.
+  function selectionStyle(t) {
+    const hex = v => (/^#[0-9a-f]{6}$/i.test(String(v || '').trim()) ? String(v).trim() : null);
+    const box = hex(t && t.selectionColor) || '#7c5cfc';
+    const op  = Number(t && t.selectionOpacity);
+    const n   = parseInt(box.slice(1), 16);
+    return {
+      box,
+      cross: hex(t && t.crosshairColor) || '#ff3b3b',
+      // Floored at 10%: a box you cannot see is a crop you cannot aim.
+      alpha: Number.isFinite(op) ? Math.min(100, Math.max(10, op)) / 100 : 1,
+      hint:  'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',.4)',
+    };
+  }
+  // Read fresh every time an overlay opens. Camera-only stealth never loads the
+  // theme, so the in-memory copy can still be the defaults.
+  function loadSelectionStyle(cb) {
+    try {
+      chrome.storage.local.get('answerlySession', (sess) => {
+        if (chrome.runtime.lastError) return;
+        const code = sess && sess.answerlySession && sess.answerlySession.code;
+        const key  = code ? 'answerlyTheme_' + code : 'answerlyTheme';
+        chrome.storage.local.get(key, (t) => {
+          if (chrome.runtime.lastError || !t) return;
+          cb(selectionStyle(t[key]));
+        });
+      });
+    } catch (e) { /* extension reloaded under the page; keep what we have */ }
+  }
+
   // White text vanishes on a pale accent, so pick the readable one instead of
   // assuming the button is always dark.
   function ssReadableOn(hex) {
@@ -368,6 +401,14 @@ window.__answerlyScreenshotLoaded = true;
     ctx.scale(dpr, dpr);   // draw in CSS-pixel coordinates at device resolution
     const img = new Image();
     let startX = 0, startY = 0, curX = 0, curY = 0, mouseX = 0, mouseY = 0, selecting = false, drawn = false;
+    // In-memory theme first, then the saved one, so a saved choice is never
+    // drawn over with the defaults.
+    let sel = selectionStyle(ssTheme);
+    hint.style.borderColor = sel.hint;
+    loadSelectionStyle((s) => {
+      sel = s; hint.style.borderColor = s.hint;
+      if (img.complete && img.naturalWidth) draw();
+    });
 
     function drawCrosshair(x, y) {
       const size = 12, gap = 4, thick = 2;
@@ -375,7 +416,8 @@ window.__answerlyScreenshotLoaded = true;
       // White shadow for contrast on any background
       ctx.shadowColor = 'rgba(0,0,0,0.8)';
       ctx.shadowBlur  = 3;
-      ctx.strokeStyle = '#ff3b3b'; // bright red — visible on any background
+      ctx.globalAlpha = sel.alpha;
+      ctx.strokeStyle = sel.cross; // bright red by default — visible on any background
       ctx.lineWidth   = thick;
       ctx.lineCap     = 'round';
       // Horizontal arms
@@ -385,7 +427,7 @@ window.__answerlyScreenshotLoaded = true;
       ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x, y - gap); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x, y + gap);  ctx.lineTo(x, y + size); ctx.stroke();
       // Center dot
-      ctx.fillStyle = '#ff3b3b';
+      ctx.fillStyle = sel.cross;
       ctx.shadowBlur = 0;
       ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
@@ -421,14 +463,16 @@ window.__answerlyScreenshotLoaded = true;
           }
           ctx.restore();
 
-          // Purple selection border
-          ctx.strokeStyle = '#7c5cfc';
+          // Selection border, handles and size badge in the chosen colour
+          ctx.save();
+          ctx.globalAlpha = sel.alpha;
+          ctx.strokeStyle = sel.box;
           ctx.lineWidth   = 2;
           ctx.strokeRect(x, y, w, h);
 
           // Corner handles
           const hs = 7;
-          ctx.fillStyle = '#7c5cfc';
+          ctx.fillStyle = sel.box;
           [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([hx,hy]) => {
             ctx.fillRect(hx - hs/2, hy - hs/2, hs, hs);
           });
@@ -438,7 +482,7 @@ window.__answerlyScreenshotLoaded = true;
           ctx.font = 'bold 11px -apple-system, sans-serif';
           const tw = ctx.measureText(label).width;
           const bx = x, by = y > 22 ? y - 22 : y + h + 4;
-          ctx.fillStyle = '#7c5cfc';
+          ctx.fillStyle = sel.box;
           ctx.beginPath();
           // roundRect not available in Chrome <99 — draw pill manually
           if (ctx.roundRect) {
@@ -457,8 +501,9 @@ window.__answerlyScreenshotLoaded = true;
             ctx.closePath();
           }
           ctx.fill();
-          ctx.fillStyle = '#fff';
+          ctx.fillStyle = ssReadableOn(sel.box);   // white vanishes on a pale box
           ctx.fillText(label, bx + 6, by + 13);
+          ctx.restore();
         }
       }
 
