@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Answerly AI Features Explained: A Visual Guide (2026)</title>
+  <meta name="description" content="Every Answerly AI feature in plain words, with real screenshots: Quiz Solver, Solve All, the Screenshot Tool, stealth modes, keybinds, notes, Quiz Loader, Customize and more." />
+  <meta name="keywords" content="answerly ai features, answerly ai guide, how to use answerly ai, canvas quiz solver features, answerly screenshot tool, answerly stealth mode, answerly customize" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://getanswerlyai.com/blog/answerly-ai-features-explained.html" />
+  <link rel="icon" href="../assets/icon.png" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Answerly AI" />
+  <meta property="og:title" content="Every Answerly AI Feature, Explained (With Pictures)" />
+  <meta property="og:description" content="Every Answerly AI feature in plain words, with real screenshots: what each tool does and how to use it." />
+  <meta property="og:url" content="https://getanswerlyai.com/blog/answerly-ai-features-explained.html" />
+  <meta property="og:image" content="https://getanswerlyai.com/assets/social-card.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Answerly AI, a Canvas quiz solver: hints, answers, screenshots and stealth mode" />
+  <meta name="twitter:image:alt" content="Answerly AI, a Canvas quiz solver: hints, answers, screenshots and stealth mode" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"Article",
+    "headline":"Every Answerly AI Feature, Explained (With Pictures)",
+    "description":"Every Answerly AI feature in plain words, with real screenshots: what each tool does and how to use it.",
+    "image":"https://getanswerlyai.com/assets/blog/features/quiz-solver-answer.png",
+    "author":{"@type":"Organization","name":"Answerly AI"},
+    "publisher":{"@type":"Organization","name":"Answerly AI","logo":{"@type":"ImageObject","url":"https://getanswerlyai.com/assets/icon.png"}},
+    "mainEntityOfPage":"https://getanswerlyai.com/blog/answerly-ai-features-explained.html",
+    "datePublished":"2026-10-13",
+    "dateModified":"2026-10-13"
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"FAQPage",
+    "mainEntity":[
+      {"@type":"Question","name":"Does Answerly AI work on New Quizzes?","acceptedAnswer":{"@type":"Answer","text":"Yes. Answerly AI works on both Canvas quiz engines, Classic Quizzes and New Quizzes, with the same tools on each."}},
+      {"@type":"Question","name":"Does Answerly AI pick the answer for me?","acceptedAnswer":{"@type":"Answer","text":"In normal mode the Quiz Solver shows a hint and then the answer, and you click the option yourself. Fill in the blank boxes, dropdowns and matching are filled in for you. Solve All Questions and Quiz Stealth select the answers for you."}},
+      {"@type":"Question","name":"Can Answerly AI answer questions with graphs or pictures?","acceptedAnswer":{"@type":"Answer","text":"Yes. Use the Screenshot Tool. Drag a box around the question and the AI reads the picture, including graphs, diagrams and charts."}},
+      {"@type":"Question","name":"How many questions can I solve per day?","acceptedAnswer":{"@type":"Answer","text":"150 Quiz Solver solves and 150 Screenshot solves per day, counted separately. Both reset at midnight UTC, and the popup shows how many you have left."}},
+      {"@type":"Question","name":"Does Answerly AI work on my phone?","acceptedAnswer":{"@type":"Answer","text":"No. It is a browser extension for Chrome and Firefox on a computer. It works on Windows, Mac and Chromebooks, but not on phones or tablets."}},
+      {"@type":"Question","name":"How do I change the color of the screenshot drag box?","acceptedAnswer":{"@type":"Answer","text":"Open Customize from the bottom of the popup. In the Screenshot Drag Box section, pick a box color, a crosshair color and an opacity, then click Save Changes."}}
+    ]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../style.css?v=11" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    .article-wrap{max-width:760px;margin:0 auto;padding:120px 24px 80px}
+    .crumb{font-size:13px;color:var(--text-muted);margin-bottom:22px}
+    .crumb a{color:var(--text-muted);text-decoration:none}
+    .crumb a:hover{color:var(--purple)}
+    .article-wrap h1{font-size:clamp(30px,5vw,44px);font-weight:800;line-height:1.12;letter-spacing:-.02em;margin-bottom:14px}
+    .article-meta{font-size:13.5px;color:var(--text-muted);margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--border)}
+    .article-body h2{font-size:24px;font-weight:700;margin:46px 0 12px;letter-spacing:-.01em;scroll-margin-top:90px}
+    .article-body h3{font-size:18px;font-weight:600;margin:26px 0 8px;color:#e8e8f5}
+    .article-body p{color:#c8c8de;margin-bottom:16px;font-size:16.5px}
+    .article-body ul,.article-body ol{margin:0 0 18px;padding-left:22px;color:#c8c8de}
+    .article-body li{margin-bottom:9px}
+    .article-body strong{color:#fff;font-weight:600}
+    .article-body a{color:var(--purple);text-decoration:none}
+    .article-body a:hover{text-decoration:underline}
+    .article-body code{background:var(--bg-card);border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:14px}
+    .lede{font-size:19px!important;color:#d8d8ea!important;line-height:1.6}
+    .callout{background:var(--bg-card);border:1px solid var(--border);border-left:3px solid var(--purple);border-radius:10px;padding:18px 20px;margin:26px 0}
+    .callout p{margin:0;font-size:15.5px}
+    .toc{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:26px 0}
+    .toc h3{margin:0 0 10px;font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)}
+    .toc ol{margin:0;padding-left:20px;columns:2;column-gap:28px}
+    .toc li{margin-bottom:7px;font-size:15.5px;break-inside:avoid}
+    .steps{counter-reset:step;list-style:none;padding-left:0!important}
+    .steps li{counter-increment:step;position:relative;padding-left:44px;margin-bottom:18px}
+    .steps li::before{content:counter(step);position:absolute;left:0;top:-2px;width:28px;height:28px;border-radius:50%;background:rgba(124,92,252,.18);border:1px solid rgba(124,92,252,.4);color:#b9a4ff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+    .steps li b{color:#fff;display:block;margin-bottom:3px}
+    .shot{margin:26px 0 30px;text-align:center}
+    .shot img{display:block;margin:0 auto;max-width:100%;height:auto;border-radius:12px;border:1px solid var(--border);box-shadow:0 12px 34px rgba(0,0,0,.38);background:#fff}
+    .shot.popup img{max-width:min(300px,100%);background:#0f0f12}
+    .shot.panel img{max-width:min(360px,100%);background:#0f0f12}
+    .shot figcaption{font-size:13.5px;color:var(--text-muted);margin-top:11px;line-height:1.5}
+    .pair{display:flex;gap:20px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+    .pair .shot{margin:0;flex:1 1 0;min-width:0}
+    .pair-wrap{margin:26px 0 30px}
+    .cta-box{background:linear-gradient(135deg,rgba(124,92,252,.14),rgba(124,92,252,.04));border:1px solid rgba(124,92,252,.3);border-radius:16px;padding:30px 26px;margin:44px 0 10px;text-align:center}
+    .cta-box h3{margin:0 0 8px;font-size:21px;color:#fff}
+    .cta-box p{color:#c8c8de;margin:0 0 18px;font-size:15.5px}
+    .cta-box a{display:inline-block;background:var(--purple);color:#fff;padding:12px 26px;border-radius:50px;font-weight:600;text-decoration:none}
+    .cta-box a:hover{background:var(--purple-dark)}
+    .faq-block{margin-top:40px}
+    .faq-block h2{margin-bottom:6px}
+    .qa{border-top:1px solid var(--border);padding:18px 0}
+    .qa h3{margin:0 0 6px;font-size:16.5px;color:#fff}
+    .qa p{margin:0;font-size:15.5px}
+    .related{margin-top:44px;padding-top:24px;border-top:1px solid var(--border)}
+    .related a{color:var(--purple);text-decoration:none;font-weight:600}
+    @media (max-width:600px){.toc ol{columns:1}.pair{flex-direction:column;gap:26px}.pair .shot{flex:none;width:100%}}
+  </style>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://getanswerlyai.com/"},
+      {"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://getanswerlyai.com/blog/"},
+      {"@type": "ListItem", "position": 3, "name": "Every Answerly AI Feature, Explained", "item": "https://getanswerlyai.com/blog/answerly-ai-features-explained.html"}
+    ]
+  }
+  </script>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-logo">
+        <img src="../assets/icon.png" alt="Answerly AI" class="nav-icon" width="128" height="128" decoding="async" />
+        <span>Answerly AI</span>
+      </a>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="../#how">How It Works</a>
+        <a href="../#pricing">Pricing</a>
+        <a href="./">Blog</a>
+      </div>
+      <a href="https://chromewebstore.google.com/detail/answerly-ai-%E2%80%94-canvas-home/gmekadimanglmacabjkmaigckocobnnc" target="_blank" class="nav-cta">Get Started →</a>
+    </div>
+  </nav>
+
+  <main class="article-wrap">
+    <div class="crumb"><a href="../">Home</a> &nbsp;/&nbsp; <a href="./">Blog</a> &nbsp;/&nbsp; Every Feature, Explained</div>
+
+    <article>
+      <h1>Every Answerly AI Feature, Explained (With Pictures)</h1>
+      <div class="article-meta">Guide · Updated October 2026 · ~10 min read</div>
+
+      <div class="article-body">
+        <p class="lede">Answerly AI puts a set of tools right on your Canvas quiz page. This guide walks through every one of them. For each tool you will see what it does, how to turn it on, and a picture of what it looks like. Every picture is the real extension running on a sample quiz.</p>
+
+        <div class="toc">
+          <h3>What's in this guide</h3>
+          <ol>
+            <li><a href="#start">Getting started</a></li>
+            <li><a href="#popup">The popup at a glance</a></li>
+            <li><a href="#solver">Quiz Solver</a></li>
+            <li><a href="#solve-all">Solve All Questions</a></li>
+            <li><a href="#screenshot">Screenshot Tool</a></li>
+            <li><a href="#stealth">Stealth modes</a></li>
+            <li><a href="#keybinds">Keybinds</a></li>
+            <li><a href="#notes">Upload Notes</a></li>
+            <li><a href="#loader">Quiz Loader</a></li>
+            <li><a href="#privacy">Privacy Guard</a></li>
+            <li><a href="#customize">Customize</a></li>
+            <li><a href="#engines">Classic and New Quizzes</a></li>
+            <li><a href="#limits">Daily limits</a></li>
+            <li><a href="#help">Getting help</a></li>
+            <li><a href="#tips">Quick tips</a></li>
+          </ol>
+        </div>
+
+        <h2 id="start">1. Getting started</h2>
+        <p>Answerly AI is a browser extension for Chrome and Firefox on a computer. It works on Windows, Mac and Chromebooks. It does not run on phones or tablets.</p>
+        <ol class="steps">
+          <li><b>Install it</b>Add Answerly AI from the Chrome Web Store or Firefox Add-ons. Then pin it to your toolbar so it is always one click away. In Chrome, click the puzzle piece icon and then the pin next to Answerly AI.</li>
+          <li><b>Get your code</b>A plan is $12.99 a month. After you pay, your activation code arrives by email. It looks like <code>ANS-XXXX-XXXX-XXXX</code>. If you do not see it, check your spam folder.</li>
+          <li><b>Activate</b>Click the Answerly icon, paste your code, and click Activate.</li>
+          <li><b>Open a Canvas quiz</b>The tools work on Canvas quiz and assignment pages. On any other page, the popup tells you to go to one first.</li>
+        </ol>
+        <figure class="shot popup">
+          <picture>
+            <source srcset="../assets/blog/features/popup-activate.webp" type="image/webp" />
+            <img src="../assets/blog/features/popup-activate.png" alt="The Answerly AI activation screen with a box for the ANS code and an Activate button" width="300" height="357" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>The first screen you see. Paste your code and click Activate.</figcaption>
+        </figure>
+        <p>Your plan renews each month, and each renewal emails you a new code. Paste it in when it arrives. To cancel, click Manage Subscription in the popup.</p>
+
+        <h2 id="popup">2. The popup at a glance</h2>
+        <p>Click the Answerly icon in your toolbar to open the popup. This is where you turn every tool on and off.</p>
+        <figure class="shot popup">
+          <picture>
+            <source srcset="../assets/blog/features/popup-main.webp" type="image/webp" />
+            <img src="../assets/blog/features/popup-main.png" alt="The Answerly AI popup with tool buttons, a notes upload, usage bars and switches" width="300" height="569" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>The main popup, with the Quiz Solver and Screenshot Tool on and a notes file loaded.</figcaption>
+        </figure>
+        <p>From top to bottom, here is what each part does:</p>
+        <ul>
+          <li><strong>Top icons.</strong> The <strong>?</strong> opens Things to Remember, a short list of answers to common questions. The person icon shows your code, the date your plan runs until, and Log out. The chat bubble is Report a Bug. The menu has the tutorial video, Buy or Renew, Manage Subscription, and the support email.</li>
+          <li><strong>The tip bar.</strong> A reminder that questions with pictures need the Screenshot Tool.</li>
+          <li><strong>Three big buttons.</strong> Quiz Solver, Solve All Questions, and Screenshot Tool. Click one to turn it on. Click it again to turn it off.</li>
+          <li><strong>Upload Notes for Context.</strong> Add your class notes so answers match your course.</li>
+          <li><strong>Usage bars.</strong> How many solves you have left today for each tool.</li>
+          <li><strong>Switches.</strong> Quiz Loader, Privacy Guard, Quiz Stealth, and Screenshot Stealth.</li>
+          <li><strong>Bottom row.</strong> Discord, a star to leave a review, and the Customize page.</li>
+        </ul>
+        <div class="callout">
+          <p><strong>Set up first.</strong> Turn on the tools you want before you start the quiz. Your choices stay on as you move from page to page, so you do not have to open the popup again in the middle of a quiz.</p>
+        </div>
+
+        <h2 id="solver">3. Quiz Solver</h2>
+        <p>The Quiz Solver reads the question on your screen and gives you a hint, then the answer. It reads the question straight from the page, so there is nothing to copy and paste.</p>
+        <h3>How to use it</h3>
+        <ol class="steps">
+          <li><b>Turn it on</b>Open the popup and click Activate Quiz Solver.</li>
+          <li><b>Find the purple button</b>A small purple <strong>?</strong> button appears at the top of every question.</li>
+          <li><b>Click it for a hint</b>A card opens under the question with a hint. Try to answer it yourself first.</li>
+          <li><b>Click Show Answer</b>The answer appears in the card. Click Hide Answer to tuck it away again.</li>
+        </ol>
+        <figure class="shot">
+          <picture>
+            <source srcset="../assets/blog/features/quiz-solver-button.webp" type="image/webp" />
+            <img src="../assets/blog/features/quiz-solver-button.png" alt="A Canvas question with the purple Answerly question mark button next to the question number" width="780" height="303" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>On a Classic quiz, the <strong>?</strong> button sits right after the question number.</figcaption>
+        </figure>
+        <figure class="shot">
+          <picture>
+            <source srcset="../assets/blog/features/quiz-solver-hint.webp" type="image/webp" />
+            <img src="../assets/blog/features/quiz-solver-hint.png" alt="The Answerly card under a question showing a hint and a Show Answer button" width="780" height="433" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>Click it and you get a hint first.</figcaption>
+        </figure>
+        <figure class="shot">
+          <picture>
+            <source srcset="../assets/blog/features/quiz-solver-answer.webp" type="image/webp" />
+            <img src="../assets/blog/features/quiz-solver-answer.png" alt="The Answerly card showing the hint and the answer, Mitochondrion" width="780" height="504" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>Show Answer reveals the answer in the same card.</figcaption>
+        </figure>
+        <p>In this normal mode, you click the answer yourself on multiple choice and select all questions. For fill in the blank boxes, dropdowns and matching, Answerly also types or picks the answer for you.</p>
+        <h3>Question types it handles</h3>
+        <p>Multiple choice, select all that apply, true or false, fill in the blank (including questions with several blanks), matching, dropdowns, and number answers. It works on both Classic Quizzes and New Quizzes.</p>
+        <p>When a question's content is inside a picture, there is no text for the Quiz Solver to read. Instead of guessing, it tells you to use the Screenshot Tool.</p>
+
+        <h2 id="solve-all">4. Solve All Questions</h2>
+        <p>Solve All Questions answers every question on the page in one go. It ticks the boxes, fills the blanks, and sets the dropdowns for you.</p>
+        <ol class="steps">
+          <li><b>Turn on the Quiz Solver first</b>The Solve All button stays grey until the Quiz Solver is on.</li>
+          <li><b>Click Solve All Questions</b>The answers fill in one after another, a moment apart.</li>
+          <li><b>Look it over</b>Check the answers before you submit.</li>
+        </ol>
+        <figure class="shot">
+          <picture>
+            <source srcset="../assets/blog/features/solve-all.webp" type="image/webp" />
+            <img src="../assets/blog/features/solve-all.png" alt="Four Canvas questions filled in by Solve All: checkboxes, a typed blank, three matching dropdowns and a true or false answer" width="780" height="1020" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>One click of Solve All: select all, fill in the blank, matching, and true or false, all filled in.</figcaption>
+        </figure>
+        <p>A few things to know:</p>
+        <ul>
+          <li><strong>It skips questions with pictures.</strong> The popup then tells you how many it skipped, so you can do those with the Screenshot Tool.</li>
+          <li><strong>It only sees what is on the page.</strong> If your quiz shows one question at a time, it answers the one in front of you. Go to the next question and click it again.</li>
+          <li><strong>It leaves essays alone.</strong> Long written answers are not part of Solve All.</li>
+        </ul>
+
+        <h2 id="screenshot">5. Screenshot Tool</h2>
+        <p>Some questions cannot be read as text. Graphs, diagrams, pictures, chemical structures, and question types the Quiz Solver does not know all fall into this group. The Screenshot Tool handles them. You draw a box around the question, and the AI reads the picture.</p>
+        <ol class="steps">
+          <li><b>Turn it on</b>Click Activate Screenshot Tool. A small Answerly AI Screenshot panel appears in the corner of the page.</li>
+          <li><b>Click Select Area</b>The page freezes for a moment as a picture.</li>
+          <li><b>Drag a box around the question</b>Include the question, any graph or picture, and the answer choices. The box shows its size as you drag. Press Esc to cancel.</li>
+          <li><b>Add more if you need to</b>If a question is too long for one box, you can capture up to 3 areas for the same question.</li>
+          <li><b>Click Send</b>The answer comes back in bold, with a short reason under it.</li>
+        </ol>
+        <figure class="shot">
+          <picture>
+            <source srcset="../assets/blog/features/screenshot-drag.webp" type="image/webp" />
+            <img src="../assets/blog/features/screenshot-drag.png" alt="Dragging a purple selection box around a Canvas question with an enzyme activity graph" width="820" height="597" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>Dragging a box around a graph question. The box is purple by default, and you can change its color.</figcaption>
+        </figure>
+        <figure class="shot">
+          <picture>
+            <source srcset="../assets/blog/features/screenshot-answer.webp" type="image/webp" />
+            <img src="../assets/blog/features/screenshot-answer.png" alt="The Screenshot Tool panel showing the answer 37 degrees Celsius with a short explanation" width="820" height="597" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>The answer shows up in the panel, with a one or two sentence reason.</figcaption>
+        </figure>
+        <h3>The context box</h3>
+        <p>The box under the picture is optional. Use it to say which question you mean when your box caught more than one, like "question 4" or "the bottom one." When only one question is in the box, leave it empty.</p>
+        <h3>The quick shortcut</h3>
+        <p>Press <strong>Ctrl+Shift+X</strong> to show or hide the Screenshot Tool on any website, without opening the popup. To change the key, go to <code>chrome://extensions/shortcuts</code> in Chrome. In Firefox, open Add-ons, click the gear icon, and choose Manage Extension Shortcuts.</p>
+
+        <h2 id="stealth">6. Stealth modes</h2>
+        <p>The two stealth switches hide Answerly's buttons and panels, so the page looks like a normal quiz. They change how things look, not what Answerly can answer.</p>
+        <figure class="shot popup">
+          <picture>
+            <source srcset="../assets/blog/features/stealth-toggles.webp" type="image/webp" />
+            <img src="../assets/blog/features/stealth-toggles.png" alt="The Quiz Stealth and Screenshot Stealth switches turned on" width="288" height="59" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>Both stealth switches turned on.</figcaption>
+        </figure>
+        <h3>Quiz Stealth</h3>
+        <p>This needs the Quiz Solver to be on. The purple <strong>?</strong> button turns invisible, but it is still there at the top of the question. Click that spot and Answerly finds the answer and selects it for you. No card opens.</p>
+        <p>Not sure where the spot is? Move your mouse over the top of the question. A small label that says <strong>Auto-Select</strong> appears when you are on it.</p>
+        <h3>Screenshot Stealth</h3>
+        <p>This needs the Screenshot Tool to be on. The panel in the corner goes away, and each question gets an invisible camera button right next to the <strong>?</strong> spot. Hover over it to see the <strong>Screenshot</strong> label. Click it, drag a box around the question, and the answer is filled in for you.</p>
+        <figure class="shot">
+          <picture>
+            <source srcset="../assets/blog/features/stealth-hover.webp" type="image/webp" />
+            <img src="../assets/blog/features/stealth-hover.png" alt="Hovering the top of two Canvas questions reveals the Auto-Select and Screenshot labels" width="778" height="146" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>Hover the top of a question to find the hidden buttons: Auto-Select for the Quiz Solver, Screenshot for the camera.</figcaption>
+        </figure>
+        <h3>Good to know</h3>
+        <ul>
+          <li><strong>Written answers get typed in.</strong> In either stealth mode, essay and short written answers are typed into the box for you. Read the answer and put it in your own words before you submit.</li>
+          <li><strong>Drag and drop is on you.</strong> On New Quizzes, Categorization, Ordering, and Hot Spot questions cannot be filled in for you. Answerly shows the answer in a small note, and you place it yourself.</li>
+          <li><strong>Picture questions get a note.</strong> If you click the Quiz Stealth spot on a question with a picture, a dim note tells you to use the Screenshot Tool. It fades on its own after about 5 seconds, or you can click X to close it.</li>
+        </ul>
+
+        <h2 id="keybinds">7. Keybinds</h2>
+        <p>Would you rather not click at all? Set a key on the Customize page, and press it instead.</p>
+        <ol class="steps">
+          <li><b>Open Customize</b>Click Customize at the bottom of the popup.</li>
+          <li><b>Switch them on</b>Under Stealth Keybind, turn on Solve with a key, Screenshot with a key, or both.</li>
+          <li><b>Pick your keys</b>Click the Key button and press the key you want. Use a different key for each one.</li>
+          <li><b>Save</b>Click Save Changes at the bottom of the page.</li>
+        </ol>
+        <figure class="shot panel">
+          <picture>
+            <source srcset="../assets/blog/features/customize-keybinds.webp" type="image/webp" />
+            <img src="../assets/blog/features/customize-keybinds.png" alt="The Stealth Keybind settings with Q set to solve and W set to screenshot" width="360" height="455" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>Two keys set: Q answers the question under your mouse, and W starts a screenshot of it.</figcaption>
+        </figure>
+        <p>To use a key, hover over a question and press it. The key works on the question under your mouse pointer, not the whole page. Solve with a key needs Quiz Solver and Quiz Stealth on. Screenshot with a key needs the Screenshot Tool and Screenshot Stealth on. Keys are ignored while you type in an answer box, so you can still type normally.</p>
+
+        <h2 id="notes">8. Upload Notes for Context</h2>
+        <p>If your quiz comes from one textbook, lecture, or reading, upload it. The AI then uses it when it answers, so the answers match the way your class says things.</p>
+        <ol class="steps">
+          <li><b>Click Upload Notes / Context File</b>It is right under the three big buttons in the popup.</li>
+          <li><b>Pick your file</b>A PDF, an image (PNG or JPG), or a .txt file, up to 7 MB.</li>
+          <li><b>That is it</b>The file name shows under the button. It stays active until you click the X to remove it.</li>
+        </ol>
+        <figure class="shot popup">
+          <picture>
+            <source srcset="../assets/blog/features/upload-notes.webp" type="image/webp" />
+            <img src="../assets/blog/features/upload-notes.png" alt="A notes PDF loaded in the Answerly popup, above the daily usage bars" width="312" height="168" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>A notes file loaded. It works with both the Quiz Solver and the Screenshot Tool.</figcaption>
+        </figure>
+
+        <h2 id="loader">9. Quiz Loader</h2>
+        <p>Retaking a quiz? Quiz Loader remembers the answers you entered and puts them back for you, so you do not have to type every one again.</p>
+        <ul>
+          <li>It only fills boxes you have left empty. It never changes an answer you already gave on this attempt.</li>
+          <li>It works on both Classic Quizzes and New Quizzes.</li>
+          <li>It remembers your last 40 quizzes for 60 days.</li>
+        </ul>
+        <p>Turn it on with the Quiz Loader switch in the popup.</p>
+        <figure class="shot popup">
+          <picture>
+            <source srcset="../assets/blog/features/loader-privacy.webp" type="image/webp" />
+            <img src="../assets/blog/features/loader-privacy.png" alt="The Quiz Loader and Privacy Guard switches turned on" width="284" height="115" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>The Quiz Loader and Privacy Guard switches, both on.</figcaption>
+        </figure>
+
+        <h2 id="privacy">10. Privacy Guard</h2>
+        <p>Privacy Guard blocks activity logging while you work on quizzes and assignments. That covers tab switch detection, page view tracking, and quiz event logging. Unlike the other tools, it is not limited to Canvas. It also works on Moodle, Blackboard, and other learning platforms.</p>
+        <p>Turn it on before you open the quiz. For a plain look at what Canvas records in the first place, read <a href="./canvas-quiz-log-what-instructors-see.html">what your instructor can see in a quiz log</a>.</p>
+
+        <h2 id="customize">11. Customize</h2>
+        <p>The Customize page changes how everything looks. Open it from the Customize link at the bottom of the popup.</p>
+        <ul>
+          <li><strong>Presets.</strong> One click themes: Default, Ghost (Invisible), Midnight, Matrix, and Blend In. Blend In uses Canvas's own greys, so the card looks like part of the page.</li>
+          <li><strong>Colors.</strong> Set the logo and button color, card background, border, buttons, answer box, answer text, and hint text.</li>
+          <li><strong>Card Opacity.</strong> Slide it from fully visible all the way down to invisible.</li>
+          <li><strong>Screenshot Drag Box.</strong> New in version 1.3.50. Pick the color of the box and the crosshair, and how see through they are. It applies to every screenshot mode.</li>
+          <li><strong>Stealth Keybind.</strong> The keys from section 7.</li>
+          <li><strong>Preview.</strong> See your changes before you save them.</li>
+        </ul>
+        <div class="pair-wrap">
+          <div class="pair">
+            <figure class="shot panel">
+              <picture>
+                <source srcset="../assets/blog/features/customize-colors.webp" type="image/webp" />
+                <img src="../assets/blog/features/customize-colors.png" alt="Customize page presets, seven color settings and the card opacity slider" width="360" height="586" loading="lazy" decoding="async" />
+              </picture>
+              <figcaption>Presets, colors, and card opacity.</figcaption>
+            </figure>
+            <figure class="shot panel">
+              <picture>
+                <source srcset="../assets/blog/features/customize-dragbox.webp" type="image/webp" />
+                <img src="../assets/blog/features/customize-dragbox.png" alt="Screenshot Drag Box settings with a green box color, blue crosshair and 80 percent opacity" width="360" height="256" loading="lazy" decoding="async" />
+              </picture>
+              <figcaption>The new drag box settings, here set to a green box and a blue crosshair.</figcaption>
+            </figure>
+          </div>
+        </div>
+        <p>When you are done, click <strong>Save Changes</strong> at the bottom, or nothing is kept. If a quiz is already open, reload it to see your new look.</p>
+
+        <h2 id="engines">12. Classic and New Quizzes</h2>
+        <p>Canvas has two quiz engines, Classic Quizzes and New Quizzes. Answerly works on both, with the same tools, so you never have to pick one. On New Quizzes, the <strong>?</strong> button sits right after the point value. To learn how the two engines differ, see <a href="./canvas-new-quizzes-vs-classic.html">New Quizzes vs Classic Quizzes</a>.</p>
+        <figure class="shot">
+          <picture>
+            <source srcset="../assets/blog/features/new-quizzes.webp" type="image/webp" />
+            <img src="../assets/blog/features/new-quizzes.png" alt="A New Quizzes question with the Answerly button after 1 point and a card showing the hint and answer" width="920" height="494" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>A New Quizzes question, with the button after "1 point" and the hint and answer below.</figcaption>
+        </figure>
+
+        <h2 id="limits">13. Daily limits</h2>
+        <p>Each plan includes <strong>150 Quiz Solver solves and 150 Screenshot solves per day</strong>. They are counted separately, so using up one still leaves the other. Both reset at midnight UTC. The bars in the popup show how many you have left.</p>
+
+        <h2 id="help">14. Getting help</h2>
+        <ul>
+          <li><strong>Things to Remember.</strong> Click the <strong>?</strong> at the top of the popup for quick answers to the most common questions.</li>
+          <li><strong>Report a Bug.</strong> The chat bubble opens a private chat with the developer. Only you can see it.</li>
+          <li><strong>Tutorial video.</strong> In the popup menu, under Tutorial.</li>
+          <li><strong>Discord.</strong> The Discord icon at the bottom of the popup.</li>
+          <li><strong>Email.</strong> <a href="mailto:AnswerlyAISupport@gmail.com">AnswerlyAISupport@gmail.com</a>.</li>
+        </ul>
+        <figure class="shot popup">
+          <picture>
+            <source srcset="../assets/blog/features/report-bug.webp" type="image/webp" />
+            <img src="../assets/blog/features/report-bug.png" alt="The Report a Bug private chat in the Answerly popup" width="300" height="255" loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>Report a Bug is a private chat with the developer.</figcaption>
+        </figure>
+
+        <h2 id="tips">15. Quick tips</h2>
+        <ul>
+          <li>Turn on your tools before the quiz starts.</li>
+          <li>Use the Screenshot Tool for anything with a picture, graph, or diagram.</li>
+          <li>Check diagram answers yourself. Questions that ask you to name the exact part a line points to are the hardest type, and Answerly sometimes picks the part right next to it.</li>
+          <li>Upload your notes for quizzes that come from one book or lecture.</li>
+          <li>If the buttons do not show up, reload the quiz page. Then check that you are signed in and that the tools you want are on.</li>
+          <li>Look in your spam folder for your renewal code each month.</li>
+        </ul>
+        <div class="callout">
+          <p><strong>Use it to learn.</strong> Try each question before you look, then compare. The hint and the reason under each answer show you what you missed. How you use Answerly on graded work is up to your school's rules, so know them.</p>
+        </div>
+
+        <div class="cta-box">
+          <h3>Ready to try it on your next quiz?</h3>
+          <p>Every tool in this guide comes with one plan: $12.99 a month.</p>
+          <a href="../#pricing">Get Answerly AI →</a>
+        </div>
+
+        <div class="faq-block">
+          <h2>Frequently asked questions</h2>
+          <div class="qa"><h3>Does Answerly AI work on New Quizzes?</h3><p>Yes. It works on both Canvas quiz engines, Classic Quizzes and New Quizzes, with the same tools on each.</p></div>
+          <div class="qa"><h3>Does Answerly AI pick the answer for me?</h3><p>In normal mode the Quiz Solver shows a hint and then the answer, and you click the option yourself. Fill in the blank boxes, dropdowns, and matching are filled in for you. Solve All Questions and Quiz Stealth select the answers for you.</p></div>
+          <div class="qa"><h3>Can Answerly AI answer questions with graphs or pictures?</h3><p>Yes, with the Screenshot Tool. Drag a box around the question and the AI reads the picture, including graphs, diagrams, and charts.</p></div>
+          <div class="qa"><h3>How many questions can I solve per day?</h3><p>150 Quiz Solver solves and 150 Screenshot solves per day, counted separately. Both reset at midnight UTC, and the popup shows how many you have left.</p></div>
+          <div class="qa"><h3>Does Answerly AI work on my phone?</h3><p>No. It is a browser extension for Chrome and Firefox on a computer. It works on Windows, Mac, and Chromebooks, but not on phones or tablets.</p></div>
+          <div class="qa"><h3>How do I change the color of the screenshot drag box?</h3><p>Open Customize from the bottom of the popup. In the Screenshot Drag Box section, pick a box color, a crosshair color, and an opacity, then click Save Changes.</p></div>
+        </div>
+
+        <div class="related">
+          Want the deeper version? Read <a href="./how-answerly-ai-works.html">How Answerly AI Works: The Complete Guide →</a>
+        </div>
+      </div>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-logo">
+        <img src="../assets/icon.png" alt="Answerly AI" class="nav-icon" width="128" height="128" loading="lazy" decoding="async" />
+        <span>Answerly AI</span>
+      </div>
+      <div class="footer-links">
+        <a href="../">Home</a>
+        <a href="./">Blog</a>
+        <a href="../privacy.html">Privacy Policy</a>
+        <a href="mailto:AnswerlyAISupport@gmail.com">Support</a>
+      </div>
+      <p class="footer-copy">© 2026 Answerly AI. All rights reserved.</p>
+    </div>
+  </footer>
+
+</body>
+</html>
