@@ -1244,6 +1244,29 @@ window.__answerlyQuizSolverLoaded = true;
   function autoSelectDropdown(selectEl, answer) {
     const target = answer.trim().toLowerCase();
 
+    // Case-sensitive exact match FIRST, the same fix the radio and checkbox paths
+    // already carry. Every pass below lowercases, so AA / Aa / aa collapse to one
+    // string and the first option wins whatever the model answered - measured
+    // against this function: "Aa" and "aa" both selected AA, "m3" selected M3,
+    // "Co" selected CO. Classic MATCHING questions are built from these selects,
+    // so a Punnett-square or chemistry matching question lost every case-only row.
+    // Strictly additive: an exact case-sensitive hit cannot be the wrong option.
+    {
+      const raw = answer.trim();
+      const bare = raw.replace(/[.)\]:,;]+$/, '').trim();
+      if (bare) {
+        for (let i = 0; i < selectEl.options.length; i++) {
+          const t = selectEl.options[i].text.trim();
+          if (!t || t.startsWith('[')) continue;
+          if (t === raw || t.replace(/[.)\]:,;]+$/, '').trim() === bare) {
+            selectEl.selectedIndex = i;
+            ['change', 'input'].forEach(ev => selectEl.dispatchEvent(new Event(ev, { bubbles: true })));
+            return true;
+          }
+        }
+      }
+    }
+
     function doSelect(i) {
       selectEl.selectedIndex = i;
       ['change', 'input'].forEach(t => selectEl.dispatchEvent(new Event(t, { bubbles: true })));
@@ -1259,7 +1282,9 @@ window.__answerlyQuizSolverLoaded = true;
     for (let i = 0; i < selectEl.options.length; i++) {
       const optText = selectEl.options[i].text.trim().toLowerCase();
       if (!optText || optText.startsWith('[')) continue;
-      if (optText.includes(target)) { doSelect(i); return true; }
+      // 2+ characters, as on the radio path: a bare "b" "includes"-matches any
+      // option holding that letter, and selected "Ribosome" when tested.
+      if (target.length >= 2 && optText.includes(target)) { doSelect(i); return true; }
     }
     // Pass 3: target contains the option text — only for substantial strings (≥6 chars)
     // Prevents short numbers like "5" matching inside "15", "45", etc.
@@ -1267,6 +1292,17 @@ window.__answerlyQuizSolverLoaded = true;
       const optText = selectEl.options[i].text.trim().toLowerCase();
       if (!optText || optText.startsWith('[')) continue;
       if (optText.length >= 6 && target.includes(optText)) { doSelect(i); return true; }
+    }
+    // Last: the same number written another way ("0.196" vs ".196.").
+    {
+      const idx = [], labels = [];
+      for (let i = 0; i < selectEl.options.length; i++) {
+        const t = selectEl.options[i].text.trim();
+        if (!t || t.startsWith('[')) continue;
+        idx.push(i); labels.push(t);
+      }
+      const k = uniqueNumericIndex(labels, answer);
+      if (k >= 0) { doSelect(idx[k]); return true; }
     }
     return false;
   }
@@ -1517,6 +1553,42 @@ window.__answerlyQuizSolverLoaded = true;
       .trim();
   }
 
+  // ── A number written two ways is still one number ──────────────────────────
+  // The text passes compare strings, so "0.196" never meets an option printed
+  // ".196.", and "$12500" never meets "$12,500" - the click lands nowhere and
+  // the mark is lost. This runs only AFTER every other pass has failed, so it can
+  // turn a miss into a click but can never change an answer that matches today.
+  //
+  // Deliberately narrow: commas count only in a valid thousands group, so a
+  // European "1,5" can never become 15; a percentage is not a number here, so
+  // "50%" is never equated with 0.5 or 50; and it only fires when EXACTLY ONE
+  // option has that value - two options with the same value means it is not the
+  // number deciding the question, and it stands down.
+  function answerNumber(s) {
+    let t = String(s == null ? '' : s).trim()
+      .replace(/^\(?[a-e][.)]\s+/i, '')     // "b. 0.196"
+      .replace(/\u2212/g, '-')              // typographic minus
+      .replace(/[$\u20ac\u00a3\u00a5\s]/g, '')   // currency symbols, spaces
+      .replace(/[.)\]:;]+$/, '');           // trailing punctuation
+    if (t.includes(',')) {
+      if (!/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) return null;
+      t = t.replace(/,/g, '');
+    }
+    if (!/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(t)) return null;
+    const v = parseFloat(t);
+    return Number.isFinite(v) ? v : null;
+  }
+  function uniqueNumericIndex(labels, ans) {
+    const a = answerNumber(ans);
+    if (a === null) return -1;
+    const hits = [];
+    labels.forEach((l, i) => {
+      const v = answerNumber(l);
+      if (v !== null && Math.abs(v - a) <= 1e-9 * Math.max(1, Math.abs(a))) hits.push(i);
+    });
+    return hits.length === 1 ? hits[0] : -1;
+  }
+
   // ── Screen-reader status text on answer choices ─────────────────────────────
   // Canvas appends "Not Selected" / "Selected" to each choice for assistive
   // tech. It is visually hidden, but innerText reads it as part of the label,
@@ -1655,7 +1727,8 @@ window.__answerlyQuizSolverLoaded = true;
     if (lm) { const i = lm[1].toLowerCase().charCodeAt(0) - 97; if (inputs[i]) return i; }
     const nm = ref.match(/^\(?([1-9])\)?$/);
     if (nm) { const i = parseInt(nm[1], 10) - 1; if (inputs[i]) return i; }
-    return -1;
+    // Last: the same number written another way ("0.196" vs ".196.").
+    return uniqueNumericIndex(inputs.map(inp => getOptionLabelText(inp, qEl)), a);
   }
 
   function autoSelectAnswer(qEl, answer, parts) {
@@ -1796,6 +1869,13 @@ window.__answerlyQuizSolverLoaded = true;
     if (/^[a-e]$/.test(target)) {
       const idx = target.charCodeAt(0) - 97; // 'a'→0, 'b'→1 …
       if (radios[idx]) { radios[idx].click(); return true; }
+    }
+
+    // Pass 5b: the same number written another way - only reached when every
+    // text pass above has already failed.
+    {
+      const i = uniqueNumericIndex(radios.map(r => getOptionLabelText(r, qEl)), answer);
+      if (i >= 0 && radios[i]) { radios[i].click(); return true; }
     }
 
     // Pass 6: fallback — single select dropdown

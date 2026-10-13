@@ -1061,6 +1061,42 @@ window.__answerlyNQSolverLoaded = true;
       .trim();
   }
 
+  // ── A number written two ways is still one number ──────────────────────────
+  // The text passes compare strings, so "0.196" never meets an option printed
+  // ".196.", and "$12500" never meets "$12,500" - the click lands nowhere and
+  // the mark is lost. This runs only AFTER every other pass has failed, so it can
+  // turn a miss into a click but can never change an answer that matches today.
+  //
+  // Deliberately narrow: commas count only in a valid thousands group, so a
+  // European "1,5" can never become 15; a percentage is not a number here, so
+  // "50%" is never equated with 0.5 or 50; and it only fires when EXACTLY ONE
+  // option has that value - two options with the same value means it is not the
+  // number deciding the question, and it stands down.
+  function answerNumber(s) {
+    let t = String(s == null ? '' : s).trim()
+      .replace(/^\(?[a-e][.)]\s+/i, '')     // "b. 0.196"
+      .replace(/\u2212/g, '-')              // typographic minus
+      .replace(/[$\u20ac\u00a3\u00a5\s]/g, '')   // currency symbols, spaces
+      .replace(/[.)\]:;]+$/, '');           // trailing punctuation
+    if (t.includes(',')) {
+      if (!/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) return null;
+      t = t.replace(/,/g, '');
+    }
+    if (!/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(t)) return null;
+    const v = parseFloat(t);
+    return Number.isFinite(v) ? v : null;
+  }
+  function uniqueNumericIndex(labels, ans) {
+    const a = answerNumber(ans);
+    if (a === null) return -1;
+    const hits = [];
+    labels.forEach((l, i) => {
+      const v = answerNumber(l);
+      if (v !== null && Math.abs(v - a) <= 1e-9 * Math.max(1, Math.abs(a))) hits.push(i);
+    });
+    return hits.length === 1 ? hits[0] : -1;
+  }
+
   // ── Click a radio/checkbox input (React-compatible) ───────────────────────
   // New Quizzes uses React. We fire a real click event so React's delegated
   // event system picks it up at the root, and also dispatch change/input for
@@ -1136,7 +1172,8 @@ window.__answerlyNQSolverLoaded = true;
       .replace(/[.)\]:]+$/, '').trim();
     const lm = ref.match(/^\(?([a-e])\)?$/i);
     if (lm) { const i = lm[1].toLowerCase().charCodeAt(0) - 97; if (inputOptionPairs[i]) return i; }
-    return -1;
+    // Last: the same number written another way ("0.196" vs ".196.").
+    return uniqueNumericIndex(inputOptionPairs.map(p => p.labelText), a);
   }
 
   // `parts` is the backend's answerParts — the exact option strings it chose.
@@ -1215,19 +1252,58 @@ window.__answerlyNQSolverLoaded = true;
     const target    = targets[0]    || answerNorm;
     const targetRaw = rawTargets[0] || answerLower;
 
+    // Pass 0 — INDICATOR-ONLY, and it must run before any fuzzy pass. This is the
+    // fix quizSolver.js has carried for a long time and this engine never got.
+    // An answer that is only a reference - "B", "Option B", "The answer is D",
+    // "(3)" - is authoritative about WHICH option, and the fuzzy passes below
+    // treat it as text: a bare "b" "includes"-matches the first label holding
+    // that letter. Measured against this function: "B" picked Ribosome over
+    // Mitochondrion and "C" picked Nucleus over Ribosome - a confident WRONG
+    // click, worse than none - while "Option B" and "The answer is D" picked
+    // nothing at all.
+    //
+    // It reaches here more than it looks like it should. The text route maps
+    // the model's letter to option text server-side, but the screenshot route
+    // does not: in real logged traffic 2.9% of screenshot answers were a bare
+    // letter, and New Quizzes' screenshot stealth hands them straight to this.
+    //
+    // A token that reads exactly like one of the options is the answer itself,
+    // not a position ("3" on a 5 / 4 / 2 / 3 question), so it is left alone.
+    {
+      const ref = answerLower
+        .replace(/^(the\s+)?(correct\s+)?(answer|choice|option)\s*(is|:)?\s*/i, '')
+        .replace(/[.)\]:]+$/, '')
+        .trim();
+      const refNorm = normalizeText(ref);
+      const isOwnOptionText = !!refNorm && inputOptionPairs.some(p => normalizeText(p.labelText || '') === refNorm);
+      let idx = -1;
+      if (!isOwnOptionText) {
+        const lm = ref.match(/^\(?([a-e])\)?$/i);
+        if (lm) idx = lm[1].toLowerCase().charCodeAt(0) - 97;
+        if (idx < 0) { const nm = ref.match(/^\(?([1-9])\)?$/); if (nm) idx = parseInt(nm[1], 10) - 1; }
+      }
+      if (idx >= 0 && inputOptionPairs[idx]) { clickNQInput(inputOptionPairs[idx].input); return true; }
+    }
+
     // Pass 1: exact normalized match
     for (const { input, labelText } of inputOptionPairs) {
       if (normalizeText(labelText) === target) { clickNQInput(input); return true; }
     }
-    // Pass 2: normalized includes
+    // Pass 2: normalized includes. Guarded to 2+ characters on both sides, as in
+    // quizSolver.js: a 1-character string "includes"-matches almost anything, and
+    // an EMPTY label is contained in every answer.
     for (const { input, labelText } of inputOptionPairs) {
       const lNorm = normalizeText(labelText);
-      if (lNorm.includes(target) || target.includes(lNorm)) { clickNQInput(input); return true; }
+      if (!lNorm) continue;
+      if ((target.length >= 2 && lNorm.includes(target)) ||
+          (lNorm.length >= 2 && target.includes(lNorm))) { clickNQInput(input); return true; }
     }
-    // Pass 3: raw case-insensitive includes
+    // Pass 3: raw case-insensitive includes (same guard)
     for (const { input, labelText } of inputOptionPairs) {
       const lLow = labelText.toLowerCase();
-      if (lLow.includes(targetRaw) || targetRaw.includes(lLow)) { clickNQInput(input); return true; }
+      if (!lLow) continue;
+      if ((targetRaw.length >= 2 && lLow.includes(targetRaw)) ||
+          (lLow.length >= 2 && targetRaw.includes(lLow))) { clickNQInput(input); return true; }
     }
     // Pass 4: first 25 chars of normalized
     for (const { input, labelText } of inputOptionPairs) {
@@ -1240,6 +1316,12 @@ window.__answerlyNQSolverLoaded = true;
     if (/^[a-e]$/.test(target)) {
       const idx = target.charCodeAt(0) - 97; // 'a'→0
       if (inputOptionPairs[idx]) { clickNQInput(inputOptionPairs[idx].input); return true; }
+    }
+    // Pass 5b: the same number written another way - only reached when every
+    // text pass above has already failed.
+    {
+      const i = uniqueNumericIndex(inputOptionPairs.map(p => p.labelText), answer);
+      if (i >= 0 && inputOptionPairs[i]) { clickNQInput(inputOptionPairs[i].input); return true; }
     }
 
     return false;
@@ -1546,14 +1628,29 @@ window.__answerlyNQSolverLoaded = true;
     const lb = await nqOpenListbox(cb);
     if (!lb) return false;
     const opts = Array.from(lb.querySelectorAll('[role="option"]'));
-    // Exact first, then prefix, then containment either way. Same ladder as
-    // autoSelectNQDropdown, so a model answer that is slightly longer or
-    // shorter than the option label still lands.
-    const hit = opts.find(o => nqNorm(o.textContent) === want)
-             || opts.find(o => nqNorm(o.textContent).startsWith(want))
-             || opts.find(o => want.startsWith(nqNorm(o.textContent)))
+    // Case-sensitive exact match FIRST. nqNorm() lowercases, so AA / Aa / aa
+    // collapse to one string and whichever option comes first wins, whatever the
+    // model answered - the same collapse fixed on the radio, checkbox and Classic
+    // dropdown paths. On native New Quizzes every matching row and dropdown blank
+    // is one of these comboboxes, so a genetics or chemistry matching question
+    // lost every row that differed only by case. Strictly additive: an exact
+    // case-sensitive hit cannot be the wrong option.
+    const rawWant  = String(answer || '').replace(/\s+/g, ' ').trim();
+    const bareWant = rawWant.replace(/[.)\]:,;]+$/, '').trim();
+    const rawOf    = o => String(o.textContent || '').replace(/\s+/g, ' ').trim();
+    // Then the original ladder: exact, prefix, containment either way, so an
+    // answer slightly longer or shorter than the label still lands. The prefix
+    // passes are now held to 2+ characters like every other path: a 1-character
+    // answer "starts" any option with that letter, and an option that normalises
+    // to a single character is the start of almost any answer.
+    const hit = opts.find(o => rawOf(o) === rawWant || (bareWant && rawOf(o).replace(/[.)\]:,;]+$/, '').trim() === bareWant))
+             || opts.find(o => nqNorm(o.textContent) === want)
+             || opts.find(o => want.length >= 2 && nqNorm(o.textContent).startsWith(want))
+             || opts.find(o => nqNorm(o.textContent).length >= 2 && want.startsWith(nqNorm(o.textContent)))
              || opts.find(o => nqNorm(o.textContent).includes(want) && want.length > 2)
-             || opts.find(o => want.includes(nqNorm(o.textContent)) && nqNorm(o.textContent).length > 2);
+             || opts.find(o => want.includes(nqNorm(o.textContent)) && nqNorm(o.textContent).length > 2)
+             // Last: the same number written another way ("0.196" vs ".196.").
+             || opts[uniqueNumericIndex(opts.map(rawOf), answer)];
     if (!hit) { await nqCloseListbox(cb); return false; }
     const chosen = nqNorm(hit.textContent);
     try { hit.click(); } catch { await nqCloseListbox(cb); return false; }
