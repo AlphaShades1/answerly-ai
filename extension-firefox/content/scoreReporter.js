@@ -415,21 +415,31 @@
   //
   // Re-arm on every URL change, with a longer window because the results view
   // renders asynchronously after the route changes.
+  //
+  // This POLLS location.href instead of wrapping history.pushState. A content
+  // script runs in an isolated world, so a wrapper installed on history here is
+  // never called by the page's own router, which lives in the page's world —
+  // the wrapper looks right and silently never fires. Reading location.href
+  // works from either world, so polling is the only thing that actually
+  // observes a client-side route change. The tick is a string compare; only an
+  // actual change pays for detection.
   var lastHref = location.href;
   function onRouteChange() {
     if (location.href === lastHref) return;
     lastHref = location.href;
     arm(14);                    // ~10s, enough for the results view to paint
   }
-  ['pushState', 'replaceState'].forEach(function (m) {
-    var orig = history[m];
-    if (typeof orig !== 'function') return;
-    history[m] = function () {
-      var r = orig.apply(this, arguments);
-      try { setTimeout(onRouteChange, 0); } catch (e) {}
-      return r;
-    };
-  });
+  setInterval(onRouteChange, 1000);
+  // Back/forward dispatch real events in this world too — cheap to also catch.
   window.addEventListener('popstate', onRouteChange);
   window.addEventListener('hashchange', onRouteChange);
+
+  // Safety net for any flow that reveals results without changing the URL.
+  // run() bails immediately when the page is not a results page, and the
+  // storage dedupe makes a repeat harmless, so sweep slowly rather than trusting
+  // the URL alone. Stops as soon as a results page is found, or after ~20min.
+  var sweeps = 0;
+  var sweepTimer = setInterval(function () {
+    if (++sweeps > 240 || run()) clearInterval(sweepTimer);
+  }, 5000);
 })();
