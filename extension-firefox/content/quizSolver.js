@@ -1104,11 +1104,63 @@ window.__answerlyQuizSolverLoaded = true;
    * dedupe in extractData, and the model was handed a shorter list than the
    * student could see. Auto-select then had nothing to match against either.
    */
+  /**
+   * MathML flattened to one line, with the structure innerText throws away.
+   *
+   * A fraction is POSITION: innerText renders it by running the numerator
+   * straight into the denominator, so four answer choices that differ only
+   * below the bar arrive as four nearly identical strings. Seen on a real
+   * attempt, where the choices reached the model as
+   *   "32 Å 25 Å 128 25 Å 32 + 32 Å 128"
+   * and the only thing distinguishing them  what was divided by what  was
+   * gone. Rebuilding it as "(32 Å 25 Å 128)/(25 Å 32 + 32 Å 128)" costs nothing
+   * and makes them distinct again.
+   *
+   * Deliberately linearises rather than refusing. These questions are answerable
+   * once the notation survives, and routing them to the screenshot tool would
+   * trade a correct answer for a camera prompt.
+   */
+  function linearizeMath(node) {
+    function walk(n) {
+      if (!n) return '';
+      const tag = (n.tagName || '').toLowerCase();
+      const kids = Array.from(n.children || []);
+      switch (tag) {
+        case 'mfrac': return '(' + walk(kids[0]) + ')/(' + walk(kids[1]) + ')';
+        case 'msup':  return walk(kids[0]) + '^(' + walk(kids[1]) + ')';
+        case 'msub':  return walk(kids[0]) + '_(' + walk(kids[1]) + ')';
+        case 'msqrt': return 'sqrt(' + kids.map(walk).join(' ') + ')';
+        case 'mroot': return 'root' + walk(kids[1]) + '(' + walk(kids[0]) + ')';
+        case 'mi': case 'mn': case 'mo': case 'mtext':
+          return (n.textContent || '').trim();
+        default:
+          return kids.length ? kids.map(walk).join(' ') : (n.textContent || '').trim();
+      }
+    }
+    try { return walk(node).replace(/\s+/g, ' ').trim(); } catch { return ''; }
+  }
+
   function textWithMath(el, joiner) {
     if (!el) return '';
     // innerText is empty on a node that is not being rendered, which is exactly
     // what stemWithoutSelectOptions() hands over, so fall back to textContent.
-    const base = (el.innerText || el.textContent || '').trim();
+    let base;
+    const maths = el.querySelectorAll ? el.querySelectorAll('math') : [];
+    if (maths.length) {
+      // Rebuild on a clone so the live page is never touched.
+      try {
+        const clone = el.cloneNode(true);
+        clone.querySelectorAll('math').forEach(m => {
+          const lin = linearizeMath(m);
+          m.replaceWith(document.createTextNode(lin ? ' ' + lin + ' ' : ' '));
+        });
+        base = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+      } catch {
+        base = (el.innerText || el.textContent || '').trim();
+      }
+    } else {
+      base = (el.innerText || el.textContent || '').trim();
+    }
     const eqs = equationTexts(el);
     if (!eqs.length) return base;
     return base ? base + (joiner || ' ') + eqs.join(' ') : eqs.join(' ');
