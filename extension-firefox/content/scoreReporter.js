@@ -378,11 +378,23 @@
       questions: extractQuestionResults(),
     };
 
-    var key = [payload.quizTitle, payload.attempt, payload.score, payload.possible].join('|');
+    // New Quizzes gives every attempt its own participant-session id in the URL
+    // (/taking/:id/results), while extractAttempt() can only ever return 1 there
+    // because the page has no attempt-history table to read. Without the session
+    // id, a genuine retake that happened to score the same as the previous one
+    // produced an identical key and was silently dropped as a duplicate — so
+    // only the very first New Quizzes attempt could ever be reported.
+    var session = (location.pathname.match(/\/taking\/(\d+)/) || [])[1] || '';
+    var key = [payload.quizTitle, payload.attempt, payload.score, payload.possible, session].join('|');
 
     alreadyReported(key, function (dupe, list) {
-      if (dupe) return;
+      if (dupe) {
+        console.log('[Answerly] Score already reported, skipping:', key);
+        return;
+      }
       try {
+        console.log('[Answerly] Reporting score:', payload.score + '/' + payload.possible,
+                    '| engine:', payload.engine, '| quiz:', payload.quizTitle);
         chrome.runtime.sendMessage({ type: 'REPORT_SCORE', payload: payload }, function () {
           void chrome.runtime.lastError;   // extension may be reloading; ignore
         });
