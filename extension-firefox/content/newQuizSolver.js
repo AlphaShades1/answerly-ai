@@ -294,6 +294,42 @@ window.__answerlyNQSolverLoaded = true;
     });
   }
 
+  // A choice whose label is a picture extracts as the empty string, so the
+  // options loop drops it (`if (labelText && …)`) and the model picks from a
+  // list missing the options the question is about. Mirrors
+  // choicesHaveUnreadableImage() in quizSolver.js; only a choice with NO text
+  // counts, since one carrying both a picture and a label still gives the model
+  // something real to match on.
+  function nqChoiceHost(input) {
+    const host = input.closest('label') || input.parentElement;
+    if (!host) return null;
+    // Not choice-scoped — it holds the whole list, so an image inside could
+    // belong to any option. Mirrors rawNQLabelText()'s single-input guard.
+    if (host.querySelectorAll('input[type="radio"], input[type="checkbox"]').length > 1) return null;
+    return host;
+  }
+
+  function nqChoiceImageUnreadable(hostEl) {
+    const imgs = [...hostEl.querySelectorAll('img')]
+      .filter(img => img.getAttribute('src') !== '');
+    if (!imgs.length) return false;
+    // Readable only if EVERY image is an equation whose LaTeX actually came back.
+    return !imgs.every(img => nqIsEquationImage(img) && nqEquationLatex(img));
+  }
+
+  function nqChoicesHaveUnreadableImage(qEl) {
+    try {
+      const radios     = [...qEl.querySelectorAll('input[type="radio"]')];
+      const checkboxes = [...qEl.querySelectorAll('input[type="checkbox"]')];
+      const inputs     = radios.length ? radios : checkboxes;
+      return inputs.some(input => {
+        if ((getNQLabelText(input, qEl) || '').trim()) return false;
+        const host = nqChoiceHost(input);
+        return host ? nqChoiceImageUnreadable(host) : false;
+      });
+    } catch { return false; }   // never let detection break solving
+  }
+
   // The single gate, mirroring quizSolver.js's needsScreenshotFor().
   // A question you have to LISTEN to. Mirrors quizSolver.js: the model cannot
   // hear, and unlike a picture question there is no tool to fall back on, so
@@ -311,6 +347,7 @@ window.__answerlyNQSolverLoaded = true;
 
   function nqNeedsScreenshotFor(qEl, questionText) {
     return nqQuestionHasImage(qEl)
+        || nqChoicesHaveUnreadableImage(qEl)
         || NQ_NEEDS_SCREENSHOT_RE.test(questionText || '')
         || nqMathIsLossy(qEl);
   }

@@ -32,7 +32,7 @@ const contextSection    = document.getElementById('context-file-section');
 const btnUploadContext  = document.getElementById('btn-upload-context');
 const contextFileInput  = document.getElementById('context-file-input');
 const contextFileActive = document.getElementById('context-file-active');
-const contextFileName   = document.getElementById('context-file-name');
+const contextFileList   = document.getElementById('context-file-list');
 const btnClearContext   = document.getElementById('btn-clear-context');
 const contextStatus     = document.getElementById('context-status');
 
@@ -205,9 +205,7 @@ async function renderMain() {
 
   // Context-file uploader — available to everyone
   contextSection.classList.remove('hidden');
-  const storedCtx = await chrome.storage.local.get('answerlyContextFile');
-  if (storedCtx.answerlyContextFile?.fileName) showContextActive(storedCtx.answerlyContextFile.fileName);
-  else contextFileActive.classList.add('hidden');
+  renderContextFiles(await readContextFiles());
 
   renderToolBtn(btnQuizSolver, quizLabel, quizActive, 'QUIZ SOLVER');
   renderToolBtn(btnScreenshot, screenshotLabel, screenshotActive, 'SCREENSHOT TOOL');
@@ -488,48 +486,170 @@ document.getElementById('menu-help').addEventListener('click', () => {
 // the extension stores it. quizSolver.js sends that text as context per question.
 btnUploadContext.addEventListener('click', () => contextFileInput.click());
 
-contextFileInput.addEventListener('change', async () => {
-  const file = contextFileInput.files[0];
-  if (!file) return;
-  if (file.size > 7 * 1024 * 1024) {
-    showContextStatus('File too large (max 7 MB).', true);
-    contextFileInput.value = '';
+const MAX_CONTEXT_FILES = 3;
+const MAX_CONTEXT_BYTES = 7 * 1024 * 1024;
+
+// Must match FILE_CONTEXT_LIMIT in backend routes/solve.js. notesContextBlock()
+// keeps only the FIRST 48k characters of whatever we send, so concatenating
+// three full-size extractions would silently discard the 2nd and 3rd file while
+// still reporting "Loaded ✓". Budget here instead, so every file is represented.
+const NOTES_BUDGET = 48000;
+
+function combineContexts(files) {
+  const parts = files.map(f => ({ head: `=== ${f.fileName} ===\n`, body: f.context || '' }));
+  const overhead = parts.reduce((s, p) => s + p.head.length + 1, 0);
+  const room  = Math.max(0, NOTES_BUDGET - overhead);
+  const total = parts.reduce((s, p) => s + p.body.length, 0);
+
+  let caps;
+  if (total <= room) {
+    caps = parts.map(p => p.body.length);
+  } else {
+    // Equal shares first, then hand the room short files didn't need to the
+    // longer ones — one short file shouldn't waste budget the others could use.
+    const even = Math.floor(room / parts.length);
+    caps = parts.map(p => Math.min(p.body.length, even));
+    let slack = room - caps.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < parts.length && slack > 0; i++) {
+      const extra = Math.min(slack, parts[i].body.length - caps[i]);
+      caps[i] += extra;
+      slack -= extra;
+    }
+  }
+  return parts.map((p, i) => p.head + p.body.slice(0, caps[i])).join('\n');
+}
+
+// The per-file extractions are kept, not just the combined blob, so removing one
+// file can rebuild the context from the others without re-uploading anything.
+async function readContextFiles() {
+  const stored = await chrome.storage.local.get('answerlyContextFile');
+  const c = stored.answerlyContextFile;
+  if (!c) return [];
+  if (Array.isArray(c.files)) return c.files;
+  // Single-file shape written by an earlier build.
+  if (c.fileName) return [{ fileName: c.fileName, context: c.context || '', size: 0 }];
+  return [];
+}
+
+async function writeContextFiles(files) {
+  if (!files.length) {
+    await chrome.storage.local.remove('answerlyContextFile');
+    renderContextFiles([]);
     return;
   }
-  showContextStatus('Reading file…', false);
+  // `context` stays the combined string so background.js needs no changes.
+  await chrome.storage.local.set({ answerlyContextFile: {
+    fileName:  files.length === 1 ? files[0].fileName : `${files.length} files`,
+    fileNames: files.map(f => f.fileName),
+    files,
+    context:   combineContexts(files),
+  }});
+  renderContextFiles(files);
+}
+
+contextFileInput.addEventListener('change', async () => {
+  const picked = Array.from(contextFileInput.files || []);
+  if (!picked.length) return;
   try {
-    const dataUrl = await new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onload  = () => resolve(r.result);
-      r.onerror = () => reject(new Error('read failed'));
-      r.readAsDataURL(file);
-    });
-    const base64 = String(dataUrl).split(',')[1];
-    const res = await fetch(`${BACKEND_URL}/api/process-context`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.token}` },
-      body: JSON.stringify({ fileData: base64, mimeType: file.type || 'text/plain', fileName: file.name }),
-    });
-    const data = await res.json();
-    if (!res.ok) { showContextStatus(data.error || 'Upload failed.', true); return; }
-    await chrome.storage.local.set({ answerlyContextFile: { fileName: data.fileName, context: data.context } });
-    showContextActive(data.fileName);
-    showContextStatus('Loaded ✓ — used as context when solving', false);
+    // Adding files must ADD, not replace: picking one and then another used to
+    // overwrite the first, so three files were only reachable by ctrl-clicking
+    // all of them in a single dialog.
+    const existing = await readContextFiles();
+    const room = MAX_CONTEXT_FILES - existing.length;
+    if (room <= 0) {
+      showContextStatus(`Already at ${MAX_CONTEXT_FILES} files — remove one first.`, true);
+      return;
+    }
+    const fresh = picked.filter(f => !existing.some(e => e.fileName === f.name));
+    if (!fresh.length) { showContextStatus('Already attached.', true); return; }
+    if (fresh.length > room) {
+      showContextStatus(`Only room for ${room} more file${room === 1 ? '' : 's'}.`, true);
+      return;
+    }
+    const bytes = existing.reduce((s, f) => s + (f.size || 0), 0)
+                + fresh.reduce((s, f) => s + f.size, 0);
+    if (bytes > MAX_CONTEXT_BYTES) {
+      showContextStatus('Files too large (max 7 MB total).', true);
+      return;
+    }
+
+    const added = [];
+    for (let i = 0; i < fresh.length; i++) {
+      const file = fresh[i];
+      showContextStatus(fresh.length > 1 ? `Reading ${i + 1} of ${fresh.length}…` : 'Reading file…', false);
+      const dataUrl = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload  = () => resolve(r.result);
+        r.onerror = () => reject(new Error('read failed'));
+        r.readAsDataURL(file);
+      });
+      const base64 = String(dataUrl).split(',')[1];
+      const res = await fetch(`${BACKEND_URL}/api/process-context`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.token}` },
+        body: JSON.stringify({ fileData: base64, mimeType: file.type || 'text/plain', fileName: file.name }),
+      });
+      const data = await res.json();
+      // Name the file that failed — with three in flight, "Upload failed" alone
+      // doesn't say which one to swap out. Keep whatever already succeeded.
+      if (!res.ok) {
+        if (added.length) await writeContextFiles(existing.concat(added));
+        showContextStatus(`${file.name}: ${data.error || 'upload failed'}`, true);
+        return;
+      }
+      added.push({ fileName: data.fileName, context: data.context, size: file.size });
+    }
+    const all = existing.concat(added);
+    await writeContextFiles(all);
+    showContextStatus(`Loaded ✓ ${all.length} of ${MAX_CONTEXT_FILES} — used when solving`, false);
   } catch {
-    showContextStatus('Could not process this file.', true);
+    showContextStatus('Could not process these files.', true);
   } finally {
+    // Always clear, so picking the same file again still fires a change event.
     contextFileInput.value = '';
   }
 });
 
 btnClearContext.addEventListener('click', async () => {
-  await chrome.storage.local.remove('answerlyContextFile');
-  contextFileActive.classList.add('hidden');
+  await writeContextFiles([]);
   showContextStatus('', false);
 });
 
-function showContextActive(name) {
-  contextFileName.textContent = name;
+// One row per attached file, each with its own remove button. The old single ✕
+// cleared everything, which is why removing one file looked like it removed the
+// wrong one.
+function renderContextFiles(files) {
+  const list = Array.isArray(files) ? files : [];
+  contextFileList.textContent = '';
+  if (!list.length) {
+    contextFileActive.classList.add('hidden');
+    return;
+  }
+  list.forEach((f, i) => {
+    const row = document.createElement('div');
+    row.className = 'context-file-row';
+
+    const name = document.createElement('span');
+    name.className = 'context-file-name';
+    name.textContent = f.fileName;
+    name.title = f.fileName;
+
+    const x = document.createElement('button');
+    x.className = 'context-clear-btn';
+    x.type = 'button';
+    x.textContent = '✕';
+    x.title = `Remove ${f.fileName}`;
+    x.addEventListener('click', async () => {
+      const current = await readContextFiles();
+      current.splice(i, 1);
+      await writeContextFiles(current);
+      showContextStatus(current.length ? `${current.length} file${current.length === 1 ? '' : 's'} attached` : '', false);
+    });
+
+    row.appendChild(name);
+    row.appendChild(x);
+    contextFileList.appendChild(row);
+  });
   contextFileActive.classList.remove('hidden');
 }
 

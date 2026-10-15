@@ -394,10 +394,42 @@
   }
 
   // Results content can render slightly after load — retry briefly, then stop.
-  var tries = 0;
-  (function attempt() {
-    if (run()) return;
-    if (++tries >= 6) return;
-    setTimeout(attempt, 700);
-  })();
+  function arm(limit) {
+    var tries = 0;
+    (function attempt() {
+      if (run()) return;
+      if (++tries >= limit) return;
+      setTimeout(attempt, 700);
+    })();
+  }
+  arm(6);
+
+  // New Quizzes is a single-page app: the document loads once at
+  // /assignments/:id/launch, and /take and /results are client-side routes with
+  // NO further navigation — verified on a real attempt, where the only
+  // performance navigation entry was the launch URL. So the burst above expires
+  // ~4 seconds in, while the student is still answering, and nothing ever
+  // re-injects this script. That, not the match patterns, is why no New Quizzes
+  // result has ever been reported: on the live results page the detection
+  // itself works (score 3/3, engine "new") — it simply never runs there.
+  //
+  // Re-arm on every URL change, with a longer window because the results view
+  // renders asynchronously after the route changes.
+  var lastHref = location.href;
+  function onRouteChange() {
+    if (location.href === lastHref) return;
+    lastHref = location.href;
+    arm(14);                    // ~10s, enough for the results view to paint
+  }
+  ['pushState', 'replaceState'].forEach(function (m) {
+    var orig = history[m];
+    if (typeof orig !== 'function') return;
+    history[m] = function () {
+      var r = orig.apply(this, arguments);
+      try { setTimeout(onRouteChange, 0); } catch (e) {}
+      return r;
+    };
+  });
+  window.addEventListener('popstate', onRouteChange);
+  window.addEventListener('hashchange', onRouteChange);
 })();

@@ -2541,6 +2541,42 @@ window.__answerlyQuizSolverLoaded = true;
     });
   }
 
+  // An answer CHOICE whose label is a picture extracts as the empty string, so
+  // extractData() drops it (the `if (t && &)` guard) and the model is asked to
+  // pick from a list missing the very options the question is about. It answers
+  // from the stem alone  the same silent guessing questionHasImage() exists to
+  // stop, and what a student hit on an image-choice multiple-choice section.
+  //
+  // Only a choice with NO text counts. One carrying both a picture and a label
+  // still gives the model something real to match on, and flagging those would
+  // push every illustrated quiz to the camera for no reason.
+  const CHOICE_HOST_SEL = '.answer, .answer-option, .answer_choice, [data-answer], li, tr';
+
+  function choiceImageUnreadable(hostEl) {
+    const imgs = [...hostEl.querySelectorAll('img')]
+      .filter(img => img.getAttribute('src') !== '');
+    if (!imgs.length) return false;
+    // Readable only if EVERY image is an equation whose LaTeX actually came back.
+    return !imgs.every(img => isEquationImage(img) && equationLatex(img));
+  }
+
+  function choicesHaveUnreadableImage(qEl) {
+    try {
+      const inputs = [...qEl.querySelectorAll('input[type="radio"], input[type="checkbox"]')];
+      if (inputs.length) {
+        return inputs.some(input => {
+          if ((getOptionLabelText(input, qEl) || '').trim()) return false;
+          return choiceImageUnreadable(input.closest(CHOICE_HOST_SEL) || qEl);
+        });
+      }
+      // No real inputs  mirror extractData()'s rendered-choice fallback.
+      return [...qEl.querySelectorAll(
+        '.answer .answer_label, .answer_label, [data-answer-text], ' +
+        '.answer .answer_text, .answer_text, .answer label'
+      )].some(el => !(el.innerText || '').trim() && choiceImageUnreadable(el));
+    } catch { return false; }   // never let detection break solving
+  }
+
   // Structural maths markup whose meaning innerText cannot carry: a fraction bar
   // and an exponent are POSITION, and flattening throws the position away.
   const LOSSY_MATH_SEL = 'math, mfrac, msup, msub, msqrt, mroot, munderover, sup, sub, .frac, .fraction';
@@ -2601,6 +2637,7 @@ window.__answerlyQuizSolverLoaded = true;
 
   function needsScreenshotFor(qEl, questionText) {
     return questionHasImage(qEl)
+        || choicesHaveUnreadableImage(qEl)
         || NEEDS_SCREENSHOT_RE.test(questionText || '')
         || mathIsLossy(qEl);
   }

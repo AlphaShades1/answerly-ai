@@ -183,14 +183,14 @@
         <span class="context-file-label">Upload Notes for Context <span style="opacity:0.6;font-weight:500;">(Optional)</span></span>
         <div class="stealth-tip">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <div class="stealth-tooltip">Upload your notes, study guide, or textbook (<b>PDF, image, or .txt</b> — up to 7&nbsp;MB). The AI reads it and uses it as reference context when answering each quiz question — so answers match your class material. Works with Quiz Solver and Screenshot Tool. Stays active until you remove it.</div>
+          <div class="stealth-tooltip">Upload your notes, study guide, or textbook — <b>up to 3 files</b> (<b>PDF, image, or .txt</b>), 7&nbsp;MB total. The AI reads them and uses them as reference context when answering each quiz question — so answers match your class material. Works with Quiz Solver and Screenshot Tool. Stays active until you remove it.</div>
         </div>
       </div>
-      <button id="btn-upload-context" class="context-upload-btn">📎 Upload Notes / Context File</button>
-      <input type="file" id="context-file-input" accept=".pdf,.txt,.png,.jpg,.jpeg" />
+      <button id="btn-upload-context" class="context-upload-btn">📎 Upload Notes / Context Files</button>
+      <input type="file" id="context-file-input" accept=".pdf,.txt,.png,.jpg,.jpeg" multiple />
       <div id="context-file-active" class="context-file-active hidden">
-        <span id="context-file-name" class="context-file-name"></span>
-        <button id="btn-clear-context" class="context-clear-btn" title="Remove file">✕</button>
+        <div id="context-file-list" class="context-file-list"></div>
+        <button id="btn-clear-context" class="context-clear-all-btn" title="Remove all files">Clear all</button>
       </div>
       <div id="context-status" class="context-status hidden"></div>
     </div>
