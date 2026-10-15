@@ -1111,9 +1111,9 @@ window.__answerlyQuizSolverLoaded = true;
    * straight into the denominator, so four answer choices that differ only
    * below the bar arrive as four nearly identical strings. Seen on a real
    * attempt, where the choices reached the model as
-   *   "32 Å 25 Å 128 25 Å 32 + 32 Å 128"
-   * and the only thing distinguishing them  what was divided by what  was
-   * gone. Rebuilding it as "(32 Å 25 Å 128)/(25 Å 32 + 32 Å 128)" costs nothing
+   *   "32 â‹… 25 â‹… 128 25 â‹… 32 + 32 â‹… 128"
+   * and the only thing distinguishing them â€” what was divided by what â€” was
+   * gone. Rebuilding it as "(32 â‹… 25 â‹… 128)/(25 â‹… 32 + 32 â‹… 128)" costs nothing
    * and makes them distinct again.
    *
    * Deliberately linearises rather than refusing. These questions are answerable
@@ -1141,8 +1141,8 @@ window.__answerlyQuizSolverLoaded = true;
   }
 
   // A plain HTML superscript is an exponent that innerText glues to its base:
-  // 2<sup>10</sup> reads back as "210", and scientific notation fares worst 
-  // 5 × 10<sup>8</sup> becomes "5 × 108", which is wrong by a factor of five
+  // 2<sup>10</sup> reads back as "210", and scientific notation fares worst â€”
+  // 5 Ã— 10<sup>8</sup> becomes "5 Ã— 108", which is wrong by a factor of five
   // million. Ordinals are the exception and must be left alone, so 1<sup>st</sup>
   // stays "1st" rather than becoming "1^(st)".
   //
@@ -2612,9 +2612,9 @@ window.__answerlyQuizSolverLoaded = true;
   }
 
   // An answer CHOICE whose label is a picture extracts as the empty string, so
-  // extractData() drops it (the `if (t && &)` guard) and the model is asked to
+  // extractData() drops it (the `if (t && â€¦)` guard) and the model is asked to
   // pick from a list missing the very options the question is about. It answers
-  // from the stem alone  the same silent guessing questionHasImage() exists to
+  // from the stem alone â€” the same silent guessing questionHasImage() exists to
   // stop, and what a student hit on an image-choice multiple-choice section.
   //
   // Only a choice with NO text counts. One carrying both a picture and a label
@@ -2639,7 +2639,7 @@ window.__answerlyQuizSolverLoaded = true;
           return choiceImageUnreadable(input.closest(CHOICE_HOST_SEL) || qEl);
         });
       }
-      // No real inputs  mirror extractData()'s rendered-choice fallback.
+      // No real inputs â€” mirror extractData()'s rendered-choice fallback.
       return [...qEl.querySelectorAll(
         '.answer .answer_label, .answer_label, [data-answer-text], ' +
         '.answer .answer_text, .answer_text, .answer label'
