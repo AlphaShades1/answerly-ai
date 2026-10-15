@@ -27,8 +27,7 @@
       ],
       "js": [
         "content/newQuizSolver.js",
-        "content/quizMemory.js",
-        "content/scoreReporter.js"
+        "content/quizMemory.js"
       ],
       "run_at": "document_idle",
       "all_frames": true
@@ -39,7 +38,8 @@
       ],
       "js": [
         "content/quizSolver.js",
-        "content/screenshotTool.js"
+        "content/screenshotTool.js",
+        "content/scoreReporter.js"
       ],
       "run_at": "document_idle",
       "all_frames": false
