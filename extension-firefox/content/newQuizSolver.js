@@ -191,11 +191,67 @@ window.__answerlyNQSolverLoaded = true;
   }
 
   /** innerText plus any equations it dropped, appended in document order. */
+  // A plain HTML superscript is an exponent innerText glues to its base:
+  // 2<sup>10</sup> reads back as "210", and 5 × 10<sup>8</sup> becomes
+  // "5 × 108". Ordinals must survive untouched, so 1<sup>st</sup> stays "1st".
+  // Subscripts are deliberately left alone — "H2O" is how it is written.
+  const NQ_ORDINAL_SUP_RE = /^(st|nd|rd|th)$/i;
+
+  // MathML flattened to one line, keeping the structure innerText discards.
+  // Mirrors linearizeMath() in quizSolver.js: a fraction is POSITION, and
+  // innerText runs the numerator straight into the denominator, so answer
+  // choices that differ only below the bar arrive as near-identical strings.
+  // nqStemText() serves both stems and option labels, so fixing it here covers
+  // both.
+  function nqLinearizeMath(node) {
+    function walk(n) {
+      if (!n) return '';
+      const tag = (n.tagName || '').toLowerCase();
+      const kids = Array.from(n.children || []);
+      switch (tag) {
+        case 'mfrac': return '(' + walk(kids[0]) + ')/(' + walk(kids[1]) + ')';
+        case 'msup':  return walk(kids[0]) + '^(' + walk(kids[1]) + ')';
+        case 'msub':  return walk(kids[0]) + '_(' + walk(kids[1]) + ')';
+        case 'msqrt': return 'sqrt(' + kids.map(walk).join(' ') + ')';
+        case 'mroot': return 'root' + walk(kids[1]) + '(' + walk(kids[0]) + ')';
+        case 'mi': case 'mn': case 'mo': case 'mtext':
+          return (n.textContent || '').trim();
+        default:
+          return kids.length ? kids.map(walk).join(' ') : (n.textContent || '').trim();
+      }
+    }
+    try { return walk(node).replace(/\s+/g, ' ').trim(); } catch { return ''; }
+  }
+
   function nqStemText(stemContent) {
     if (!stemContent) return '';
     // innerText is empty on a node that is not being rendered, which is what
     // nqStemWithoutSelectOptions() passes in, so fall back to textContent.
-    const base = (stemContent.innerText || stemContent.textContent || '').trim();
+    let base;
+    const hasMath = stemContent.querySelectorAll ? stemContent.querySelectorAll('math').length : 0;
+    const hasSup  = stemContent.querySelectorAll ? stemContent.querySelectorAll('sup').length  : 0;
+    if (hasMath || hasSup) {
+      // Rebuild on a clone so the live page is never touched.
+      try {
+        const clone = stemContent.cloneNode(true);
+        // Math first: a <sup> inside a <math> goes with it, so it is never
+        // rewritten twice.
+        clone.querySelectorAll('math').forEach(m => {
+          const lin = nqLinearizeMath(m);
+          m.replaceWith(document.createTextNode(lin ? ' ' + lin + ' ' : ' '));
+        });
+        clone.querySelectorAll('sup').forEach(s => {
+          const t = (s.textContent || '').trim();
+          if (!t || NQ_ORDINAL_SUP_RE.test(t)) return;
+          s.replaceWith(document.createTextNode('^(' + t + ')'));
+        });
+        base = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+      } catch {
+        base = (stemContent.innerText || stemContent.textContent || '').trim();
+      }
+    } else {
+      base = (stemContent.innerText || stemContent.textContent || '').trim();
+    }
     const eqs = [];
     stemContent.querySelectorAll('img').forEach(img => {
       if (!nqIsEquationImage(img)) return;

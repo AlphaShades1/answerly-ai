@@ -1140,19 +1140,37 @@ window.__answerlyQuizSolverLoaded = true;
     try { return walk(node).replace(/\s+/g, ' ').trim(); } catch { return ''; }
   }
 
+  // A plain HTML superscript is an exponent that innerText glues to its base:
+  // 2<sup>10</sup> reads back as "210", and scientific notation fares worst 
+  // 5 × 10<sup>8</sup> becomes "5 × 108", which is wrong by a factor of five
+  // million. Ordinals are the exception and must be left alone, so 1<sup>st</sup>
+  // stays "1st" rather than becoming "1^(st)".
+  //
+  // Subscripts are deliberately NOT touched: H<sub>2</sub>O flattening to "H2O"
+  // is the conventional way to write it, and "H_(2)O" would be worse.
+  const ORDINAL_SUP_RE = /^(st|nd|rd|th)$/i;
+
   function textWithMath(el, joiner) {
     if (!el) return '';
     // innerText is empty on a node that is not being rendered, which is exactly
     // what stemWithoutSelectOptions() hands over, so fall back to textContent.
     let base;
-    const maths = el.querySelectorAll ? el.querySelectorAll('math') : [];
-    if (maths.length) {
+    const hasMath = el.querySelectorAll ? el.querySelectorAll('math').length : 0;
+    const hasSup  = el.querySelectorAll ? el.querySelectorAll('sup').length  : 0;
+    if (hasMath || hasSup) {
       // Rebuild on a clone so the live page is never touched.
       try {
         const clone = el.cloneNode(true);
+        // Math first: a <sup> inside a <math> goes with it, so it is never
+        // rewritten twice.
         clone.querySelectorAll('math').forEach(m => {
           const lin = linearizeMath(m);
           m.replaceWith(document.createTextNode(lin ? ' ' + lin + ' ' : ' '));
+        });
+        clone.querySelectorAll('sup').forEach(s => {
+          const t = (s.textContent || '').trim();
+          if (!t || ORDINAL_SUP_RE.test(t)) return;
+          s.replaceWith(document.createTextNode('^(' + t + ')'));
         });
         base = (clone.textContent || '').replace(/\s+/g, ' ').trim();
       } catch {
