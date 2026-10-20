@@ -357,11 +357,25 @@ window.__answerlyNQSolverLoaded = true;
     } catch { return null; }
   }
 
-  // Structural maths markup whose meaning innerText cannot carry: a fraction bar
-  // and an exponent are POSITION, and flattening throws the position away.
-  // Mirrors quizSolver.js — the two engines share no module, so this is a
-  // deliberate duplicate and the pair must be kept in step.
-  const NQ_LOSSY_MATH_SEL = 'math, mfrac, msup, msub, msqrt, mroot, munderover, sup, sub, .frac, .fraction';
+  // Every MathML tag nqLinearizeMath() can actually write out, plus the
+  // wrappers that carry no meaning. Anything else inside a <math> falls
+  // through its default branch, which joins children with spaces and destroys
+  // the notation (a 2x2 matrix becomes "1 2 3 4").
+  //
+  // This list used to name math, mfrac, msup, msub, msqrt, mroot and sup as
+  // lossy - every one of which nqLinearizeMath() and nqStemText() rewrite into
+  // readable text. The comment above it said the pair with quizSolver.js "must
+  // be kept in step"; it was not, so New Quizzes kept sending readable
+  // questions to the camera for a day after Classic stopped. Mirrors
+  // MATH_LINEARIZED in quizSolver.js - change both.
+  const NQ_MATH_LINEARIZED = new Set([
+    'math', 'semantics', 'annotation', 'annotation-xml',
+    'mrow', 'mi', 'mn', 'mo', 'mtext', 'mspace',
+    'mstyle', 'mpadded', 'mphantom',
+    'mfrac', 'msup', 'msub', 'msqrt', 'mroot',
+  ]);
+  // A fraction drawn with CSS boxes has no structure to read back.
+  const NQ_LOSSY_MATH_SEL = '.frac, .fraction';
   const NQ_MATH_SYM_RE    = /[∫∑∏√∂∇≠≤≥±→∞]/;
   // Unicode Mathematical Alphanumeric Symbols — styled letters some instructors
   // paste in place of real markup (U+1D465 is the italic x these quizzes use).
@@ -511,7 +525,14 @@ window.__answerlyNQSolverLoaded = true;
       if (hasTex) return false;
       const txt = stemContent.innerText || '';
       if (!NQ_MATH_SYM_RE.test(txt) && !NQ_MATH_ALNUM_RE.test(txt)) return false;  // not maths
-      return !!stemContent.querySelector(NQ_LOSSY_MATH_SEL) || NQ_MATH_ALNUM_RE.test(txt);
+      // Styled unicode DETECTS maths (the test above) but is not a verdict:
+      // the letters survive extraction intact, so a camera adds nothing.
+      let unhandled = false;
+      try {
+        unhandled = [...stemContent.querySelectorAll('math *')]
+          .some(n => !NQ_MATH_LINEARIZED.has((n.tagName || '').toLowerCase()));
+      } catch {}
+      return unhandled || !!stemContent.querySelector(NQ_LOSSY_MATH_SEL);
     } catch { return false; }   // never let detection break solving
   }
 
@@ -1549,17 +1570,66 @@ window.__answerlyNQSolverLoaded = true;
   // each, in order — from `parts` when the backend supplied them, else split
   // heuristically. If nothing maps cleanly, fall back to filling only the first
   // box rather than scattering wrong values across all of them.
-  function autoFillNQText(inputEls, answer, parts) {
-    const els = Array.from(inputEls || []).filter(el => el && !el.disabled);
+  // ── The element on the page, not the one we captured ─────────────────────
+  // extractNQData() collects the inputs before the solve round-trip, and the
+  // player re-renders an item when an answer saves, so those references can be
+  // detached orphans by the time the answer arrives. Writing to an orphan
+  // succeeds silently and the live page keeps its empty box.
+  //
+  // Proven on Classic, where the same bug lost a customer five marks on a
+  // five-blank question (0 of 5 landed while every fill reported success).
+  // New Quizzes gives its inputs stable id and name attributes
+  // (RadioInput___0, interaction_41232_1), so either can find the replacement.
+  function nqLiveEl(el, qEl) {
+    try {
+      if (!el) return null;
+      if (el.isConnected) return el;
+      const root = (qEl && qEl.isConnected) ? qEl : document;
+      const esc = (s) => (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&');
+      if (el.id)   { const byId = root.querySelector('#' + esc(el.id)); if (byId) return byId; }
+      if (el.name) { const byName = root.querySelector('[name="' + esc(el.name) + '"]'); if (byName) return byName; }
+      return null;
+    } catch { return el.isConnected ? el : null; }
+  }
+
+  // Re-write any blank the player threw away. Only ever fills an EMPTY box, so
+  // it cannot overrule the student or a value already placed. Two passes at
+  // most, so a player that re-renders on every keystroke cannot loop forever.
+  function nqSettleTextInputs(qEl, plan) {
+    let repaired = 0;
+    if (!Array.isArray(plan) || !plan.length) return repaired;
+    for (let pass = 0; pass < 2; pass++) {
+      let fixed = 0;
+      for (const item of plan) {
+        if (!item || item.value == null || item.value === '') continue;
+        const live = nqLiveEl(item.el, qEl);
+        if (!live || live.disabled) continue;
+        if (String(live.value || '').trim()) continue;      // already answered
+        setNQInputValue(live, item.value);
+        if (String(live.value || '').trim()) { fixed++; repaired++; }
+      }
+      if (!fixed) break;
+    }
+    return repaired;
+  }
+
+  function autoFillNQText(inputEls, answer, parts, qEl) {
+    const els = Array.from(inputEls || [])
+      .map(el => nqLiveEl(el, qEl) || el)
+      .filter(el => el && !el.disabled);
     if (!els.length) return false;
 
-    if (els.length === 1) { setNQInputValue(els[0], answer); return true; }
+    const plan = [];
+    const put = (el, value) => { setNQInputValue(el, value); plan.push({ el, value }); };
 
-    const values = (Array.isArray(parts) && parts.length === els.length) ? parts
-                 : nqSplitForBlanks(answer, els.length);
-    if (!values) { setNQInputValue(els[0], answer); return true; }
-
-    els.forEach((el, i) => setNQInputValue(el, values[i]));
+    if (els.length === 1) { put(els[0], answer); }
+    else {
+      const values = (Array.isArray(parts) && parts.length === els.length) ? parts
+                   : nqSplitForBlanks(answer, els.length);
+      if (!values) put(els[0], answer);
+      else els.forEach((el, i) => put(el, values[i]));
+    }
+    nqSettleTextInputs(qEl, plan);
     return true;
   }
 
@@ -1856,8 +1926,21 @@ window.__answerlyNQSolverLoaded = true;
 
   // One setter for both shapes, so every caller stops caring which one the
   // page happens to use. A <select> stays synchronous underneath.
-  function setNQRowAnswer(row, answer) {
-    if (row && row.selectEl) return Promise.resolve(autoSelectNQDropdown(row.selectEl, answer));
+  // qEl is optional: solveNQDropdowns() does not have the question element in
+  // scope, and nqLiveEl() falls back to a page-wide lookup there. That is
+  // correct here because New Quizzes ids and names are unique across the page
+  // (RadioInput___0, interaction_41232_1 - checked on a live take page), so
+  // there is nothing for an unscoped query to collide with.
+  function setNQRowAnswer(row, answer, qEl) {
+    if (row && row.selectEl) {
+      // Re-find it: a re-render between the solve and the fill leaves the
+      // captured <select> detached, and setting an orphan changes nothing.
+      const live = nqLiveEl(row.selectEl, qEl) || row.selectEl;
+      return Promise.resolve(autoSelectNQDropdown(live, answer));
+    }
+    // A combobox is an InstUI widget driven by keystrokes rather than a value,
+    // and it carries no stable handle to re-find it by, so it is left as it is
+    // rather than guessed at.
     if (row && row.comboEl)  return nqSelectCombo(row.comboEl, answer);
     return Promise.resolve(false);
   }
@@ -2361,7 +2444,7 @@ window.__answerlyNQSolverLoaded = true;
               // Sequential: only one listbox can be open at a time, so setting
               // these in parallel would have each one dismiss the last.
               for (let i = 0; i < answerRows.length; i++) {
-                if (await setNQRowAnswer(answerRows[i], textParts[i])) set++;
+                if (await setNQRowAnswer(answerRows[i], textParts[i], qEl)) set++;
               }
             } else {
               // Counts disagree — usually rows that ran off the bottom of the
@@ -2372,7 +2455,7 @@ window.__answerlyNQSolverLoaded = true;
               for (const part of textParts) {
                 const row = answerRows.find(r => !claimed.has(r) && nqRowIsEmpty(r) &&
                   r.options.some(o => o.trim().toLowerCase() === part.toLowerCase()));
-                if (row && await setNQRowAnswer(row, part)) { claimed.add(row); set++; }
+                if (row && await setNQRowAnswer(row, part, qEl)) { claimed.add(row); set++; }
               }
             }
             matched = set > 0;
@@ -2384,7 +2467,7 @@ window.__answerlyNQSolverLoaded = true;
           // Every part, not just the first: with two or more blanks only box 1
           // was ever filled ("Au" typed, "Fe" dropped).
           if (!matched && textParts.length > 0 && textInputEls.length > 0)
-            matched = autoFillNQText(textInputEls, textParts.join('; '), textParts);
+            matched = autoFillNQText(textInputEls, textParts.join('; '), textParts, qEl);
           // Essay / long-answer, the last resort. quizSolver.js has had this
           // block for ages and New Quizzes never did, which is the whole bug:
           // an essay here has no radio, no <select> and no <input> or
