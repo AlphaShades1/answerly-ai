@@ -303,13 +303,37 @@
   // nothing, because it looks like a real answer that simply did not match.
   var ANSWER_NOISE_RE = /exact_answer|margin of error|answer_weight|numerical_answer_type|answer_comment|answer_for_|answer_error_margin/i;
 
-  function answerTexts(qEl, sel) {
+  // Read what the page actually shows. The metadata above sits in display:none
+  // siblings INSIDE the same .answer container, and innerText leaves those out
+  // where textContent sweeps them in. An unrendered node is still read with
+  // textContent, because innerText degrades to textContent there anyway and the
+  // clean label spans on matching and fill-in-blank questions are themselves
+  // hidden - reading those as empty would throw away answers that work today.
+  function cellText(el) {
+    if (!el) return '';
+    var rendered = false;
+    try { rendered = el.getClientRects().length > 0; } catch {}
+    return String((rendered ? el.innerText : el.textContent) || '')
+      .replace(/\s+/g, ' ').trim();
+  }
+
+  // Numerical questions print the accepted value with its grading tolerance
+  // attached ("144 (with margin: 0)"). Keep the value, drop the tolerance.
+  function stripAnswerTails(t) {
+    return t.replace(/\s*\(with (?:margin|precision)\s*:[^)]*\)/gi, '')
+            .replace(/\s*Between\s+-?[\d.]+\s+and\s+-?[\d.]+/gi, '')
+            .replace(/\s*margin of error.*$/i, '')
+            .replace(/\s+/g, ' ').trim();
+  }
+
+  function collectTexts(qEl, sel) {
     var out = [];
     Array.prototype.forEach.call(qEl.querySelectorAll(sel), function (a) {
-      var t = txt(a).replace(/\s+/g, ' ').trim();
+      var t = cellText(a);
       // Canvas appends markers like "You Answered" / "Correct Answer" to the
       // label; strip them or the stored text will not match the live option.
       t = t.replace(/^(you answered|correct answer|correct!|incorrect)\s*/i, '').trim();
+      t = stripAnswerTails(t);
       // Drop a grading-metadata blob outright rather than trying to repair it.
       // The clean value is usually present as its own sibling node in the same
       // query, so dropping this one keeps the good answer and loses only noise.
@@ -322,6 +346,55 @@
     return out;
   }
 
+  // Short-answer and numerical questions keep both the typed response and the
+  // accepted answers in INPUT VALUES, which carry no text at all, so a text
+  // scrape came back empty for the whole family and every maths or fill-in
+  // question was stored as a verdict with no evidence behind it. Verified on a
+  // real Classic results page 2026-10-19: the student's answer is
+  // input.question_input[name="question_<id>"], and each accepted answer is a
+  // hidden input[name="answer_text"].
+  //
+  // Scoped to .correct_answer on purpose. Multiple-choice questions carry one
+  // of these inputs per option, so an unscoped read would record every
+  // distractor as a correct answer.
+  function fieldValues(qEl, sel) {
+    var out = [];
+    Array.prototype.forEach.call(qEl.querySelectorAll(sel), function (i) {
+      if (i.type === 'radio' || i.type === 'checkbox') return;
+      var v = String(i.value == null ? '' : i.value).replace(/\s+/g, ' ').trim();
+      if (v && out.indexOf(v) === -1 && v.length < 300) out.push(v.slice(0, 200));
+    });
+    return out;
+  }
+
+  // querySelectorAll with a comma list is a union, not an order of preference,
+  // so the precise label node and the whole .answer container both matched and
+  // the container's metadata blob competed with the clean label. Take the
+  // selectors in order and stop at the first that yields anything; fall back to
+  // the input values only when none of them did.
+  function answerTexts(qEl, sels, fallbackSel) {
+    for (var i = 0; i < sels.length; i++) {
+      var out = collectTexts(qEl, sels[i]);
+      if (out.length) return out;
+    }
+    return fallbackSel ? fieldValues(qEl, fallbackSel) : [];
+  }
+
+  var CHOSEN_SELECTORS = [
+    '.selected_answer .answer_text',
+    '.selected_answer .answer_label',
+    '.answer.selected_answer',
+  ];
+  var CORRECT_SELECTORS = [
+    '.correct_answer .answer_text',
+    '.correct_answer .answer_label',
+    '.answer.correct_answer',
+  ];
+  var CHOSEN_FALLBACK =
+    'input.question_input[name^="question_"]:not([name*="_score_"]), ' +
+    'textarea.question_input[name^="question_"]:not([name*="_score_"])';
+  var CORRECT_FALLBACK = '.correct_answer input[name="answer_text"]';
+
   function extractQuestionResults() {
     var qs = document.querySelectorAll('[data-automation="sdk-item-wrapper"], div.question.display_question, div.display_question');
     var out = [];
@@ -333,8 +406,8 @@
       out.push({
         stem: stem,
         verdict: verdict,
-        chosen:  answerTexts(qEl, '.selected_answer .answer_text, .selected_answer .answer_label, .answer.selected_answer'),
-        correct: answerTexts(qEl, '.correct_answer .answer_text, .correct_answer .answer_label, .answer.correct_answer'),
+        chosen:  answerTexts(qEl, CHOSEN_SELECTORS, CHOSEN_FALLBACK),
+        correct: answerTexts(qEl, CORRECT_SELECTORS, CORRECT_FALLBACK),
       });
     });
     return out.slice(0, 80);
