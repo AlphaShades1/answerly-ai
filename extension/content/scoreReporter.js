@@ -109,7 +109,15 @@
   }
 
   function extractTitle() {
-    var el = document.querySelector('#quiz_title, .quiz-header h1, h1.quiz-header__title, #content h1, h1');
+    // Priority order, not a comma list. querySelector with commas returns
+    // whichever element comes FIRST IN THE DOCUMENT, so a generic <h1>
+    // earlier in the page beat #quiz_title - which is how one quiz came to
+    // be logged under two different names ("PQ Location" and "Location")
+    // and why its score could not be matched to its own solves. All three
+    // files run the identical chain so the solver and the score reporter
+    // always agree on the name.
+    var el = ['#quiz_title', '.quiz-header h1', 'h1.quiz-header__title', '#content h1', 'h1']
+      .reduce(function (found, sel) { return found || document.querySelector(sel); }, null);
     var t = txt(el);
     if (t) return t.slice(0, 120);
     // Fall back to the breadcrumb's last entry

@@ -466,7 +466,15 @@ window.__answerlyQuizSolverLoaded = true;
     if (quizTitleCache !== null) return quizTitleCache;
     let t = '';
     try {
-      const el = document.querySelector('#quiz_title, .quiz-header h1, h1.quiz-header__title, #content h1, h1');
+      // Priority order, not a comma list. querySelector with commas returns
+      // whichever element comes FIRST IN THE DOCUMENT, so a generic <h1>
+      // earlier in the page beat #quiz_title - which is how one quiz came to
+      // be logged under two different names ("PQ Location" and "Location")
+      // and why its score could not be matched to its own solves. All three
+      // files run the identical chain so the solver and the score reporter
+      // always agree on the name.
+      const el = ['#quiz_title', '.quiz-header h1', 'h1.quiz-header__title', '#content h1', 'h1']
+        .reduce(function (found, sel) { return found || document.querySelector(sel); }, null);
       t = el ? String(el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120) : '';
       if (!t) {
         const crumbs = document.querySelectorAll('#breadcrumbs li a, nav[aria-label="breadcrumbs"] a');
@@ -2784,6 +2792,24 @@ window.__answerlyQuizSolverLoaded = true;
   // "?" button refused.
   const NEEDS_SCREENSHOT_RE = /refer to|see (the |figure|diagram|image|graph|chart|table|packet|trace|capture|exhibit)|based on (the |figure|diagram|image|above)|shown (in|below|above)|in the (figure|diagram|image|graph|chart|table|packet|capture)/i;
 
+  // An icon, a bullet or a spacer is not a picture the question depends on.
+  // questionHasImage() treated any <img> as reason to send the student to the
+  // camera, which is a second way an ordinary multiple-choice question could
+  // be told it needed a screenshot.
+  //
+  // Only images KNOWN to be small are skipped. Canvas adds loading="lazy", so
+  // anything below the fold reports naturalWidth 0 until it scrolls in - an
+  // unknown size must count as a real picture or every lazy image would be
+  // ignored.
+  function imageIsDecorative(img) {
+    try {
+      const w = img.naturalWidth || img.width || 0;
+      const h = img.naturalHeight || img.height || 0;
+      if (!w && !h) return false;            // size unknown: assume it matters
+      return w > 0 && h > 0 && w <= 24 && h <= 24;
+    } catch { return false; }
+  }
+
   function questionHasImage(qEl) {
     // Only inside the question text — ignore decorative icons in headers/labels.
     const qTextEl = qEl.querySelector('.question_text, [data-question-text], .question-text, .formattedHtml');
@@ -2795,6 +2821,7 @@ window.__answerlyQuizSolverLoaded = true;
     return [...qTextEl.querySelectorAll('img')].some(img => {
       const src = img.getAttribute('src');
       if (src === '') return false;
+      if (imageIsDecorative(img)) return false;
       // An equation image only counts as READABLE if its LaTeX actually came
       // back. A maths image with no title/alt/data-equation-content is just as
       // opaque as a photograph, and must route to the screenshot tool rather
@@ -2898,10 +2925,6 @@ window.__answerlyQuizSolverLoaded = true;
         .some(n => !MATH_LINEARIZED.has((n.tagName || '').toLowerCase()));
     } catch { return false; }
   }
-  const MATH_SYM_RE   = /[∫∑∏√∂∇≠≤≥±→∞]/;
-  // Unicode Mathematical Alphanumeric Symbols — styled letters some instructors
-  // paste in place of real markup (U+1D465 is the italic x these quizzes use).
-  const MATH_ALNUM_RE = /[\u{1D400}-\u{1D7FF}]/u;
 
   /**
    * True when this question is maths whose notation did NOT survive extraction.
@@ -2917,22 +2940,43 @@ window.__answerlyQuizSolverLoaded = true;
    * back 0/2 with confident, well-formed, wrong answers. Refusing sends the
    * student to the screenshot tool, which reads the rendered equation instead.
    */
+  // A fraction drawn with CSS boxes decides on its own, like unhandled MathML:
+  // it flattens to "39" for three-ninths and there is no structure to read it
+  // back from, whatever else the question contains. It used to need a maths
+  // symbol elsewhere in the text to corroborate it, which a bare "Simplify
+  // 3/9" does not have - so it was never flagged at all.
+  //
+  // Checked rather than trusted, because `.frac` is a class name and could in
+  // principle belong to something else: the element has to be short and
+  // contain a digit, which a real fraction always is and prose is not.
+  function looksLikeCssFraction(el) {
+    try {
+      const node = el.querySelector('.frac, .fraction');
+      if (!node) return false;
+      const t = String(node.textContent || '').replace(/\s+/g, '');
+      return t.length > 0 && t.length <= 20 && /\d/.test(t);
+    } catch { return false; }
+  }
+
   function mathIsLossy(qEl) {
     try {
       const textEl = qEl.querySelector('.question_text, [data-question-text], .question-text') || qEl;
       // LaTeX was recovered, so the model sees the true expression. Answer it.
       if (equationTexts(textEl).length) return false;
-      const txt = textEl.innerText || '';
-      if (!MATH_SYM_RE.test(txt) && !MATH_ALNUM_RE.test(txt)) return false;  // not maths
-      // Maths, with nothing recovered. Lossy if it contains markup the
-      // linearizer cannot write out, or a CSS-drawn fraction.
-      //
-      // Styled unicode letters are NOT a verdict. They tell you the question
-      // is maths - which is what they are used for above - but the letters
-      // themselves come through extraction intact, so a camera adds nothing.
-      // Treating their presence as lossy flagged any question an instructor
-      // had pasted out of Word.
-      return mathHasUnhandledMarkup(textEl) || !!textEl.querySelector(LOSSY_MATH_SEL);
+      // Markup the linearizer cannot write out settles it by itself. An
+      // <mtable>, <mover>, <msubsup> or <mfenced> appears only in maths, and
+      // once flattened the notation is gone whatever subject it came from -
+      // a truth table, a determinant and a vector all read as bare numbers.
+      // Gating this behind a symbol test is what let 17 of 19 subjects
+      // through: a logic question with a truth table carries no arithmetic
+      // symbol at all.
+      if (mathHasUnhandledMarkup(textEl)) return true;
+      if (looksLikeCssFraction(textEl)) return true;
+      // Nothing structural left to lose. A question whose only sign of maths is
+      // a symbol or a styled unicode letter reads back from the text intact,
+      // so there is nothing a camera would add - and deciding otherwise is
+      // what sent ordinary multiple-choice questions to it.
+      return false;
     } catch { return false; }   // never let detection break solving
   }
 

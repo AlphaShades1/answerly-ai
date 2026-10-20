@@ -376,10 +376,6 @@ window.__answerlyNQSolverLoaded = true;
   ]);
   // A fraction drawn with CSS boxes has no structure to read back.
   const NQ_LOSSY_MATH_SEL = '.frac, .fraction';
-  const NQ_MATH_SYM_RE    = /[∫∑∏√∂∇≠≤≥±→∞]/;
-  // Unicode Mathematical Alphanumeric Symbols — styled letters some instructors
-  // paste in place of real markup (U+1D465 is the italic x these quizzes use).
-  const NQ_MATH_ALNUM_RE  = /[\u{1D400}-\u{1D7FF}]/u;
 
   /**
    * True when this question is maths whose notation did NOT survive extraction.
@@ -408,12 +404,31 @@ window.__answerlyNQSolverLoaded = true;
       : qEl.querySelector('.user_content.enhanced')) || qEl;
   }
 
+  // An icon, a bullet or a spacer is not a picture the question depends on.
+  // nqQuestionHasImage() treated any <img> as reason to send the student to the
+  // camera, which is a second way an ordinary multiple-choice question could
+  // be told it needed a screenshot.
+  //
+  // Only images KNOWN to be small are skipped. Canvas adds loading="lazy", so
+  // anything below the fold reports naturalWidth 0 until it scrolls in - an
+  // unknown size must count as a real picture or every lazy image would be
+  // ignored.
+  function nqImageIsDecorative(img) {
+    try {
+      const w = img.naturalWidth || img.width || 0;
+      const h = img.naturalHeight || img.height || 0;
+      if (!w && !h) return false;            // size unknown: assume it matters
+      return w > 0 && h > 0 && w <= 24 && h <= 24;
+    } catch { return false; }
+  }
+
   function nqQuestionHasImage(qEl) {
     const stemContent = nqStemEl(qEl);
     if (!stemContent) return false;
     return [...stemContent.querySelectorAll('img')].some(img => {
       const src = img.getAttribute('src');
       if (src === '') return false;
+      if (nqImageIsDecorative(img)) return false;
       // An EQUATION image whose LaTeX came back is readable — treating it as an
       // opaque picture would skip every maths question and hand the student a
       // blank paper. One with no recoverable LaTeX is as opaque as a photo.
@@ -511,6 +526,24 @@ window.__answerlyNQSolverLoaded = true;
     } catch { return ''; }
   }
 
+  // A fraction drawn with CSS boxes decides on its own, like unhandled MathML:
+  // it flattens to "39" for three-ninths and there is no structure to read it
+  // back from, whatever else the question contains. It used to need a maths
+  // symbol elsewhere in the text to corroborate it, which a bare "Simplify
+  // 3/9" does not have - so it was never flagged at all.
+  //
+  // Checked rather than trusted, because `.frac` is a class name and could in
+  // principle belong to something else: the element has to be short and
+  // contain a digit, which a real fraction always is and prose is not.
+  function nqLooksLikeCssFraction(el) {
+    try {
+      const node = el.querySelector('.frac, .fraction');
+      if (!node) return false;
+      const t = String(node.textContent || '').replace(/\s+/g, '');
+      return t.length > 0 && t.length <= 20 && /\d/.test(t);
+    } catch { return false; }
+  }
+
   function nqMathIsLossy(qEl) {
     try {
       const stemContainer = qEl.querySelector('div[tabindex="-1"]');
@@ -523,16 +556,18 @@ window.__answerlyNQSolverLoaded = true;
         [...stemContent.querySelectorAll('annotation[encoding="application/x-tex"]')]
           .some(a => (a.textContent || '').trim());
       if (hasTex) return false;
-      const txt = stemContent.innerText || '';
-      if (!NQ_MATH_SYM_RE.test(txt) && !NQ_MATH_ALNUM_RE.test(txt)) return false;  // not maths
-      // Styled unicode DETECTS maths (the test above) but is not a verdict:
-      // the letters survive extraction intact, so a camera adds nothing.
+      // Markup nqLinearizeMath() cannot write out settles it by itself -
+      // see mathIsLossy() in quizSolver.js for why the symbol test must not
+      // gate this.
       let unhandled = false;
       try {
         unhandled = [...stemContent.querySelectorAll('math *')]
           .some(n => !NQ_MATH_LINEARIZED.has((n.tagName || '').toLowerCase()));
       } catch {}
-      return unhandled || !!stemContent.querySelector(NQ_LOSSY_MATH_SEL);
+      if (unhandled) return true;
+      if (nqLooksLikeCssFraction(stemContent)) return true;
+      // Nothing structural left to lose - see mathIsLossy() in quizSolver.js.
+      return false;
     } catch { return false; }   // never let detection break solving
   }
 
@@ -561,7 +596,15 @@ window.__answerlyNQSolverLoaded = true;
     if (quizTitleCache !== null) return quizTitleCache;
     let t = '';
     try {
-      const el = document.querySelector('#quiz_title, .quiz-header h1, h1.quiz-header__title, #content h1, h1');
+      // Priority order, not a comma list. querySelector with commas returns
+      // whichever element comes FIRST IN THE DOCUMENT, so a generic <h1>
+      // earlier in the page beat #quiz_title - which is how one quiz came to
+      // be logged under two different names ("PQ Location" and "Location")
+      // and why its score could not be matched to its own solves. All three
+      // files run the identical chain so the solver and the score reporter
+      // always agree on the name.
+      const el = ['#quiz_title', '.quiz-header h1', 'h1.quiz-header__title', '#content h1', 'h1']
+        .reduce(function (found, sel) { return found || document.querySelector(sel); }, null);
       t = el ? String(el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120) : '';
       if (!t) {
         const crumbs = document.querySelectorAll('#breadcrumbs li a, nav[aria-label="breadcrumbs"] a');
@@ -1938,10 +1981,15 @@ window.__answerlyNQSolverLoaded = true;
       const live = nqLiveEl(row.selectEl, qEl) || row.selectEl;
       return Promise.resolve(autoSelectNQDropdown(live, answer));
     }
-    // A combobox is an InstUI widget driven by keystrokes rather than a value,
-    // and it carries no stable handle to re-find it by, so it is left as it is
-    // rather than guessed at.
-    if (row && row.comboEl)  return nqSelectCombo(row.comboEl, answer);
+    // A combobox is an InstUI widget driven by keystrokes rather than a
+    // value, so there is nothing to write directly. It can still be re-found
+    // when it carries an id or name, which New Quizzes usually gives it; when
+    // it does not, nqLiveEl returns null and the original element is used,
+    // which is no worse than before.
+    if (row && row.comboEl) {
+      const liveCombo = nqLiveEl(row.comboEl, qEl) || row.comboEl;
+      return nqSelectCombo(liveCombo, answer);
+    }
     return Promise.resolve(false);
   }
 
