@@ -2149,11 +2149,16 @@ window.__answerlyQuizSolverLoaded = true;
                 (resp) => {
                   if (!chrome.runtime.lastError && resp && resp.answers) {
                     // Backend returns numbered keys: {"1": "answer text", "2": "answer text", ...}
+                    let filled = 0;
                     rows.forEach((r, i) => {
                       const answer = resp.answers[String(i + 1)];
-                      if (answer) { autoSelectDropdown(r.selectEl, answer); results.push({ label: r.label, answer }); }
-                      else results.push({ label: r.label, answer: '—' });
+                      if (!answer) { results.push({ label: r.label, answer: '—', landed: false }); return; }
+                      const landed = autoSelectDropdown(r.selectEl, answer);
+                      if (landed) filled++;
+                      results.push({ label: r.label, answer, landed });
                     });
+                    reportOutcome(resp, filled === rows.length,
+                      filled === rows.length ? undefined : `matching: ${filled}/${rows.length} dropdowns set`);
                   } else {
                     matchingFailed = true;
                   }
@@ -2179,11 +2184,15 @@ window.__answerlyQuizSolverLoaded = true;
                   { type: 'SOLVE_QUESTION', question: q, options: rowOpts },
                   (resp) => {
                     if (!chrome.runtime.lastError && resp && !resp.error) {
-                      autoSelectDropdown(selectEl, resp.answer);
-                      results.push({ label: cleanLabel, answer: resp.answer });
-                      anySuccess = true;
+                      // anySuccess was set from the network call alone, so a
+                      // dropdown that selected nothing still counted as solved.
+                      const landed = autoSelectDropdown(selectEl, resp.answer);
+                      reportOutcome(resp, landed, landed ? undefined
+                        : `dropdown: no option matched${cleanLabel ? ' for "' + cleanLabel + '"' : ''}`);
+                      results.push({ label: cleanLabel, answer: resp.answer, landed });
+                      if (landed) anySuccess = true;
                     } else {
-                      results.push({ label: cleanLabel, answer: '—' });
+                      results.push({ label: cleanLabel, answer: '—', landed: false });
                     }
                     resolve();
                   }
@@ -2205,6 +2214,7 @@ window.__answerlyQuizSolverLoaded = true;
             `<div style="padding:5px 0;border-bottom:1px solid #2a2a4a;font-size:12px;">
               <span style="color:#fff!important;font-weight:600;">${i + 1}. ${r.label ? esc(r.label) + ' →' : ''}</span>
               <span style="color:${theme.answerColor}!important;font-weight:700;"> ${esc(r.answer)}</span>
+              ${r.landed === false ? '<span style="color:#ff8080!important;font-weight:600;"> (not set — enter this one yourself)</span>' : ''}
             </div>`
           ).join('');
         });
@@ -2921,10 +2931,16 @@ window.__answerlyQuizSolverLoaded = true;
                   return;
                 }
                 let anyFilled = false;
+                let filled = 0;
                 rows.forEach((r, i) => {
                   const ans = resp.answers[String(i + 1)];
-                  if (ans && autoSelectDropdown(r.selectEl, ans)) anyFilled = true;
+                  if (ans && autoSelectDropdown(r.selectEl, ans)) { anyFilled = true; filled++; }
                 });
+                // Reported even on success: without this, dropdown questions
+                // never entered the selection stats at all, so a silent fill
+                // failure could not show up as one.
+                reportOutcome(resp, filled === rows.length,
+                  filled === rows.length ? undefined : `matching: ${filled}/${rows.length} dropdowns set`);
                 if (anyFilled) { markSolved(qEl); if (btn) btn.dataset.opened = 'true'; }
               }
             );
@@ -2941,7 +2957,10 @@ window.__answerlyQuizSolverLoaded = true;
                   (resp) => {
                     if (--rowsLeft <= 0) clearInflight(qEl);
                     if (!chrome.runtime.lastError && resp && !resp.error) {
-                      if (autoSelectDropdown(selectEl, resp.answer)) {
+                      const landed = autoSelectDropdown(selectEl, resp.answer);
+                      reportOutcome(resp, landed, landed ? undefined
+                        : `dropdown: no option matched${cleanLabel ? ' for "' + cleanLabel + '"' : ''}`);
+                      if (landed) {
                         markSolved(qEl); if (btn) btn.dataset.opened = 'true';
                       }
                     } else {
