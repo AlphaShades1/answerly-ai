@@ -1150,14 +1150,60 @@ window.__answerlyQuizSolverLoaded = true;
   // is the conventional way to write it, and "H_(2)O" would be worse.
   const ORDINAL_SUP_RE = /^(st|nd|rd|th)$/i;
 
+  // ── Layout that is content, not formatting ────────────────────────────────
+  // The stem is flattened with /\s+/ -> ' ', which is right for prose and
+  // wrong for three things, measured on a fixture of real question shapes:
+  //
+  //   <pre> code   Python indentation IS the syntax. "def f(n): total = 0 for
+  //                i in range(n): if i % 2 == 0: total += i else: ..." cannot
+  //                be read back - there is no way to tell what is inside the
+  //                loop. An ASCII tree diagram is nothing but layout and came
+  //                out as "A / \ B C / D".
+  //   <br>         carries the line structure a "how many lines" question is
+  //                asking about.
+  //   <ruby>       interleaves the reading with the base characters, so 漢字
+  //                with furigana extracted as "漢かん字じ" - not a word.
+  //
+  // Whitespace-insensitive code (Java, C, JS) survived the collapse fine, and
+  // so did data tables and ordered lists, where the reading order carries the
+  // meaning. Those are left alone.
+  //
+  // Sentinels, not a different collapse: the existing /\s+/ pass has to keep
+  // working on the prose around the protected block.
+  var WS_NL = '\u0001';
+  var WS_SP = '\u0002';
+
+  function protectLayout(clone) {
+    try {
+      // A ruby reading is an annotation on the base text, not part of it.
+      clone.querySelectorAll('rt, rp').forEach(function (n) { n.remove(); });
+      clone.querySelectorAll('br').forEach(function (n) {
+        n.replaceWith(document.createTextNode(WS_NL));
+      });
+      clone.querySelectorAll('pre').forEach(function (p) {
+        var t = String(p.textContent || '').replace(/\r?\n/g, WS_NL).replace(/ /g, WS_SP);
+        p.replaceWith(document.createTextNode(WS_NL + t + WS_NL));
+      });
+    } catch { /* never let formatting break extraction */ }
+  }
+
+  function restoreLayout(s) {
+    return String(s || '')
+      .split(WS_SP).join(' ')
+      .split(WS_NL).join('\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   function textWithMath(el, joiner) {
     if (!el) return '';
     // innerText is empty on a node that is not being rendered, which is exactly
     // what stemWithoutSelectOptions() hands over, so fall back to textContent.
     let base;
-    const hasMath = el.querySelectorAll ? el.querySelectorAll('math').length : 0;
-    const hasSup  = el.querySelectorAll ? el.querySelectorAll('sup').length  : 0;
-    if (hasMath || hasSup) {
+    const needsRebuild = el.querySelectorAll
+      ? el.querySelectorAll('math, sup, pre, br, ruby').length : 0;
+    if (needsRebuild) {
       // Rebuild on a clone so the live page is never touched.
       try {
         const clone = el.cloneNode(true);
@@ -1172,7 +1218,9 @@ window.__answerlyQuizSolverLoaded = true;
           if (!t || ORDINAL_SUP_RE.test(t)) return;
           s.replaceWith(document.createTextNode('^(' + t + ')'));
         });
-        base = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+        // Last, so a <sup> inside a <pre> is already rewritten by now.
+        protectLayout(clone);
+        base = restoreLayout((clone.textContent || '').replace(/\s+/g, ' '));
       } catch {
         base = (el.innerText || el.textContent || '').trim();
       }
