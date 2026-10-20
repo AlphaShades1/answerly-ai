@@ -248,6 +248,16 @@ window.__answerlyNQSolverLoaded = true;
 
   function protectLayout(clone) {
     try {
+      // Canvas renders MathML to SVG with MathJax and keeps the ORIGINAL
+      // MathML in a <script type="math/mml"> beside it. textContent includes
+      // script contents (innerText does not), so the raw XML was being pasted
+      // into the prompt next to the linearized version: the model received
+      // 'Is (3)/(4) <math xmlns="..."><mfrac><mn>3</mn>...' for a question
+      // whose text is "Is 3/4 >= 0.7?". Observed on a live Canvas take page
+      // 2026-10-20 - no fixture reproduced it, because only Canvas's own
+      // renderer leaves that script behind. A big matrix dumped hundreds of
+      // characters of markup this way.
+      clone.querySelectorAll('script, style, template, noscript').forEach(function (n) { n.remove(); });
       // A ruby reading is an annotation on the base text, not part of it.
       clone.querySelectorAll('rt, rp').forEach(function (n) { n.remove(); });
       clone.querySelectorAll('br').forEach(function (n) {
