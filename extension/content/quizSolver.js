@@ -1502,17 +1502,70 @@ window.__answerlyQuizSolverLoaded = true;
   // one value per box in order — from `parts` when the backend supplied them,
   // else split heuristically. If nothing maps cleanly, fall back to the old
   // first-box behaviour rather than leaving everything empty.
-  function autoFillTextInput(inputEls, answer, parts) {
-    const els = Array.from(inputEls || []).filter(el => el && !el.disabled);
+  // ── The input on the page, not the one we captured ───────────────────────
+  // liveSelect()'s problem, for typed blanks. Canvas saves a typed answer and
+  // re-renders the question group when some saves come back, so an input
+  // collected before the solve round-trip can be a detached orphan by the time
+  // the answer arrives. setInputValue() on an orphan succeeds silently and the
+  // live page keeps its empty box.
+  //
+  // Reproduced 2026-10-20 on a five-blank copy of the finance question a
+  // customer lost marks on: with a re-render after the first answer, all five
+  // fills reported success and NOTHING appeared on the page. Without the
+  // re-render, five of five landed.
+  function liveInput(el, qEl) {
+    try {
+      if (!el) return null;
+      if (el.isConnected) return el;
+      const name = el.name;
+      if (!name) return null;
+      const root = (qEl && qEl.isConnected) ? qEl : document;
+      const esc = (window.CSS && CSS.escape) ? CSS.escape(name)
+                                             : name.replace(/["\\]/g, '\\$&');
+      return root.querySelector('[name="' + esc + '"]') || null;
+    } catch { return el.isConnected ? el : null; }
+  }
+
+  // Re-fill any typed blank the page discarded. Only ever fills an EMPTY box,
+  // so it cannot overwrite the student's own answer or a value already placed,
+  // and two passes at most so a page that re-renders on every keystroke cannot
+  // loop forever.
+  function settleTextInputs(qEl, plan) {
+    let repaired = 0;
+    if (!Array.isArray(plan) || !plan.length) return repaired;
+    for (let pass = 0; pass < 2; pass++) {
+      let fixed = 0;
+      for (const item of plan) {
+        if (!item || item.value == null || item.value === '') continue;
+        const live = liveInput(item.el, qEl);
+        if (!live || live.disabled) continue;
+        if (String(live.value || '').trim()) continue;      // already answered
+        setInputValue(live, item.value);
+        if (String(live.value || '').trim()) { fixed++; repaired++; }
+      }
+      if (!fixed) break;
+    }
+    return repaired;
+  }
+
+  function autoFillTextInput(inputEls, answer, parts, qEl) {
+    // Re-find each one before typing into it, then reconcile afterwards.
+    const els = Array.from(inputEls || [])
+      .map(el => liveInput(el, qEl) || el)
+      .filter(el => el && !el.disabled);
     if (!els.length) return false;
 
-    if (els.length === 1) { setInputValue(els[0], answer); return true; }
+    const plan = [];
+    const put = (el, value) => { setInputValue(el, value); plan.push({ el, value }); };
 
-    const values = (Array.isArray(parts) && parts.length === els.length) ? parts
-                 : splitForBlanks(answer, els.length);
-    if (!values) { setInputValue(els[0], answer); return true; }
-
-    els.forEach((el, i) => setInputValue(el, values[i]));
+    if (els.length === 1) { put(els[0], answer); }
+    else {
+      const values = (Array.isArray(parts) && parts.length === els.length) ? parts
+                   : splitForBlanks(answer, els.length);
+      if (!values) put(els[0], answer);
+      else els.forEach((el, i) => put(el, values[i]));
+    }
+    settleTextInputs(qEl, plan);
     return true;
   }
 
@@ -2328,7 +2381,7 @@ window.__answerlyQuizSolverLoaded = true;
               (resp) => {
                 clearInflight(qEl);
                 if (!chrome.runtime.lastError && resp && !resp.error) {
-                  let filled = autoFillTextInput(liveTextInputs, resp.answer, resp.answerParts);
+                  let filled = autoFillTextInput(liveTextInputs, resp.answer, resp.answerParts, qEl);
                   reportOutcome(resp, filled, filled ? undefined : 'fill-in-blank: no input filled');
                   // Also write into TinyMCE / rich-text iframes directly
                   for (const fr of qEl.querySelectorAll('iframe')) {
@@ -2432,7 +2485,7 @@ window.__answerlyQuizSolverLoaded = true;
                   if (chrome.runtime.lastError || !resp) return renderError(card, 'Extension error — try reloading.');
                   if (resp.error) return renderError(card, resp.error, resp.limitReached);
                   renderResult(card, resp.hint, resp.answer, resp.answerParts, []);
-                  autoFillTextInput(liveTextInputs, resp.answer, resp.answerParts);
+                  autoFillTextInput(liveTextInputs, resp.answer, resp.answerParts, qEl);
                   // Also write into TinyMCE / rich-text iframes directly
                   for (const fr of qEl.querySelectorAll('iframe')) {
                     try {
@@ -3118,7 +3171,7 @@ window.__answerlyQuizSolverLoaded = true;
             (resp) => {
               clearInflight(qEl);
               if (!chrome.runtime.lastError && resp && !resp.error) {
-                const filled = autoFillTextInput(textInputEls, resp.answer, resp.answerParts);
+                const filled = autoFillTextInput(textInputEls, resp.answer, resp.answerParts, qEl);
                 reportOutcome(resp, filled, filled ? undefined : 'solve-all: no input filled');
                 if (filled) {
                   markSolved(qEl); if (btn) btn.dataset.opened = 'true';
@@ -3203,7 +3256,7 @@ window.__answerlyQuizSolverLoaded = true;
           { type: 'SOLVE_QUESTION', question: qText, options: [], isMultiSelect: false, blankCount: textInputs.length },
           (resp) => {
             if (!chrome.runtime.lastError && resp && !resp.error) {
-              autoFillTextInput(textInputs, resp.answer, resp.answerParts);
+              autoFillTextInput(textInputs, resp.answer, resp.answerParts, qEl);
               // Also write directly into TinyMCE / rich-text iframes
               for (const fr of qEl.querySelectorAll('iframe')) {
                 try {
@@ -3353,7 +3406,7 @@ window.__answerlyQuizSolverLoaded = true;
                 const inputs = Array.from(
                   qEl.querySelectorAll('input[type="text"], input[type="number"], input:not([type]), textarea')
                 ).filter(el => el.type !== 'hidden' && !el.disabled && (el.offsetWidth || el.offsetHeight));
-                if (inputs.length) matched = autoFillTextInput(inputs, textParts.join('; '), textParts);
+                if (inputs.length) matched = autoFillTextInput(inputs, textParts.join('; '), textParts, qEl);
               }
               if (!matched && textParts.length > 0) {
                 // Strip **markdown bold**. The stealth prompt asks for plain
