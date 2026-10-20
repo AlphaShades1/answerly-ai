@@ -2712,13 +2712,31 @@ window.__answerlyQuizSolverLoaded = true;
     return !imgs.every(img => isEquationImage(img) && equationLatex(img));
   }
 
+  // The container holding THIS choice and nothing else. A host with more than
+  // one input is the answer list, not one option, so an image inside it could
+  // belong to any of them - and `|| qEl`, which this used to fall back to, is
+  // the whole question, stem included. Either way a picture somewhere else in
+  // the question made a plain text choice look like an unreadable one.
+  //
+  // nqChoiceHost() in newQuizSolver.js has had this guard since it shipped;
+  // this brings Classic in line with it.
+  function choiceHost(input) {
+    for (const el of [input.closest('label'), input.closest(CHOICE_HOST_SEL), input.parentElement]) {
+      if (!el) continue;
+      if (el.querySelectorAll('input[type="radio"], input[type="checkbox"]').length > 1) continue;
+      return el;
+    }
+    return null;   // cannot tell which part is this choice - say nothing
+  }
+
   function choicesHaveUnreadableImage(qEl) {
     try {
       const inputs = [...qEl.querySelectorAll('input[type="radio"], input[type="checkbox"]')];
       if (inputs.length) {
         return inputs.some(input => {
           if ((getOptionLabelText(input, qEl) || '').trim()) return false;
-          return choiceImageUnreadable(input.closest(CHOICE_HOST_SEL) || qEl);
+          const host = choiceHost(input);
+          return host ? choiceImageUnreadable(host) : false;
         });
       }
       // No real inputs — mirror extractData()'s rendered-choice fallback.
@@ -2729,9 +2747,20 @@ window.__answerlyQuizSolverLoaded = true;
     } catch { return false; }   // never let detection break solving
   }
 
-  // Structural maths markup whose meaning innerText cannot carry: a fraction bar
-  // and an exponent are POSITION, and flattening throws the position away.
-  const LOSSY_MATH_SEL = 'math, mfrac, msup, msub, msqrt, mroot, munderover, sup, sub, .frac, .fraction';
+  // Structural maths markup whose meaning NOTHING here can carry.
+  //
+  // This list used to name math, mfrac, msup, msub, msqrt, mroot and sup as
+  // well - every one of which linearizeMath() and textWithMath() now rewrite
+  // into readable text ("5 × 10^(8)", "(1)/(2)", "sqrt(x^(2))"). Flagging them
+  // contradicted the extractor that had just been taught to read them, and it
+  // sent ordinary multiple-choice questions with no picture at all to the
+  // camera: an exponent, a footnote marker, an ordinal or a subscript was
+  // enough. A customer reported exactly that.
+  //
+  // What is left is what genuinely does not survive extraction: a summation
+  // with limits above and below, and a fraction drawn with CSS boxes rather
+  // than markup, which flattens to "39" for three-ninths.
+  const LOSSY_MATH_SEL = 'munderover, .frac, .fraction';
   const MATH_SYM_RE   = /[∫∑∏√∂∇≠≤≥±→∞]/;
   // Unicode Mathematical Alphanumeric Symbols — styled letters some instructors
   // paste in place of real markup (U+1D465 is the italic x these quizzes use).
@@ -2758,9 +2787,15 @@ window.__answerlyQuizSolverLoaded = true;
       if (equationTexts(textEl).length) return false;
       const txt = textEl.innerText || '';
       if (!MATH_SYM_RE.test(txt) && !MATH_ALNUM_RE.test(txt)) return false;  // not maths
-      // Maths, with nothing recovered. Lossy if structure innerText drops is
-      // present, or if styled unicode letters are standing in for notation.
-      return !!textEl.querySelector(LOSSY_MATH_SEL) || MATH_ALNUM_RE.test(txt);
+      // Maths, with nothing recovered. Lossy only if structure that survives
+      // nothing is present.
+      //
+      // Styled unicode letters are NOT a verdict. They tell you the question
+      // is maths - which is what they are used for above - but the letters
+      // themselves come through extraction intact, so a camera adds nothing.
+      // Treating their presence as lossy flagged any question an instructor
+      // had pasted out of Word.
+      return !!textEl.querySelector(LOSSY_MATH_SEL);
     } catch { return false; }   // never let detection break solving
   }
 
