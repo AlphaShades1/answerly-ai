@@ -2747,20 +2747,46 @@ window.__answerlyQuizSolverLoaded = true;
     } catch { return false; }   // never let detection break solving
   }
 
-  // Structural maths markup whose meaning NOTHING here can carry.
+  // Every MathML tag linearizeMath() can actually write out, plus the wrappers
+  // that carry no meaning of their own. Anything inside a <math> that is NOT
+  // in here falls through linearizeMath()'s default branch, which joins the
+  // children with spaces - and that silently destroys the notation.
   //
-  // This list used to name math, mfrac, msup, msub, msqrt, mroot and sup as
-  // well - every one of which linearizeMath() and textWithMath() now rewrite
-  // into readable text ("5 × 10^(8)", "(1)/(2)", "sqrt(x^(2))"). Flagging them
-  // contradicted the extractor that had just been taught to read them, and it
-  // sent ordinary multiple-choice questions with no picture at all to the
-  // camera: an exponent, a footnote marker, an ordinal or a subscript was
-  // enough. A customer reported exactly that.
-  //
-  // What is left is what genuinely does not survive extraction: a summation
-  // with limits above and below, and a fraction drawn with CSS boxes rather
-  // than markup, which flattens to "39" for three-ninths.
-  const LOSSY_MATH_SEL = 'munderover, .frac, .fraction';
+  // Measured by running textWithMath() over every construct (fixture
+  // mathml.html, 23 cases). What this set covers comes out right:
+  //     mfrac   -> (3)/(4)          msqrt  -> sqrt(16)
+  //     msup    -> 2^(10)           mroot  -> root3(x)
+  //     msub    -> x_(1)            nested -> (x^(2))/(sqrt(y))
+  // What it does not, comes out unusable:
+  //     mtable  2x2 matrix          -> "1 2 3 4"
+  //     mfenced 3x3 determinant     -> "1 0 2 3 1 4 5 6 0"
+  //     msubsup x sub 1 sup 2       -> "x 1 2"
+  //     mover   overbar / vector    -> "x ̅" / "v →"
+  //     munderover  sum with limits -> "∑ n = 1 5 n"
+  // A matrix answered off "1 2 3 4" is a confident wrong answer, which is
+  // worse than sending the student to the camera. A LIST of bad tags was the
+  // wrong shape for this: it has to be kept in step with the linearizer by
+  // hand, and the first version of it both over-reached (flagging sup, which
+  // reads fine) and under-reached (missing mtable entirely). Teach
+  // linearizeMath a new tag and add it here; until then it routes to the tool
+  // that can read it.
+  const MATH_LINEARIZED = new Set([
+    'math', 'semantics', 'annotation', 'annotation-xml',
+    'mrow', 'mi', 'mn', 'mo', 'mtext', 'mspace',
+    'mstyle', 'mpadded', 'mphantom',
+    'mfrac', 'msup', 'msub', 'msqrt', 'mroot',
+  ]);
+
+  // A fraction drawn with CSS boxes instead of markup flattens to "39" for
+  // three-ninths, and there is no structure to read it back from.
+  const LOSSY_MATH_SEL = '.frac, .fraction';
+
+  function mathHasUnhandledMarkup(textEl) {
+    try {
+      return [...textEl.querySelectorAll('math *')]
+        .some(n => !MATH_LINEARIZED.has((n.tagName || '').toLowerCase()));
+    } catch { return false; }
+  }
   const MATH_SYM_RE   = /[∫∑∏√∂∇≠≤≥±→∞]/;
   // Unicode Mathematical Alphanumeric Symbols — styled letters some instructors
   // paste in place of real markup (U+1D465 is the italic x these quizzes use).
@@ -2787,15 +2813,15 @@ window.__answerlyQuizSolverLoaded = true;
       if (equationTexts(textEl).length) return false;
       const txt = textEl.innerText || '';
       if (!MATH_SYM_RE.test(txt) && !MATH_ALNUM_RE.test(txt)) return false;  // not maths
-      // Maths, with nothing recovered. Lossy only if structure that survives
-      // nothing is present.
+      // Maths, with nothing recovered. Lossy if it contains markup the
+      // linearizer cannot write out, or a CSS-drawn fraction.
       //
       // Styled unicode letters are NOT a verdict. They tell you the question
       // is maths - which is what they are used for above - but the letters
       // themselves come through extraction intact, so a camera adds nothing.
       // Treating their presence as lossy flagged any question an instructor
       // had pasted out of Word.
-      return !!textEl.querySelector(LOSSY_MATH_SEL);
+      return mathHasUnhandledMarkup(textEl) || !!textEl.querySelector(LOSSY_MATH_SEL);
     } catch { return false; }   // never let detection break solving
   }
 
