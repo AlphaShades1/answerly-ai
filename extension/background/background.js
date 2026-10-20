@@ -106,6 +106,42 @@ async function fetchWithTimeout(url, opts, ms = 75000) {
   }
 }
 
+// ── Survive a backend restart ────────────────────────────────────────────────
+// The backend auto-deploys on push and refuses connections for 30-60 seconds
+// while it restarts. With no retry at all, every solve attempted in that
+// window reached the student as "Network error - is the backend running?" and
+// cost them that answer. Two deploys three minutes apart on 2026-10-20 did
+// exactly that to a customer sitting an exam, who reported it as happening
+// "once every 5-7 questions" - two restart windows, not a flaky connection.
+//
+// Only a network-level rejection is retried. An HTTP response, even an error
+// one, carries a real answer from the server - a usage limit, a dead code -
+// and repeating that request would be wrong. An AbortError has already waited
+// the full timeout, so retrying only makes the student wait twice.
+//
+// Four attempts spread over about 19 seconds, which covers a typical restart
+// without leaving the student staring at a spinner if the backend is genuinely
+// down. The keep-alive ping that wraps these calls stays running throughout,
+// so the service worker is not suspended mid-wait.
+const RETRY_BACKOFF_MS = [2000, 5000, 12000];
+
+async function fetchWithRetry(url, opts, ms = 75000) {
+  let lastErr;
+  for (let attempt = 0; attempt <= RETRY_BACKOFF_MS.length; attempt++) {
+    try {
+      return await fetchWithTimeout(url, opts, ms);
+    } catch (err) {
+      lastErr = err;
+      if (err?.name === 'AbortError') throw err;
+      const wait = RETRY_BACKOFF_MS[attempt];
+      if (wait === undefined) break;
+      console.warn('[Answerly] request failed, retrying in ' + wait + 'ms:', err?.message || err);
+      await new Promise(r => setTimeout(r, wait));
+    }
+  }
+  throw lastErr;
+}
+
 // ── Privacy Guard: early injection via dynamic content script ────────────────
 // Registered dynamically so it only runs when the user toggles Privacy Guard on.
 // world: MAIN + runAt: document_start = overrides land before page scripts.
@@ -157,7 +193,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const token = result.answerlySession?.token;
         if (!token || !message.solveId) return;
         try {
-          await fetchWithTimeout(`${BACKEND_URL}/api/solve-outcome`, {
+          await fetchWithRetry(`${BACKEND_URL}/api/solve-outcome`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ solveId: message.solveId, matched: !!message.matched, detail: message.detail }),
@@ -199,7 +235,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const token = result.answerlySession?.token;
         if (!token) { sendResponse({ ok: false }); return; }
         try {
-          await fetchWithTimeout(`${BACKEND_URL}/api/scores/report`, {
+          await fetchWithRetry(`${BACKEND_URL}/api/scores/report`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -234,7 +270,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!token) { sendResponse({ error: 'Not logged in' }); return; }
         keepAliveStart();
         try {
-          const res = await fetchWithTimeout(`${BACKEND_URL}/api/solve-question`, {
+          const res = await fetchWithRetry(`${BACKEND_URL}/api/solve-question`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -272,7 +308,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!token) { sendResponse({ error: 'Not logged in' }); return; }
         keepAliveStart();
         try {
-          const res = await fetchWithTimeout(`${BACKEND_URL}/api/solve-matching`, {
+          const res = await fetchWithRetry(`${BACKEND_URL}/api/solve-matching`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ question: message.question, rows: message.rows, fileContext, notesContext, quizTitle: message.quizTitle, relatedQuestions: message.relatedQuestions }),
@@ -304,7 +340,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!message.image) { sendResponse({ error: 'No image provided' }); return; }
         keepAliveStart();
         try {
-          const res = await fetchWithTimeout(`${BACKEND_URL}/api/solve-screenshot`, {
+          const res = await fetchWithRetry(`${BACKEND_URL}/api/solve-screenshot`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             // `images` carries the rest of a question that ran off the bottom of
@@ -339,7 +375,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!token) { sendResponse({ error: 'Not logged in' }); return; }
         keepAliveStart();
         try {
-          const res = await fetchWithTimeout(`${BACKEND_URL}/api/solve-screenshot`, {
+          const res = await fetchWithRetry(`${BACKEND_URL}/api/solve-screenshot`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

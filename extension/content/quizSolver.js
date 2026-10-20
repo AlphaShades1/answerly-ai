@@ -1343,6 +1343,68 @@ window.__answerlyQuizSolverLoaded = true;
     return { questionText, options, dropdownRows, textInputEls };
   }
 
+  // ── Re-fill any blank the page threw away ─────────────────────────────────
+  // liveSelect() fixes the blanks filled AFTER a re-render, but not the ones
+  // filled before it: those went into nodes the re-render discarded, and the
+  // loop has already moved past them. Measured on the five-blank reproduction
+  // with a re-render after the second answer: 0 of 5 landed before liveSelect,
+  // 3 of 5 with it, 5 of 5 once this pass runs.
+  //
+  // Only ever fills a blank that is sitting on its placeholder, so it cannot
+  // overrule a choice already made - not the student's, and not a legitimate
+  // fuzzy or numeric-equivalent match this file made earlier (comparing the
+  // option TEXT would call "0.196" a mismatch for an answer of ".196.").
+  // Two passes at most, because a page that re-renders on every change would
+  // otherwise loop forever.
+  function settleDropdowns(qEl, plan) {
+    let repaired = 0;
+    if (!Array.isArray(plan) || !plan.length) return repaired;
+    for (let pass = 0; pass < 2; pass++) {
+      let fixedThisPass = 0;
+      for (const item of plan) {
+        if (!item || !item.answer) continue;
+        const live = liveSelect(item.selectEl, qEl);
+        if (!live) continue;
+        const opt = live.options[live.selectedIndex];
+        const empty = !opt || !opt.text.trim() || opt.text.trim().startsWith('[');
+        if (!empty) continue;                       // already answered - leave it
+        if (autoSelectDropdown(live, item.answer)) { fixedThisPass++; repaired++; }
+      }
+      if (!fixedThisPass) break;                    // nothing left to repair
+    }
+    return repaired;
+  }
+
+  // ── The <select> on the page, not the one we captured ─────────────────────
+  // Canvas Classic saves each answer as it changes and re-renders the question
+  // group when some of those saves come back. extractData() collects the
+  // <select> elements ONCE, up front, so after a re-render every reference it
+  // handed out points at a detached orphan. Setting selectedIndex on an orphan
+  // still finds the option and still returns true, while the live page keeps
+  // its "[ Select ]" placeholder - a correct answer that silently never lands,
+  // reported as a success.
+  //
+  // Reproduced 2026-10-20 on a five-blank copy of the question a customer lost
+  // marks on: with one re-render after the second answer, all five fills
+  // returned true and nothing at all appeared on the page. Without the
+  // re-render, five of five landed.
+  //
+  // Canvas names these inputs question_<questionId>_<blankId>, unique within
+  // the page, so the name is enough to find the replacement.
+  function liveSelect(selectEl, qEl) {
+    try {
+      if (!selectEl) return null;
+      if (selectEl.isConnected) return selectEl;
+      const name = selectEl.name;
+      if (!name) return null;
+      // qEl may have been replaced too; fall back to the whole document.
+      const root = (qEl && qEl.isConnected) ? qEl : document;
+      const esc = (window.CSS && CSS.escape) ? CSS.escape(name)
+                                             : name.replace(/["\\]/g, '\\$&');
+      return root.querySelector('select[name="' + esc + '"]') || null;
+    } catch { return selectEl.isConnected ? selectEl : null; }
+  }
+
   // ── Auto-select a <select> dropdown ───────────────────────────────────────
   function autoSelectDropdown(selectEl, answer) {
     const target = answer.trim().toLowerCase();
@@ -2150,13 +2212,17 @@ window.__answerlyQuizSolverLoaded = true;
                   if (!chrome.runtime.lastError && resp && resp.answers) {
                     // Backend returns numbered keys: {"1": "answer text", "2": "answer text", ...}
                     let filled = 0;
+                    const plan = [];
                     rows.forEach((r, i) => {
                       const answer = resp.answers[String(i + 1)];
                       if (!answer) { results.push({ label: r.label, answer: '—', landed: false }); return; }
-                      const landed = autoSelectDropdown(r.selectEl, answer);
+                      const live = liveSelect(r.selectEl, qEl);
+                      const landed = !!live && autoSelectDropdown(live, answer);
                       if (landed) filled++;
+                      plan.push({ selectEl: r.selectEl, answer });
                       results.push({ label: r.label, answer, landed });
                     });
+                    settleDropdowns(qEl, plan);
                     reportOutcome(resp, filled === rows.length,
                       filled === rows.length ? undefined : `matching: ${filled}/${rows.length} dropdowns set`);
                   } else {
@@ -2176,6 +2242,7 @@ window.__answerlyQuizSolverLoaded = true;
           } else {
             // ── Non-matching: solve each dropdown separately ──────────────────
             let anySuccess = false;
+            const plan = [];
             for (const { rowLabel, selectEl, options: rowOpts } of dropdownRows) {
               const cleanLabel = rowLabel.replace(/→\s*$/, '').trim();
               const q = cleanLabel ? `${baseQ}\n\nFor: "${cleanLabel}"` : baseQ;
@@ -2186,10 +2253,14 @@ window.__answerlyQuizSolverLoaded = true;
                     if (!chrome.runtime.lastError && resp && !resp.error) {
                       // anySuccess was set from the network call alone, so a
                       // dropdown that selected nothing still counted as solved.
-                      const landed = autoSelectDropdown(selectEl, resp.answer);
+                      const live = liveSelect(selectEl, qEl);
+                      const landed = !!live && autoSelectDropdown(live, resp.answer);
                       reportOutcome(resp, landed, landed ? undefined
-                        : `dropdown: no option matched${cleanLabel ? ' for "' + cleanLabel + '"' : ''}`);
+                        : (live
+                            ? `dropdown: no option matched${cleanLabel ? ' for "' + cleanLabel + '"' : ''}`
+                            : `dropdown: question re-rendered, blank${cleanLabel ? ' "' + cleanLabel + '"' : ''} not found again`));
                       results.push({ label: cleanLabel, answer: resp.answer, landed });
+                      plan.push({ selectEl, answer: resp.answer });
                       if (landed) anySuccess = true;
                     } else {
                       results.push({ label: cleanLabel, answer: '—', landed: false });
@@ -2200,6 +2271,7 @@ window.__answerlyQuizSolverLoaded = true;
               });
               await new Promise(resolve => setTimeout(resolve, 400));
             }
+            if (settleDropdowns(qEl, plan)) anySuccess = true;
             if (anySuccess) { markSolved(qEl); unlockBtnSoon(btn); }
             clearInflight(qEl);
             if (!anySuccess) {
@@ -2932,10 +3004,14 @@ window.__answerlyQuizSolverLoaded = true;
                 }
                 let anyFilled = false;
                 let filled = 0;
+                const plan = [];
                 rows.forEach((r, i) => {
                   const ans = resp.answers[String(i + 1)];
-                  if (ans && autoSelectDropdown(r.selectEl, ans)) { anyFilled = true; filled++; }
+                  const live = ans ? liveSelect(r.selectEl, qEl) : null;
+                  if (live && autoSelectDropdown(live, ans)) { anyFilled = true; filled++; }
+                  if (ans) plan.push({ selectEl: r.selectEl, answer: ans });
                 });
+                if (settleDropdowns(qEl, plan)) anyFilled = true;
                 // Reported even on success: without this, dropdown questions
                 // never entered the selection stats at all, so a silent fill
                 // failure could not show up as one.
@@ -2957,9 +3033,12 @@ window.__answerlyQuizSolverLoaded = true;
                   (resp) => {
                     if (--rowsLeft <= 0) clearInflight(qEl);
                     if (!chrome.runtime.lastError && resp && !resp.error) {
-                      const landed = autoSelectDropdown(selectEl, resp.answer);
+                      const live = liveSelect(selectEl, qEl);
+                      const landed = !!live && autoSelectDropdown(live, resp.answer);
                       reportOutcome(resp, landed, landed ? undefined
-                        : `dropdown: no option matched${cleanLabel ? ' for "' + cleanLabel + '"' : ''}`);
+                        : (live
+                            ? `dropdown: no option matched${cleanLabel ? ' for "' + cleanLabel + '"' : ''}`
+                            : `dropdown: question re-rendered, blank${cleanLabel ? ' "' + cleanLabel + '"' : ''} not found again`));
                       if (landed) {
                         markSolved(qEl); if (btn) btn.dataset.opened = 'true';
                       }
@@ -3178,7 +3257,12 @@ window.__answerlyQuizSolverLoaded = true;
               if (selects.length > 0 && textParts.length > 0) {
                 let anyDropdown = false;
                 if (textParts.length === selects.length) {
-                  selects.forEach((sel, i) => { if (autoSelectDropdown(sel, textParts[i])) anyDropdown = true; });
+                  // Through liveSelect: the first fill's change event can make
+                  // Canvas re-render and detach the rest of this list.
+                  selects.forEach((sel, i) => {
+                    const lv = liveSelect(sel, qEl);
+                    if (lv && autoSelectDropdown(lv, textParts[i])) anyDropdown = true;
+                  });
                 } else {
                   // Never fan one part across every dropdown. This branch used to
                   // try each part against each <select>, and autoSelectDropdown
@@ -3198,7 +3282,8 @@ window.__answerlyQuizSolverLoaded = true;
                     const sel  = selects.find(s =>
                       !claimed.has(s) && s.selectedIndex <= 0 &&
                       Array.from(s.options).some(o => o.text.trim().toLowerCase() === want));
-                    if (sel && autoSelectDropdown(sel, part)) { claimed.add(sel); anyDropdown = true; }
+                    const lv = sel ? liveSelect(sel, qEl) : null;
+                    if (lv && autoSelectDropdown(lv, part)) { claimed.add(sel); anyDropdown = true; }
                   });
                 }
                 if (anyDropdown) matched = true;
