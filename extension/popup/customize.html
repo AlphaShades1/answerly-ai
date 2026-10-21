@@ -103,6 +103,20 @@
     .toggle-label { color: #c0c0d8; font-size: 13px; font-weight: 600; margin-bottom: 3px; }
     .toggle-desc { color: #8888a0; font-size: 11px; line-height: 1.4; }
 
+    /* Where a shortcut actually works. The two keybind sections look alike and
+       were being confused for each other: one is a browser command that works
+       on every site, the other is part of the quiz solver and only exists on
+       Canvas course pages. The pill states the scope up front, on the heading,
+       instead of leaving it buried in the paragraph. */
+    .scope-pill {
+      display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: .4px;
+      padding: 3px 8px; border-radius: 999px; margin-left: 8px; vertical-align: middle;
+    }
+    .scope-all    { background: #16331f; color: #6ee7a8; border: 1px solid #2f6b4a; }
+    .scope-canvas { background: #33281a; color: #f0c674; border: 1px solid #6b552f; }
+    .scope-note   { color: #8888a0; font-size: 11px; line-height: 1.4; margin-bottom: 10px; }
+    .scope-note b { color: #c8c8dc; }
+
     /* Toggle switch */
     .toggle-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; margin-top: 1px; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
@@ -334,6 +348,28 @@
     </div>
   </div>
 
+  <!-- Screenshot answer -->
+  <div class="section">
+    <h3>Screenshot Answer</h3>
+    <div class="toggle-desc" style="margin-bottom:4px;">The bold answer line in the Screenshot Tool panel. Leave it as-is and it follows your theme automatically, picking whichever of light or dark stays readable on the panel.</div>
+    <div class="color-row">
+      <span class="color-label">Answer color</span>
+      <div class="color-controls">
+        <input type="color" id="color-ssanswer" value="#ffffff" />
+        <input type="text" id="hex-ssanswer" value="#ffffff" maxlength="7" />
+      </div>
+    </div>
+    <div class="slider-row" style="padding-top:10px;">
+      <span class="color-label">Opacity</span>
+      <input type="range" id="ssanswer-opacity-slider" min="10" max="100" value="100" />
+      <div class="slider-labels">
+        <span>Faint</span>
+        <span class="opacity-val" id="ssanswer-opacity-val">100%</span>
+        <span>Solid</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Screenshot drag box -->
   <div class="section">
     <h3>Screenshot Drag Box</h3>
@@ -365,11 +401,12 @@
 
   <!-- Screenshot Toggle Shortcut -->
   <div class="section">
-    <h3>Screenshot Toggle Shortcut</h3>
+    <h3>Screenshot Shortcut <span class="scope-pill scope-all">Every website</span></h3>
+    <div class="scope-note"><b>Works on every website</b>, not only Canvas. The browser handles this one, so it works even on a page where Answerly is not already running.</div>
     <div class="toggle-row">
       <div class="toggle-info">
         <div class="toggle-label">Quick-toggle Screenshot Tool</div>
-        <div class="toggle-desc">Press the shortcut below to instantly show or hide the Screenshot Tool widget on <b>any website</b> — without opening the extension popup or clicking the icon. Works on any website. The shortcut is handled by the browser, so it works even if no Answerly script is on the page yet.</div>
+        <div class="toggle-desc">Press the shortcut below to show or hide the Screenshot Tool widget — without opening this popup or clicking the toolbar icon. This is the <b>normal</b> Screenshot Tool, not the stealth camera.</div>
       </div>
     </div>
     <div class="color-row">
@@ -387,7 +424,8 @@
 
   <!-- Stealth Keybind -->
   <div class="section">
-    <h3>Stealth Keybind</h3>
+    <h3>Stealth Keybinds <span class="scope-pill scope-canvas">Canvas quiz pages only</span></h3>
+    <div class="scope-note"><b>These keys only work on Canvas quiz pages</b> &mdash; any address containing <code style="font-size:11px;background:#22222e;padding:1px 5px;border-radius:4px;">/courses/</code>. They are part of the quiz solver, so they do nothing on other sites. For those, use the shortcut above.</div>
     <div class="toggle-row">
       <div class="toggle-info">
         <div class="toggle-label">Solve with a key</div>

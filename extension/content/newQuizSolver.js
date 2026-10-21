@@ -488,10 +488,42 @@ window.__answerlyNQSolverLoaded = true;
     return NQ_NEEDS_HEARING_RE.test(questionText || '');
   }
 
+  // A phrase like "see the table below" is only evidence that something cannot
+  // be read when there IS something unreadable. A question whose "table" is a
+  // real HTML <table>, or whose "passage" is a block of text, is already fully
+  // available to the model, and refusing it hands the student a blank page.
+  // Measured on fixture gate-test.html: three such shapes - a readable table,
+  // an ordered list and a quoted passage - were refused on 1.3.62 despite
+  // every word being present as text.
+  //
+  // Direction is what makes this safe to check. A phrase pointing BACK
+  // ("refer to the figure above") may be naming a shared stimulus that lives
+  // OUTSIDE this question element, which cannot be inspected from here, so
+  // those stay an independent trigger exactly as before. Only a phrase that
+  // points FORWARD, at content inside the question, is checked against what is
+  // actually there - and it still refuses the moment real media is present.
+  const NQ_REFERS_FORWARD_RE = /\b(?:below|following|that follows|beneath|underneath)\b/i;
+
+  function nqStemHasMedia(qEl) {
+    try {
+      const t = nqStemEl(qEl) || qEl;
+      if (t.querySelector('svg, canvas, video, audio, object, embed, picture, iframe')) return true;
+      return [...t.querySelectorAll('img')].some(
+        img => img.getAttribute('src') !== '' && !nqImageIsDecorative(img));
+    } catch { return true; }
+  }
+
+  function nqPhraseNeedsScreenshot(qEl, questionText) {
+    const text = questionText || '';
+    if (!NQ_NEEDS_SCREENSHOT_RE.test(text)) return false;
+    if (!NQ_REFERS_FORWARD_RE.test(text)) return true;
+    return nqStemHasMedia(qEl);
+  }
+
   function nqNeedsScreenshotFor(qEl, questionText) {
     return nqQuestionHasImage(qEl)
         || nqChoicesHaveUnreadableImage(qEl)
-        || NQ_NEEDS_SCREENSHOT_RE.test(questionText || '')
+        || nqPhraseNeedsScreenshot(qEl, questionText)
         || nqMathIsLossy(qEl);
   }
 
@@ -1322,7 +1354,7 @@ window.__answerlyNQSolverLoaded = true;
   // number deciding the question, and it stands down.
   function answerNumber(s) {
     let t = String(s == null ? '' : s).trim()
-      .replace(/^\(?[a-e][.)]\s+/i, '')     // "b. 0.196"
+      .replace(/^\(?[a-h][.)]\s+/i, '')     // "b. 0.196"
       .replace(/\u2212/g, '-')              // typographic minus
       .replace(/[$\u20ac\u00a3\u00a5\s]/g, '')   // currency symbols, spaces
       .replace(/[.)\]:;]+$/, '');           // trailing punctuation
@@ -1418,7 +1450,7 @@ window.__answerlyNQSolverLoaded = true;
     const ref = a.toLowerCase()
       .replace(/^(the\s+)?(correct\s+)?(answer|choice|option)\s*(is|:)?\s*/i, '')
       .replace(/[.)\]:]+$/, '').trim();
-    const lm = ref.match(/^\(?([a-e])\)?$/i);
+    const lm = ref.match(/^\(?([a-h])\)?$/i);
     if (lm) { const i = lm[1].toLowerCase().charCodeAt(0) - 97; if (inputOptionPairs[i]) return i; }
     // Last: the same number written another way ("0.196" vs ".196.").
     return uniqueNumericIndex(inputOptionPairs.map(p => p.labelText), a);
@@ -1526,7 +1558,7 @@ window.__answerlyNQSolverLoaded = true;
       const isOwnOptionText = !!refNorm && inputOptionPairs.some(p => normalizeText(p.labelText || '') === refNorm);
       let idx = -1;
       if (!isOwnOptionText) {
-        const lm = ref.match(/^\(?([a-e])\)?$/i);
+        const lm = ref.match(/^\(?([a-h])\)?$/i);
         if (lm) idx = lm[1].toLowerCase().charCodeAt(0) - 97;
         if (idx < 0) { const nm = ref.match(/^\(?([1-9])\)?$/); if (nm) idx = parseInt(nm[1], 10) - 1; }
       }
@@ -1561,7 +1593,7 @@ window.__answerlyNQSolverLoaded = true;
       }
     }
     // Pass 5: letter fallback — AI returned "B", "c", etc.
-    if (/^[a-e]$/.test(target)) {
+    if (/^[a-h]$/.test(target)) {
       const idx = target.charCodeAt(0) - 97; // 'a'→0
       if (inputOptionPairs[idx]) { clickNQInput(inputOptionPairs[idx].input); return true; }
     }
@@ -1868,7 +1900,7 @@ window.__answerlyNQSolverLoaded = true;
   }
 
   const nqNorm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
-  const NQ_PLACEHOLDER = /^(choose your answer\.*|select.*|\[.*\])$/i;
+  const NQ_PLACEHOLDER = /^(choose your answer\.*|select\b.*|\[.*\])$/i;
 
   // Scope the listbox to THIS control via aria-controls, which New Quizzes sets
   // to its own list id ("Selectable___0-list") while open. A global
@@ -2067,7 +2099,23 @@ window.__answerlyNQSolverLoaded = true;
   //             catch the eye of someone glancing at the screen.
   // Auto-dismisses after 5s in both; the X closes it immediately.
   function showNQScreenshotToast(opts = {}) {
-    const dim = opts.dim !== undefined ? opts.dim : stealthHidden;
+    // In stealth puts nothing on screen - same rule as Classic. The message is
+    // recorded for the popup instead so it is not lost.
+    if (stealthHidden) {
+      try {
+        chrome.storage.local.set({ answerlySkippedImages: {
+          ts: Date.now(), count: opts.count || 1,
+          reason: opts.audio ? 'audio' : 'image',
+        }});
+        chrome.runtime.sendMessage(
+          { type: 'REPORT_SKIPPED', count: opts.count || 1,
+            reason: opts.audio ? 'audio' : 'image', quizTitle: getQuizTitle() },
+          () => void chrome.runtime.lastError
+        );
+      } catch { /* context invalidated */ }
+      return;
+    }
+    const dim = opts.dim !== undefined ? opts.dim : true;
     document.getElementById('answerly-nq-shot-toast')?.remove();
 
     const accent = theme.accentColor || DEFAULT_THEME.accentColor;
@@ -2155,7 +2203,7 @@ window.__answerlyNQSolverLoaded = true;
     box.appendChild(msg);
     box.appendChild(x);
     document.body.appendChild(box);
-    timer = setTimeout(close, 5000);
+    timer = setTimeout(close, 4500);
   }
 
   // ── HTML escape ───────────────────────────────────────────────────────────
@@ -2510,7 +2558,7 @@ window.__answerlyNQSolverLoaded = true;
           }
           const matchParts = textParts.map(answerHeadline);
           if (!matched && textParts.length > 0) matched = autoSelectNQAnswer(qEl, matchParts.join(', '), inputOptionPairs, matchParts);
-          if (!matched && answerLetter && /^[a-e](,\s*[a-e])*$/.test(answerLetter))
+          if (!matched && answerLetter && /^[a-h](,\s*[a-h])*$/.test(answerLetter))
             matched = autoSelectNQAnswer(qEl, answerLetter, inputOptionPairs);
           // Every part, not just the first: with two or more blanks only box 1
           // was ever filled ("Au" typed, "Fe" dropped).
@@ -3215,7 +3263,13 @@ window.__answerlyNQSolverLoaded = true;
     // student to use the screenshot tool, which cannot help them hear.
     if (skippedAudio > 0) showNQScreenshotToast({ count: skippedAudio, audio: true });
     if (skippedImages > 0) {
-      try { chrome.storage.local.set({ answerlySkippedImages: { ts: Date.now(), count: skippedImages } }); } catch {}
+      try {
+        chrome.storage.local.set({ answerlySkippedImages: { ts: Date.now(), count: skippedImages, reason: 'image' } });
+        chrome.runtime.sendMessage(
+          { type: 'REPORT_SKIPPED', count: skippedImages, reason: 'image', quizTitle: getQuizTitle() },
+          () => void chrome.runtime.lastError
+        );
+      } catch {}
       showNQScreenshotToast({ count: skippedImages });
     }
     // Retry pass — catches questions that failed to match on the first attempt

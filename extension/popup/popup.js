@@ -1,6 +1,9 @@
 // ── Config ────────────────────────────────────────────────────────────────────
 const BACKEND_URL = 'https://answerly-ai-backend.onrender.com';
 
+// Fallback only - the server reports the real cap. See background.js.
+const DEFAULT_DAILY_LIMIT = 200;
+
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentSession          = null; // { token, code, expiresAt }
 let quizActive              = false;
@@ -103,9 +106,15 @@ function renderSkippedImages(rec) {
   if (!fresh) { box.classList.add('hidden'); return; }
 
   const n = rec.count;
-  txt.innerHTML = n === 1
-    ? '<strong>1 question was skipped</strong> because its answer is in an image. Use the <strong>Screenshot Tool</strong> on it.'
-    : `<strong>${n} questions were skipped</strong> because their answers are in images. Use the <strong>Screenshot Tool</strong> on them.`;
+  // Audio is a different message, not a variant: there is no tool to point at,
+  // so telling them to use the Screenshot Tool would send them in a circle.
+  txt.innerHTML = rec.reason === 'audio'
+    ? (n === 1
+        ? '<strong>1 question was skipped</strong> because it needs you to listen to audio. Answerly cannot hear, so it was left for you.'
+        : `<strong>${n} questions were skipped</strong> because they need you to listen to audio. Answerly cannot hear, so they were left for you.`)
+    : (n === 1
+        ? '<strong>1 question was skipped</strong> because its answer is in an image. Use the <strong>Screenshot Tool</strong> on it.'
+        : `<strong>${n} questions were skipped</strong> because their answers are in images. Use the <strong>Screenshot Tool</strong> on them.`);
   box.classList.remove('hidden');
 }
 
@@ -255,20 +264,25 @@ async function renderMain() {
       .then(r => r.json())
       .then(data => {
         if (data.remaining) {
-          // Calculate actual uses from server, then apply against our 150 limit.
-          // This works even if the deployed backend still reports an old limit.
-          const quizUsed   = (data.remaining.quizLimit   || 150) - (data.remaining.quiz       ?? 0);
-          const screenUsed = (data.remaining.screenshotLimit || 150) - (data.remaining.screenshot ?? 0);
+          // Report what the server actually enforces. This used to rebase the
+          // server's numbers onto a hardcoded client limit so a stale backend
+          // could not mislead - but that reasoning inverts the moment the cap
+          // goes UP: the popup would promise 200 while the backend still
+          // blocked at 150. Trusting the reported limit can never over-promise.
+          const qLimit = data.remaining.quizLimit       || DEFAULT_DAILY_LIMIT;
+          const sLimit = data.remaining.screenshotLimit || DEFAULT_DAILY_LIMIT;
           const entry = {
-            quiz:       Math.max(0, 150 - quizUsed),
-            screenshot: Math.max(0, 150 - screenUsed),
+            quiz:            Math.max(0, data.remaining.quiz       ?? qLimit),
+            screenshot:      Math.max(0, data.remaining.screenshot ?? sLimit),
+            quizLimit:       qLimit,
+            screenshotLimit: sLimit,
             date: today,
           };
           chrome.storage.local.set({ [usageKey]: entry });
           updateUsageBars(entry);
         }
       })
-      .catch(() => {}); // network fail — keep showing 150/150 as fallback
+      .catch(() => {}); // network fail — keep showing the cached counts
   }
 }
 
@@ -295,10 +309,14 @@ function renderSolveAllBtn() {
 }
 
 function updateUsageBars(remaining) {
-  const qRem   = remaining?.quiz       ?? 150;
-  const sRem   = remaining?.screenshot ?? 150;
-  const qLimit = 150;
-  const sLimit = 150;
+  // Limits come from the server via the cached entry; the constant is only a
+  // fallback for an entry written before those fields existed. Hardcoding 150
+  // here would have shown "150/150" to a student the backend already allowed
+  // 200 solves.
+  const qLimit = remaining?.quizLimit       ?? DEFAULT_DAILY_LIMIT;
+  const sLimit = remaining?.screenshotLimit ?? DEFAULT_DAILY_LIMIT;
+  const qRem   = remaining?.quiz       ?? qLimit;
+  const sRem   = remaining?.screenshot ?? sLimit;
 
   const qPct = Math.max(0, Math.min(100, (qRem / qLimit) * 100));
   const sPct = Math.max(0, Math.min(100, (sRem / sLimit) * 100));

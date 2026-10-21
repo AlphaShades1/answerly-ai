@@ -6,6 +6,13 @@
 
 const BACKEND_URL = 'https://answerly-ai-backend.onrender.com';
 
+// Fallback only. The server is the authority on the daily cap and reports it as
+// quizLimit / screenshotLimit; this is used solely when a response predates
+// those fields. It was previously hardcoded in three separate places, so
+// changing the cap meant editing the backend, the popup and the worker in
+// lockstep - and whichever shipped second showed students the wrong number.
+const DEFAULT_DAILY_LIMIT = 200;
+
 
 // ── Usage persistence helper ─────────────────────────────────────────────────
 // Tracks usage client-side by incrementing a local counter on every successful
@@ -16,8 +23,8 @@ function incrementLocalUsage(code, type, remaining) {
   if (!code) return;
   const today   = new Date().toISOString().slice(0, 10);
   const usageKey = `answerlyUsage_${code}`;
-  const qLimit  = 150;
-  const sLimit  = 150;
+  const qLimit  = (remaining && remaining.quizLimit)       || DEFAULT_DAILY_LIMIT;
+  const sLimit  = (remaining && remaining.screenshotLimit) || DEFAULT_DAILY_LIMIT;
 
   chrome.storage.local.get(usageKey, (stored) => {
     const cur      = stored[usageKey];
@@ -197,6 +204,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ solveId: message.solveId, matched: !!message.matched, detail: message.detail }),
+          }, 10000);
+        } catch { /* diagnostics are best-effort */ }
+      });
+      return false;
+    }
+
+    // Reports questions the gate DECLINED to send. Fire-and-forget, same rules
+    // as REPORT_OUTCOME: a diagnostic must never be able to break a solve.
+    case 'REPORT_SKIPPED': {
+      chrome.storage.local.get('answerlySession', async (result) => {
+        const token = result.answerlySession?.token;
+        if (!token) return;
+        try {
+          await fetchWithRetry(`${BACKEND_URL}/api/solve-skipped`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              quizTitle: message.quizTitle,
+              count: message.count,
+              reason: message.reason,
+            }),
           }, 10000);
         } catch { /* diagnostics are best-effort */ }
       });

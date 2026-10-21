@@ -141,8 +141,15 @@ window.__answerlyScreenshotLoaded = true;
     accentColor: '#7c5cfc', cardBg: '#0f0f12', cardBorder: '#2e2e3e',
     answerBg: '#1a1a22', answerColor: '#f0f0f5', hintColor: '#555570',
     buttonColor: '#f0f0f5',
+    // Card Opacity covers this widget too. Absent here, t.opacity came back
+    // undefined and the panel silently stayed solid.
+    opacity: 100,
   };
   let ssTheme = { ...SS_DEFAULT_THEME };
+  // Lowest opacity the screenshot panel may be driven to and still be usable.
+  const SS_MIN_OPACITY = 0.35;
+  // True only while the student is actually dragging out a selection.
+  let selectionInProgress = false;
 
   // The drag box was always purple with a red crosshair, whatever the student
   // had themed. Its colours and opacity now live in the same saved theme as
@@ -218,8 +225,33 @@ window.__answerlyScreenshotLoaded = true;
       '--a-well':      ssAnswerBg(t),
       '--a-btn':       t.buttonColor  || SS_DEFAULT_THEME.buttonColor,
       '--a-on-accent': ssReadableOn(t.accentColor || SS_DEFAULT_THEME.accentColor),
+      // The bold answer line. It was hardcoded to #fff, which is invisible on
+      // any pale theme - the 'canvas' preset puts a white well behind it, so
+      // the one line that matters could only be read by selecting it. The
+      // default is now whatever is readable against the well it actually sits
+      // on, and ssAnswerColor overrides that when the student picks one.
+      '--a-bold':    t.ssAnswerColor || ssReadableOn(ssAnswerBg(t)),
+      '--a-bold-op': String((t.ssAnswerOpacity == null ? 100 : t.ssAnswerOpacity) / 100),
     };
     for (const k in vars) widgetEl.style.setProperty(k, vars[k]);
+
+    // The Card Opacity slider is advertised as covering this panel: Customize
+    // fades its mock screenshot widget with the same value, under a comment
+    // claiming it is "painted from the same values applySsTheme() uses". It
+    // was not - opacity was never applied here at all, so a student who turned
+    // it down to make the tool discreet saw the preview fade and the real
+    // panel stay solid. Reported by a customer who assumed it was broken.
+    //
+    // Deliberately NOT !important: the stealth-hidden rule sets
+    // opacity:0!important and has to keep winning over this.
+    // Floored, unlike the quiz card. "Ghost (Invisible)" is opacity 0, which is
+    // the right answer for a card you only need to READ and a disastrous one for
+    // a panel you have to find, click and drag in - at 0 the tool is simply gone
+    // and looks broken. The floor keeps every setting usable while still letting
+    // it go properly faint, which is all the discreetness anyone asked for.
+    const ssOp = (t.opacity == null ? 100 : Number(t.opacity));
+    const ssClamped = Math.max(0, Math.min(100, isNaN(ssOp) ? 100 : ssOp)) / 100;
+    widgetEl.style.opacity = String(Math.max(SS_MIN_OPACITY, ssClamped));
   }
 
   function loadSsTheme(cb) {
@@ -371,6 +403,15 @@ window.__answerlyScreenshotLoaded = true;
 
   // ── Selection overlay ──────────────────────────────────────────────────────
   function showSelectionOverlay(fullDataUrl, onSelect, onCancel) {
+    // A drag is in progress from here until teardown(). The 1s reconciler and
+    // the 3s storage re-read both call deactivate() on a lost context, and
+    // deactivate() removes this overlay - so a tick landing mid-drag ripped the
+    // selection away with the mouse still down. That is the "it stops me
+    // halfway through dragging" report, and it is most likely to happen right
+    // after installing a new build, when an already-open Canvas tab has an
+    // orphaned content script whose chrome.runtime.id is gone and so trips the
+    // lost-context check every single second.
+    selectionInProgress = true;
     const overlay = document.createElement('div');
     overlay.id = 'answerly-select-overlay';
 
@@ -559,6 +600,7 @@ window.__answerlyScreenshotLoaded = true;
     document.addEventListener('keydown', escHandler);
 
     function teardown() {
+      selectionInProgress = false;
       overlay.remove();
       document.removeEventListener('keydown', escHandler);
       window.removeEventListener('mousemove', onMove, true);
@@ -692,7 +734,7 @@ window.__answerlyScreenshotLoaded = true;
       // Escape HTML first to prevent injection
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
       // **bold**
-      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#fff;font-weight:800;">$1</strong>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--a-bold,#fff);opacity:var(--a-bold-op,1);font-weight:800;">$1</strong>')
       // *italic*
       .replace(/\*(.+?)\*/g, '<em>$1</em>');
 
@@ -882,6 +924,11 @@ window.__answerlyScreenshotLoaded = true;
 
   function reconcile() {
     if (!document.body) return;
+    // Never pull the rug out from under an in-progress drag. A genuinely dead
+    // context is still torn down - just on the next tick, once the selection
+    // has finished - so recovery is delayed by at most a second and never
+    // cancels the capture the student is halfway through making.
+    if (selectionInProgress) return;
     if (answerlyContextLost()) { showAnswerlyReloadNotice(); deactivate(); return; }
     if (toolActive) {
       if (!document.getElementById('answerly-ss-widget')) buildWidget();
@@ -915,6 +962,8 @@ window.__answerlyScreenshotLoaded = true;
   // a message arrived. This is what keeps the widget alive across Canvas's
   // one-question-per-page "Next" navigations.
   function syncFromStorage() {
+    // Same rule as the reconciler: a drag in progress is never interrupted.
+    if (selectionInProgress) return;
     // Permanently invalidated context (extension reloaded/updated): the runtime
     // ID is gone and will never come back. Tear the widget down so it doesn't
     // linger forever with a stale reconciler.

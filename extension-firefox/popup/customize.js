@@ -16,6 +16,11 @@ const DEFAULTS = {
   selectionColor:   '#7c5cfc',
   crosshairColor:   '#ff3b3b',
   selectionOpacity: 100,
+  // Bold answer line in the Screenshot Tool panel. ssAnswerColor is
+  // deliberately ABSENT: unset means "work it out from the panel", which is
+  // what stops a pale theme rendering white text on a white well. It is only
+  // written once the student picks a colour.
+  ssAnswerOpacity: 100,
 };
 
 const PRESETS = {
@@ -65,6 +70,10 @@ const colorCrosshair = document.getElementById('color-crosshair');
 const hexCrosshair   = document.getElementById('hex-crosshair');
 const selOpacitySlider = document.getElementById('selection-opacity-slider');
 const selOpacityVal    = document.getElementById('selection-opacity-val');
+const colorSsAnswer    = document.getElementById('color-ssanswer');
+const hexSsAnswer      = document.getElementById('hex-ssanswer');
+const ssOpacitySlider  = document.getElementById('ssanswer-opacity-slider');
+const ssOpacityVal     = document.getElementById('ssanswer-opacity-val');
 const previewSelBox    = document.getElementById('preview-sel-box');
 const previewSelBadge  = document.getElementById('preview-sel-badge');
 const previewSelCross  = document.getElementById('preview-sel-cross');
@@ -223,6 +232,16 @@ selOpacitySlider.addEventListener('input', () => {
   updatePreview();
 });
 
+// Screenshot answer. Passed keepPreset=true like the drag-box controls: these
+// are screenshot settings, not card colours, so changing one should not look
+// like it knocked the card preset off.
+syncColorPair(colorSsAnswer, hexSsAnswer, 'ssAnswerColor', true);
+
+ssOpacitySlider.addEventListener('input', () => {
+  theme.ssAnswerOpacity = parseInt(ssOpacitySlider.value);
+  ssOpacityVal.textContent = theme.ssAnswerOpacity + '%';
+});
+
 // A theme saved before the drag box settings existed has none of these keys.
 function dragBoxOf(t) {
   return {
@@ -284,6 +303,17 @@ function applyToUI() {
   hexCrosshair.value   = box.crosshairColor;
   selOpacitySlider.value = box.selectionOpacity;
   selOpacityVal.textContent = box.selectionOpacity + '%';
+  // Unset ssAnswerColor means "follow the theme". Show the colour the widget
+  // would actually choose so the swatch never contradicts the panel, but do
+  // not write it into the theme - that would freeze the auto behaviour the
+  // first time this screen is opened.
+  const ssAuto = readableOn(theme.answerBg || theme.cardBg || DEFAULTS.cardBg);
+  const ssCol  = theme.ssAnswerColor || ssAuto;
+  colorSsAnswer.value = ssCol;
+  hexSsAnswer.value   = ssCol;
+  const ssOp = theme.ssAnswerOpacity != null ? theme.ssAnswerOpacity : DEFAULTS.ssAnswerOpacity;
+  ssOpacitySlider.value = ssOp;
+  ssOpacityVal.textContent = ssOp + '%';
 }
 
 
@@ -331,7 +361,10 @@ function updatePreview() {
   // Screenshot tool preview, painted from the same values applySsTheme() uses.
   previewSs.style.background = theme.cardBg;
   previewSs.style.border = '1px solid ' + theme.cardBorder;
-  previewSs.style.opacity = op;
+  // Mirrors the floor in screenshotTool.js: the panel is interactive, so it is
+  // never driven below a usable opacity even on Ghost. Showing the mock fading
+  // all the way to nothing would promise something the real tool refuses to do.
+  previewSs.style.opacity = Math.max(0.35, op);
   previewSsBar.style.borderBottom = '1px solid ' + theme.cardBorder;
   previewSsTitle.style.color = accent;
   [previewSsWell, previewSsField].forEach(el => {

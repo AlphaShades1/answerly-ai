@@ -1862,7 +1862,7 @@ window.__answerlyQuizSolverLoaded = true;
   // number deciding the question, and it stands down.
   function answerNumber(s) {
     let t = String(s == null ? '' : s).trim()
-      .replace(/^\(?[a-e][.)]\s+/i, '')     // "b. 0.196"
+      .replace(/^\(?[a-h][.)]\s+/i, '')     // "b. 0.196"
       .replace(/\u2212/g, '-')              // typographic minus
       .replace(/[$\u20ac\u00a3\u00a5\s]/g, '')   // currency symbols, spaces
       .replace(/[.)\]:;]+$/, '');           // trailing punctuation
@@ -2019,7 +2019,7 @@ window.__answerlyQuizSolverLoaded = true;
     const ref = a.toLowerCase()
       .replace(/^(the\s+)?(correct\s+)?(answer|choice|option)\s*(is|:)?\s*/i, '')
       .replace(/[.)\]:]+$/, '').trim();
-    const lm = ref.match(/^\(?([a-e])\)?$/i);
+    const lm = ref.match(/^\(?([a-h])\)?$/i);
     if (lm) { const i = lm[1].toLowerCase().charCodeAt(0) - 97; if (inputs[i]) return i; }
     const nm = ref.match(/^\(?([1-9])\)?$/);
     if (nm) { const i = parseInt(nm[1], 10) - 1; if (inputs[i]) return i; }
@@ -2125,7 +2125,7 @@ window.__answerlyQuizSolverLoaded = true;
         normalizeText(getOptionLabelText(input, qEl)) === refNorm);
       let idx = -1;
       if (!isOwnOptionText) {
-        const lm = ref.match(/^\(?([a-e])\)?$/i);
+        const lm = ref.match(/^\(?([a-h])\)?$/i);
         if (lm) idx = lm[1].toLowerCase().charCodeAt(0) - 97;
         if (idx < 0) { const nm = ref.match(/^\(?([1-9])\)?$/); if (nm) idx = parseInt(nm[1], 10) - 1; }
       }
@@ -2162,7 +2162,15 @@ window.__answerlyQuizSolverLoaded = true;
     }
 
     // Pass 5: bare-letter fallback (kept for the plain "b" case after text passes)
-    if (/^[a-e]$/.test(target)) {
+    //
+    // Bounded at 'h', not 'e' and not 'z'. At 'e' a six-option question whose
+    // correct answer was F had its letter REJECTED here and nothing was
+    // selected at all - the screenshot path returns a letter precisely so it
+    // has something to fall back on when its transcribed text does not match
+    // the page. Stopping at 'h' covers eight options, more than any real quiz,
+    // while staying clear of i / v / x, which are roman-numeral option labels
+    // ("I.", "V.") and would be read as indices 8, 21 and 23 if included.
+    if (/^[a-h]$/.test(target)) {
       const idx = target.charCodeAt(0) - 97; // 'a'→0, 'b'→1 …
       if (radios[idx]) { radios[idx].click(); return true; }
     }
@@ -3003,10 +3011,47 @@ window.__answerlyQuizSolverLoaded = true;
     return NEEDS_HEARING_RE.test(questionText || '');
   }
 
+  // A phrase like "see the table below" is only evidence that something cannot
+  // be read when there IS something unreadable. A question whose "table" is a
+  // real HTML <table>, or whose "passage" is a block of text, is already fully
+  // available to the model, and refusing it hands the student a blank page.
+  // Measured on fixture gate-test.html: three such shapes - a readable table,
+  // an ordered list and a quoted passage - were refused on 1.3.62 despite
+  // every word being present as text.
+  //
+  // Direction is what makes this safe to check. A phrase pointing BACK
+  // ("refer to the figure above") may be naming a shared stimulus that lives
+  // OUTSIDE this question element, which cannot be inspected from here, so
+  // those stay an independent trigger exactly as before. Only a phrase that
+  // points FORWARD, at content inside the question, is checked against what is
+  // actually there - and it still refuses the moment real media is present.
+  const REFERS_FORWARD_RE = /\b(?:below|following|that follows|beneath|underneath)\b/i;
+
+  // Media that would make a forward-pointing phrase genuine. A decorative icon
+  // does not count, or a table question with a course logo beside it would be
+  // refused for the logo. <math> is deliberately absent: mathIsLossy() judges
+  // maths properly on its own, and counting it here would refuse every
+  // linearisable fraction that happened to say "shown below".
+  function stemHasMedia(qEl) {
+    try {
+      const t = qEl.querySelector('.question_text, [data-question-text], .question-text') || qEl;
+      if (t.querySelector('svg, canvas, video, audio, object, embed, picture, iframe')) return true;
+      return [...t.querySelectorAll('img')].some(
+        img => img.getAttribute('src') !== '' && !imageIsDecorative(img));
+    } catch { return true; }   // cannot tell - stay conservative
+  }
+
+  function phraseNeedsScreenshot(qEl, questionText) {
+    const text = questionText || '';
+    if (!NEEDS_SCREENSHOT_RE.test(text)) return false;
+    if (!REFERS_FORWARD_RE.test(text)) return true;   // referent may be elsewhere
+    return stemHasMedia(qEl);
+  }
+
   function needsScreenshotFor(qEl, questionText) {
     return questionHasImage(qEl)
         || choicesHaveUnreadableImage(qEl)
-        || NEEDS_SCREENSHOT_RE.test(questionText || '')
+        || phraseNeedsScreenshot(qEl, questionText)
         || mathIsLossy(qEl);
   }
 
@@ -3065,9 +3110,19 @@ window.__answerlyQuizSolverLoaded = true;
   // This record is what survives it, so a student who looked away, or who wants
   // to check afterwards which questions were left blank, can still find out
   // from the popup.
-  function recordSkippedImages(count) {
+  function recordSkippedImages(count, reason) {
     try {
-      chrome.storage.local.set({ answerlySkippedImages: { ts: Date.now(), count } });
+      chrome.storage.local.set({ answerlySkippedImages: {
+        ts: Date.now(), count, reason: reason || 'image',
+      }});
+      // Also report it. This count used to live only in the student's own
+      // browser, so the number of questions Answerly declined was invisible to
+      // us - the first time a customer asked, there was nothing to look up.
+      chrome.runtime.sendMessage(
+        { type: 'REPORT_SKIPPED', count, reason: reason || 'image',
+          quizTitle: getQuizTitle() },
+        () => void chrome.runtime.lastError
+      );
     } catch { /* context invalidated */ }
   }
 
@@ -3078,7 +3133,18 @@ window.__answerlyQuizSolverLoaded = true;
   //             catch the eye of someone glancing at the screen.
   // Auto-dismisses after 5s in both; the X closes it immediately.
   function showScreenshotToast(count, opts = {}) {
-    const dim = opts.dim !== undefined ? opts.dim : stealthHidden;
+    // In stealth puts nothing on screen. A panel appearing mid-quiz is the one
+    // thing stealth exists to prevent, and a dimmed panel is still a panel -
+    // the comment above recordSkippedImages has always said this, but the code
+    // drew a muted toast anyway. The message is not lost: it is recorded for
+    // the popup, so the student reads it in the extension menu instead.
+    if (stealthHidden) {
+      recordSkippedImages(count, opts.audio ? 'audio' : 'image');
+      return;
+    }
+    // Normal mode is deliberately quiet too - this is information, not an
+    // alert, and it should not pull the eye off the question being answered.
+    const dim = opts.dim !== undefined ? opts.dim : true;
     document.getElementById('answerly-shot-toast')?.remove();
 
     const accent = theme.accentColor || DEFAULT_THEME.accentColor;
@@ -3159,7 +3225,7 @@ window.__answerlyQuizSolverLoaded = true;
     box.appendChild(msg);
     box.appendChild(x);
     document.body.appendChild(box);
-    timer = setTimeout(close, 5000);
+    timer = setTimeout(close, 4500);
   }
 
   // ── Solve All — direct API path (works in both normal + stealth mode) ────────
@@ -3333,6 +3399,9 @@ window.__answerlyQuizSolverLoaded = true;
   function stealthFillAll() {
     const questions = findQuestions();
     let delay = 0;
+    // Stealth fill used to drop gated questions without a trace, so a student
+    // in stealth had no way at all to learn which blanks were left empty.
+    let stealthSkipped = 0;
     questions.forEach(qEl => {
       const hasChoices = !!qEl.querySelector('input[type="checkbox"], input[type="radio"]');
       const hasDropdown = !!qEl.querySelector('select');
@@ -3351,7 +3420,7 @@ window.__answerlyQuizSolverLoaded = true;
       // Same rule as Solve All: a blank whose answer is only in a figure can't be
       // filled from the text. Silent here by necessity — stealth shows no toast —
       // but leaving it empty beats typing in a confident wrong answer.
-      if (needsScreenshotFor(qEl, qText)) return;
+      if (needsScreenshotFor(qEl, qText)) { stealthSkipped++; return; }
 
       setTimeout(() => {
         sendSolve(
@@ -3379,6 +3448,7 @@ window.__answerlyQuizSolverLoaded = true;
       }, delay);
       delay += 1200;
     });
+    if (stealthSkipped) recordSkippedImages(stealthSkipped);
   }
 
   // ── Shared camera capture flow ─────────────────────────────────────────────
@@ -3468,7 +3538,7 @@ window.__answerlyQuizSolverLoaded = true;
               let matched   = false;
               const matchParts = textParts.map(answerHeadline);
               if (textParts.length > 0) matched = autoSelectAnswer(qEl, matchParts.join(", "), matchParts);
-              if (!matched && answerLetter && /^[a-e](,\s*[a-e])*$/.test(answerLetter))
+              if (!matched && answerLetter && /^[a-h](,\s*[a-h])*$/.test(answerLetter))
                 matched = autoSelectAnswer(qEl, answerLetter);
               if (selects.length > 0 && textParts.length > 0) {
                 let anyDropdown = false;

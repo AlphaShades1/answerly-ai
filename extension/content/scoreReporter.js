@@ -403,6 +403,102 @@
     'textarea.question_input[name^="question_"]:not([name*="_score_"])';
   var CORRECT_FALLBACK = '.correct_answer input[name="answer_text"]';
 
+  // -- New Quizzes answer text --------------------------------------------
+  // Classic marks answers with class names (.correct_answer / .selected_answer).
+  // New Quizzes renders through Instructure UI, whose class names are
+  // build-generated emotion hashes ("css-r9cwls-screenReaderContent"), so there
+  // is nothing stable to select on - which is why every NQ row was stored with
+  // an empty correct[] (424 of 424 measured) while Classic was fine.
+  //
+  // Measured on real native results pages 2026-10-20 (course 590, assignments
+  // 493081 and 493082). Every format annotates answers with a label element
+  // reading "Correct answer:" or "Incorrect answer:". Two shapes exist:
+  //   - per-option (multiple-answer): each option carries its own label, plus a
+  //     visible badge reading "Missed Option - Incorrect" (a correct option the
+  //     student left unticked) or "Selected Answer - Incorrect".
+  //   - appended reveal (multiple choice / true-false / numeric / fill-in-the-
+  //     blank): the student's answer is labelled, then the right answer follows
+  //     under a visible "Correct Answer:".
+  //
+  // One case yields nothing, by design: a true-false answered CORRECTLY renders
+  // no answer text anywhere in the DOM, only a check icon, so both lists come
+  // back empty and the row is stored on its verdict alone. Measured 2026-10-20
+  // on a 20-question quiz scored 20/20: 17 rows carried text and the 3 that did
+  // not were exactly the correct true-false ones. A WRONG true-false does carry
+  // text, and so does a correct multiple choice, so this is narrow.
+  //
+  // The two are told apart by whether the label is screen-reader-only, read
+  // from its box size rather than its class because the class carries the same
+  // unusable hash. A screen-reader label annotates an option the student
+  // actually picked; a visible one introduces an answer they did not.
+  var NQ_WRAPPER = '[data-automation="sdk-item-wrapper"]';
+  var NQ_MARKER_RE = /^(correct|incorrect)\s+answer\s*:?$/i;
+
+  function nqDirectText(el) {
+    var t = '';
+    Array.prototype.forEach.call(el.childNodes, function (n) {
+      if (n.nodeType === 3) t += ' ' + n.textContent;
+    });
+    return t.replace(/\s+/g, ' ').trim();
+  }
+
+  function nqMarkersIn(root) {
+    return Array.prototype.filter.call(
+      root.querySelectorAll('div, span'),
+      function (el) { return NQ_MARKER_RE.test(nqDirectText(el)); });
+  }
+
+  function nqIsScreenReaderOnly(el) {
+    try { return el.offsetWidth <= 1 || el.offsetHeight <= 1; } catch (e) { return false; }
+  }
+
+  // The block belonging to one label is the largest ancestor that still holds
+  // exactly ONE label. Going further up swallows the neighbouring options, and
+  // on fill-in-the-blank the rest of the sentence with them.
+  function nqBlockFor(marker, qEl) {
+    var block = marker.parentElement, a = block;
+    while (a && a !== qEl) {
+      if (nqMarkersIn(a).length > 1) break;
+      block = a;
+      a = a.parentElement;
+    }
+    return block;
+  }
+
+  function nqAnswerPair(qEl) {
+    var chosen = [], correct = [];
+    function push(list, v) {
+      v = stripAnswerTails(v);
+      if (v && list.indexOf(v) === -1 && v.length < 300) list.push(v.slice(0, 200));
+    }
+    nqMarkersIn(qEl).forEach(function (m) {
+      var label = nqDirectText(m);
+      var block = nqBlockFor(m, qEl);
+      if (!block) return;
+      var whole = cellText(block);
+      // Strip the label by length rather than by a built regex - the label is
+      // page text and would otherwise need escaping.
+      var body = whole;
+      if (body.toLowerCase().indexOf(label.toLowerCase()) === 0) {
+        body = body.slice(label.length);
+      }
+      body = body
+        .replace(/,?\s*Not Selected\s*$/i, '')
+        .replace(/\s*(Missed Option|Selected Answer)\s*-\s*Incorrect\s*$/i, '')
+        .replace(/\s+/g, ' ').trim();
+      if (!body) return;
+      if (/^correct/i.test(label)) {
+        push(correct, body);
+        if (nqIsScreenReaderOnly(m)) push(chosen, body);
+      } else if (/missed option/i.test(whole)) {
+        push(correct, body);
+      } else {
+        push(chosen, body);
+      }
+    });
+    return { chosen: chosen, correct: correct };
+  }
+
   function extractQuestionResults() {
     var qs = document.querySelectorAll('[data-automation="sdk-item-wrapper"], div.question.display_question, div.display_question');
     var out = [];
@@ -411,11 +507,19 @@
       if (!verdict) return;
       var stem = stemOf(qEl);
       if (!stem || stem.length < 12) return;
+      // New Quizzes needs its own reader; Classic keeps the selector path.
+      // Only used when it actually produced something, so a format not covered
+      // here falls through instead of storing an empty row.
+      var nqPair = null;
+      try {
+        if (qEl.matches && qEl.matches(NQ_WRAPPER)) nqPair = nqAnswerPair(qEl);
+      } catch (e) { nqPair = null; }
+      var useNq = !!(nqPair && (nqPair.chosen.length || nqPair.correct.length));
       out.push({
         stem: stem,
         verdict: verdict,
-        chosen:  answerTexts(qEl, CHOSEN_SELECTORS, CHOSEN_FALLBACK),
-        correct: answerTexts(qEl, CORRECT_SELECTORS, CORRECT_FALLBACK),
+        chosen:  useNq ? nqPair.chosen  : answerTexts(qEl, CHOSEN_SELECTORS, CHOSEN_FALLBACK),
+        correct: useNq ? nqPair.correct : answerTexts(qEl, CORRECT_SELECTORS, CORRECT_FALLBACK),
       });
     });
     return out.slice(0, 80);
