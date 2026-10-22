@@ -315,7 +315,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // all: the content script only reports on a solve it can name, so
             // dropping the id here silently disabled the whole diagnostic —
             // it read exactly zero, which looked like nobody had updated yet.
-            sendResponse({ hint: data.hint, answer: data.answer, answerParts: data.answerParts, remaining: data.remaining, solveId: data.solveId });
+            sendResponse({ hint: data.hint, answer: data.answer, answerParts: data.answerParts, answerIndexes: data.answerIndexes, remaining: data.remaining, solveId: data.solveId });
           }
         } catch (err) {
           sendResponse({ error: err?.name === 'AbortError' ? 'Timed out — try again.' : 'Network error — is the backend running?' });

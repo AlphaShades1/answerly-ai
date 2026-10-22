@@ -2027,7 +2027,7 @@ window.__answerlyQuizSolverLoaded = true;
     return uniqueNumericIndex(inputs.map(inp => getOptionLabelText(inp, qEl)), a);
   }
 
-  function autoSelectAnswer(qEl, answer, parts) {
+  function autoSelectAnswer(qEl, answer, parts, indexes) {
     // Compare against the headline, not the reasoning. The explanation
     // routinely names the distractor it is ruling out ("Oil ... acrylic was not
     // invented until the twentieth century"), and the fuzzy passes below will
@@ -2092,6 +2092,19 @@ window.__answerlyQuizSolverLoaded = true;
         checkboxes.forEach((cb, i) => { if (chosen.has(i) && !cb.checked) { cb.click(); any = true; } });
         // Success if we ticked something, or the intended boxes were already ticked.
         if (any || [...chosen].every(i => checkboxes[i] && checkboxes[i].checked)) return true;
+      }
+      // The same positional fallback for checkboxes. This branch returns before
+      // the radio passes below, so without it a select-all question whose option
+      // text had moved under us (MathJax rendering late) lost every box.
+      if (Array.isArray(indexes) && indexes.length) {
+        let any = false;
+        for (const i of indexes) {
+          if (i >= 0 && i < checkboxes.length) {
+            if (!checkboxes[i].checked) checkboxes[i].click();
+            any = true;
+          }
+        }
+        if (any) return true;
       }
       return false;
     }
@@ -2185,6 +2198,28 @@ window.__answerlyQuizSolverLoaded = true;
     // Pass 6: fallback — single select dropdown
     const selects = qEl.querySelectorAll('select');
     if (selects.length === 1) return autoSelectDropdown(selects[0], answer);
+
+    // Pass 7: positional fallback. Every text pass above has failed, which on a
+    // maths question usually means the option text moved under us - Canvas
+    // renders MathJax after we read the options, so the label we matched
+    // against is not the label we sent. The backend already knows WHICH option
+    // the model chose, so use that rather than losing a correct answer.
+    // Deliberately last: text is the better signal when it works, and this only
+    // runs when nothing else could place the answer at all.
+    if (Array.isArray(indexes) && indexes.length) {
+      const radios2 = Array.from(qEl.querySelectorAll('input[type="radio"]'));
+      const boxes2  = Array.from(qEl.querySelectorAll('input[type="checkbox"]'));
+      const inputs2 = radios2.length ? radios2 : boxes2;
+      let placed = false;
+      for (const i of indexes) {
+        if (i >= 0 && i < inputs2.length) {
+          if (!inputs2[i].checked) inputs2[i].click();
+          placed = true;
+          if (radios2.length) break;        // a radio group takes exactly one
+        }
+      }
+      if (placed) return true;
+    }
 
     return false;
   }
@@ -2488,7 +2523,7 @@ window.__answerlyQuizSolverLoaded = true;
             (resp) => {
               clearInflight(qEl);
               if (!chrome.runtime.lastError && resp && !resp.error) {
-                const matched = autoSelectAnswer(qEl, resp.answer, resp.answerParts);
+                const matched = autoSelectAnswer(qEl, resp.answer, resp.answerParts, resp.answerIndexes);
                 reportOutcome(resp, matched, matched ? undefined : selectFailDetail(qEl, options, resp));
                 if (matched) {
                   btn.dataset.opened = 'true'; // only mark done after confirmed match
@@ -3357,7 +3392,7 @@ window.__answerlyQuizSolverLoaded = true;
             (resp) => {
               clearInflight(qEl);
               if (!chrome.runtime.lastError && resp && !resp.error) {
-                const matched = autoSelectAnswer(qEl, resp.answer, resp.answerParts);
+                const matched = autoSelectAnswer(qEl, resp.answer, resp.answerParts, resp.answerIndexes);
                 reportOutcome(resp, matched, matched ? undefined : 'solve-all: ' + selectFailDetail(qEl, options, resp));
                 if (matched) {
                   markSolved(qEl); if (btn) btn.dataset.opened = 'true';

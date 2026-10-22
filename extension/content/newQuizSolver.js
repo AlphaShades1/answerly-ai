@@ -1459,7 +1459,7 @@ window.__answerlyNQSolverLoaded = true;
   // `parts` is the backend's answerParts — the exact option strings it chose.
   // Preferring it is what stops an option that legitimately CONTAINS a comma
   // ("Short, terse") being split into fragments that match nothing.
-  function autoSelectNQAnswer(qEl, answer, inputOptionPairs, parts) {
+  function autoSelectNQAnswer(qEl, answer, inputOptionPairs, parts, indexes) {
     // Compare against the headline, not the reasoning. The explanation
     // routinely names the distractor it is ruling out ("Oil ... acrylic was not
     // invented until the twentieth century"), and the fuzzy passes below will
@@ -1602,6 +1602,26 @@ window.__answerlyNQSolverLoaded = true;
     {
       const i = uniqueNumericIndex(inputOptionPairs.map(p => p.labelText), answer);
       if (i >= 0 && inputOptionPairs[i]) { clickNQInput(inputOptionPairs[i].input); return true; }
+    }
+
+    // Pass 7: positional fallback, mirroring quizSolver.js. Every text pass has
+    // failed, which on a maths question usually means the option text moved
+    // under us - Canvas renders MathJax after we read the options, so the label
+    // we match against is not the label we sent. The backend already knows
+    // WHICH option the model chose, so use that rather than lose a correct
+    // answer. Last on purpose: text is the better signal whenever it works.
+    if (Array.isArray(indexes) && indexes.length) {
+      const isRadio = !!(inputOptionPairs[0] && inputOptionPairs[0].input &&
+                         inputOptionPairs[0].input.type === 'radio');
+      let placed = false;
+      for (const i of indexes) {
+        if (i >= 0 && i < inputOptionPairs.length && inputOptionPairs[i]) {
+          clickNQInput(inputOptionPairs[i].input);
+          placed = true;
+          if (isRadio) break;            // a radio group takes exactly one
+        }
+      }
+      if (placed) return true;
     }
 
     return false;
@@ -2985,7 +3005,7 @@ window.__answerlyNQSolverLoaded = true;
             { type: 'SOLVE_QUESTION', question: questionText, options, isMultiSelect },
             (resp) => {
               if (!chrome.runtime.lastError && resp && !resp.error) {
-                const matched = autoSelectNQAnswer(qEl, resp.answer, inputOptionPairs, resp.answerParts);
+                const matched = autoSelectNQAnswer(qEl, resp.answer, inputOptionPairs, resp.answerParts, resp.answerIndexes);
                 reportOutcome(resp, matched, matched ? undefined : 'no option matched the answer');
                 if (matched) btn.dataset.opened = 'true';
                 else         btn.dataset.done   = ''; // allow retry
@@ -3231,7 +3251,7 @@ window.__answerlyNQSolverLoaded = true;
             if (chrome.runtime.lastError || !resp || resp.error) return;
             const matched = isFillInBlank
               ? autoFillNQText(textInputEls, resp.answer, resp.answerParts)
-              : autoSelectNQAnswer(qEl, resp.answer, inputOptionPairs, resp.answerParts);
+              : autoSelectNQAnswer(qEl, resp.answer, inputOptionPairs, resp.answerParts, resp.answerIndexes);
             reportOutcome(resp, matched, matched ? undefined : (isFillInBlank ? 'solve-all: no input filled' : 'solve-all: no option matched'));
             if (matched && btn) btn.dataset.opened = 'true';
           }
