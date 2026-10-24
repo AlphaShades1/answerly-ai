@@ -152,6 +152,28 @@ async function fetchWithRetry(url, opts, ms = 75000) {
 // ── Privacy Guard: early injection via dynamic content script ────────────────
 // Registered dynamically so it only runs when the user toggles Privacy Guard on.
 // world: MAIN + runAt: document_start = overrides land before page scripts.
+// Hosts Privacy Guard must never run on, declared ONCE.
+//
+// The guard swallows fullscreenchange, webkitfullscreenchange and resize so a
+// quiz page cannot log them, and YouTube's player listens for exactly those to
+// size the video - so with the guard on, clicking fullscreen did nothing.
+//
+// Two separate paths install this script: the dynamic registration below takes
+// the list as excludeMatches, and the belt-and-braces re-inject in the
+// tabs.onUpdated handler checks it through pgSkipUrl(). Both must consult the
+// same rule, or the re-inject quietly puts the guard back on a page the
+// registration deliberately skipped - its isCanvas test is
+// /\/courses\/\d+/ against the WHOLE url, which a non-Canvas url can satisfy.
+//
+// Matched on HOSTNAME at a dot boundary, so a Canvas page whose path or query
+// merely mentions youtube.com is unaffected, and notyoutube.com or
+// youtube.com.evil.com do not match.
+const PG_SKIP_HOST_RE = /(^|\.)(youtube\.com|youtube-nocookie\.com)$/i;
+
+function pgSkipUrl(url) {
+  try { return PG_SKIP_HOST_RE.test(new URL(url).hostname); } catch { return false; }
+}
+
 async function registerPrivacyGuardScript() {
   const spec = {
       id: 'answerly-privacy-guard',
@@ -494,7 +516,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   ], async (stored) => {
     // Privacy Guard: handled by dynamic content script (document_start),
     // but belt-and-braces re-inject on Canvas pages.
-    if (isCanvas && stored.answerlyPrivacyGuardActive) {
+    if (isCanvas && stored.answerlyPrivacyGuardActive && !pgSkipUrl(url)) {
       try {
         await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['content/privacyGuard.js'], world: 'MAIN' });
       } catch { /* tab not injectable */ }
