@@ -157,6 +157,19 @@ async function registerPrivacyGuardScript() {
     await chrome.scripting.registerContentScripts([{
       id: 'answerly-privacy-guard',
       matches: ['<all_urls>'],
+      // YouTube is excluded outright. The guard swallows fullscreenchange,
+      // webkitfullscreenchange and resize so a quiz page cannot log them, and
+      // YouTube's player listens for exactly those to size the video - so with
+      // the guard on, clicking fullscreen did nothing. Reported 2026-10-23.
+      //
+      // Nothing is lost by skipping it: there is no Canvas quiz on youtube.com,
+      // and excluding the embed domain too means a YouTube video embedded in a
+      // Canvas page still goes fullscreen normally.
+      excludeMatches: [
+        '*://*.youtube.com/*',
+        '*://youtube.com/*',
+        '*://*.youtube-nocookie.com/*',
+      ],
       js: ['content/privacyGuard.js'],
       runAt: 'document_start',
       world: 'MAIN',
