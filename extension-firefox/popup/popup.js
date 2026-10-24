@@ -214,7 +214,12 @@ async function renderMain() {
 
   // Context-file uploader — available to everyone
   contextSection.classList.remove('hidden');
-  renderContextFiles(await readContextFiles());
+  const attachedContext = await readContextFiles();
+  renderContextFiles(attachedContext);
+  // An over-budget file stays truncated on every later solve, so warn whenever
+  // it is attached - not only in the moment just after the upload.
+  const attachedOverflow = budgetNote(attachedContext);
+  if (attachedOverflow) showContextStatus(attachedOverflow, true);
 
   renderToolBtn(btnQuizSolver, quizLabel, quizActive, 'QUIZ SOLVER');
   renderToolBtn(btnScreenshot, screenshotLabel, screenshotActive, 'SCREENSHOT TOOL');
@@ -537,6 +542,36 @@ function combineContexts(files) {
   return parts.map((p, i) => p.head + p.body.slice(0, caps[i])).join('\n');
 }
 
+// How much of the attached notes actually reaches the model.
+//
+// combineContexts() slices each file to a share of NOTES_BUDGET and keeps the
+// START of it, so anything past the cut is dropped with nothing to say it
+// happened - the only message the student saw was "Loaded". A word list at the
+// end of a long PDF was therefore never sent, which reads exactly like the
+// feature ignoring the instruction. Reported 2026-10-23 by a student whose
+// upload measured ~33-49k characters of extracted text.
+//
+// The 7 MB check above cannot catch this: it measures raw file BYTES before
+// extraction, and a text PDF hits 48,000 characters at a few hundred KB - a
+// couple of percent of that allowance.
+//
+// Mirrors the head/room math in combineContexts so the figure quoted to the
+// student is the figure actually used.
+function notesBudget(files) {
+  const list = Array.isArray(files) ? files : [];
+  const overhead = list.reduce((s, f) => s + (`=== ${f.fileName} ===\n`).length + 1, 0);
+  const room  = Math.max(0, NOTES_BUDGET - overhead);
+  const total = list.reduce((s, f) => s + String(f.context || '').length, 0);
+  return { total, room, over: total > room };
+}
+
+// The warning text, or '' when everything fits.
+function budgetNote(files) {
+  const b = notesBudget(files);
+  if (!b.over) return '';
+  return `Too long: only the first ${b.room.toLocaleString()} of ${b.total.toLocaleString()} characters are used. Put the important part at the top, or upload a smaller file.`;
+}
+
 // The per-file extractions are kept, not just the combined blob, so removing one
 // file can rebuild the context from the others without re-uploading anything.
 async function readContextFiles() {
@@ -619,7 +654,10 @@ contextFileInput.addEventListener('change', async () => {
     }
     const all = existing.concat(added);
     await writeContextFiles(all);
-    showContextStatus(`Loaded ✓ ${all.length} of ${MAX_CONTEXT_FILES} — used when solving`, false);
+    // Say it plainly when part of the upload will be discarded, instead of
+    // reporting success and dropping the tail silently.
+    const overflow = budgetNote(all);
+    showContextStatus(overflow || `Loaded ✓ ${all.length} of ${MAX_CONTEXT_FILES} — used when solving`, !!overflow);
   } catch {
     showContextStatus('Could not process these files.', true);
   } finally {
@@ -661,7 +699,9 @@ function renderContextFiles(files) {
       const current = await readContextFiles();
       current.splice(i, 1);
       await writeContextFiles(current);
-      showContextStatus(current.length ? `${current.length} file${current.length === 1 ? '' : 's'} attached` : '', false);
+      // Removing a file can bring the rest back under budget, or leave it over.
+      const left = budgetNote(current);
+      showContextStatus(left || (current.length ? `${current.length} file${current.length === 1 ? '' : 's'} attached` : ''), !!left);
     });
 
     row.appendChild(name);
