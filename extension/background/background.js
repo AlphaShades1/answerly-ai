@@ -153,8 +153,7 @@ async function fetchWithRetry(url, opts, ms = 75000) {
 // Registered dynamically so it only runs when the user toggles Privacy Guard on.
 // world: MAIN + runAt: document_start = overrides land before page scripts.
 async function registerPrivacyGuardScript() {
-  try {
-    await chrome.scripting.registerContentScripts([{
+  const spec = {
       id: 'answerly-privacy-guard',
       matches: ['<all_urls>'],
       // YouTube is excluded outright. The guard swallows fullscreenchange,
@@ -181,7 +180,27 @@ async function registerPrivacyGuardScript() {
       // (__answerlyPGInstalled) and only intercepts the Canvas event URLs
       // in BLOCKED, so extra frames cost nothing.
       allFrames: true,
-    }]);
+  };
+
+  // A registration made through registerContentScripts persists across browser
+  // restarts AND extension updates, and registering an id that already exists
+  // throws. That throw used to be swallowed here, so anyone upgrading kept the
+  // spec they were first registered with: the YouTube exclusion above would
+  // have reached nobody who already had the previous version installed. The
+  // only way out was toggling Privacy Guard off and on, which unregisters
+  // first - and no one would think to do that.
+  try {
+    const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [spec.id] });
+    if (existing && existing.length) await chrome.scripting.updateContentScripts([spec]);
+    else await chrome.scripting.registerContentScripts([spec]);
+    return;
+  } catch {}
+
+  // Fall back to a clean re-add, so a stale or malformed registration cannot
+  // pin a user to an old spec.
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: [spec.id] });
+    await chrome.scripting.registerContentScripts([spec]);
   } catch {}
 }
 async function unregisterPrivacyGuardScript() {
