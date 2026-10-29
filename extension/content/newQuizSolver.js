@@ -110,6 +110,26 @@ window.__answerlyNQSolverLoaded = true;
       delete trigger.dataset.done;               // force a fresh solve, so usage still counts
       delete trigger.dataset.opened;
       qEl.querySelectorAll('.answerly-nq-card').forEach(c => { delete c.dataset.loaded; });
+      // Same fix as quizSolver.js, and for the same reason: a figure question
+      // is declined by the ? button, and in quiz stealth the notice explaining
+      // why is deliberately not drawn - so the key billed a skip and put
+      // nothing on screen, which reads as a dead keybind. Take the picture
+      // instead. Audio keeps the honest decline; no screenshot helps you hear.
+      const kbText = nqStemOrFallback(qEl, extractNQData(qEl).questionText);
+      if (nqNeedsScreenshotFor(qEl, kbText) && !nqNeedsHearing(qEl, kbText)) {
+        const kbCam = qEl.querySelector('.answerly-nq-cam-btn');
+        if (kbCam) {
+          if (!kbCam.dataset.busy) { delete kbCam.dataset.opened; kbCam.click(); }
+          return;
+        }
+        // No camera button because screenshot stealth is off - drive the same
+        // capture flow directly, locking the ? button in its place.
+        if (!trigger.dataset.busy) {
+          trigger.dataset.busy = 'true';
+          doCameraCapture(trigger, qEl, kbText);
+        }
+        return;
+      }
       trigger.click();
     }
   }, true);
@@ -2121,20 +2141,21 @@ window.__answerlyNQSolverLoaded = true;
   function showNQScreenshotToast(opts = {}) {
     // In stealth puts nothing on screen - same rule as Classic. The message is
     // recorded for the popup instead so it is not lost.
-    if (stealthHidden) {
-      try {
-        chrome.storage.local.set({ answerlySkippedImages: {
-          ts: Date.now(), count: opts.count || 1,
-          reason: opts.audio ? 'audio' : 'image',
-        }});
-        chrome.runtime.sendMessage(
-          { type: 'REPORT_SKIPPED', count: opts.count || 1,
-            reason: opts.audio ? 'audio' : 'image', quizTitle: getQuizTitle() },
-          () => void chrome.runtime.lastError
-        );
-      } catch { /* context invalidated */ }
-      return;
-    }
+    // ONE recorder, in both modes. Solve All reported the skip itself and then
+    // called this, which in stealth reported it a second time; in normal mode
+    // nothing here recorded at all. Classic had the identical pair of bugs.
+    try {
+      chrome.storage.local.set({ answerlySkippedImages: {
+        ts: Date.now(), count: opts.count || 1,
+        reason: opts.audio ? 'audio' : 'image',
+      }});
+      chrome.runtime.sendMessage(
+        { type: 'REPORT_SKIPPED', count: opts.count || 1,
+          reason: opts.audio ? 'audio' : 'image', quizTitle: getQuizTitle() },
+        () => void chrome.runtime.lastError
+      );
+    } catch { /* context invalidated */ }
+    if (stealthHidden) return;
     const dim = opts.dim !== undefined ? opts.dim : true;
     document.getElementById('answerly-nq-shot-toast')?.remove();
 
@@ -3282,16 +3303,8 @@ window.__answerlyNQSolverLoaded = true;
     // Audio is NOT recorded as a skipped image: the popup's nudge tells the
     // student to use the screenshot tool, which cannot help them hear.
     if (skippedAudio > 0) showNQScreenshotToast({ count: skippedAudio, audio: true });
-    if (skippedImages > 0) {
-      try {
-        chrome.storage.local.set({ answerlySkippedImages: { ts: Date.now(), count: skippedImages, reason: 'image' } });
-        chrome.runtime.sendMessage(
-          { type: 'REPORT_SKIPPED', count: skippedImages, reason: 'image', quizTitle: getQuizTitle() },
-          () => void chrome.runtime.lastError
-        );
-      } catch {}
-      showNQScreenshotToast({ count: skippedImages });
-    }
+    // showNQScreenshotToast records it now, in both modes - see above.
+    if (skippedImages > 0) showNQScreenshotToast({ count: skippedImages });
     // Retry pass — catches questions that failed to match on the first attempt
     const retryIn = Math.max(firstPassDuration + 6000, 8000);
     setTimeout(_solveAllPass, retryIn);

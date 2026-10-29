@@ -96,7 +96,40 @@ window.__answerlyQuizSolverLoaded = true;
       delete trigger.dataset.opened;
       solvedQ.delete(qEl);
       clearInflight(qEl);
+      // shouldIgnoreClick() swallows a click within 1200ms of the last one as
+      // an accidental double-click. That guard is right for a mouse and wrong
+      // here: the keybind exists to force a fresh solve, it clears every other
+      // lock to do it, and e.repeat already stops a held key. Leaving
+      // lastClick set made the SECOND press a silent no-op - and the second
+      // press is exactly what a student does when the first one appeared to do
+      // nothing, so the feature read as completely dead. Mouse clicks keep the
+      // debounce; a deliberate keypress does not.
+      delete trigger.dataset.lastClick;
       qEl.querySelectorAll('.answerly-card').forEach(c => { delete c.dataset.loaded; });
+      // A question carrying a figure is DECLINED by the ? button, and in quiz
+      // stealth the "use the screenshot tool" notice is deliberately not drawn.
+      // So the key produced a billed skip, no answer and nothing on screen -
+      // indistinguishable from a dead keybind, and the loudest
+      // "the keybind does not work" report we have had. Measured on fixture
+      // keybind-figure.html: 0 solves attempted, no toast, no card, no answer.
+      // A picture is the only way to answer such a question, so take one.
+      // Audio is excluded - no screenshot helps you hear - so that one keeps
+      // the honest decline.
+      const kbText = stemOrFallback(qEl, extractData(qEl).questionText);
+      if (needsScreenshotFor(qEl, kbText) && !questionNeedsHearing(qEl, kbText)) {
+        const kbCam = qEl.querySelector('.answerly-cam-btn');
+        if (kbCam) {
+          if (kbCam.dataset.busy !== 'true') { delete kbCam.dataset.opened; kbCam.click(); }
+          return;
+        }
+        // Screenshot stealth is off, so there is no camera button to press.
+        // Drive the same capture flow directly, locking the ? button instead.
+        if (trigger.dataset.busy !== 'true') {
+          trigger.dataset.busy = 'true';
+          doCameraCapture(trigger, qEl, kbText);
+        }
+        return;
+      }
       trigger.click();
     }
   }, true);
@@ -2333,7 +2366,6 @@ window.__answerlyQuizSolverLoaded = true;
             return;
           }
           if (needsScreenshot) {
-            recordSkippedImages(1);
             showScreenshotToast(1, { single: true });
             btn.dataset.opened = 'true';
             return;
@@ -2472,7 +2504,6 @@ window.__answerlyQuizSolverLoaded = true;
             return;
           }
           if (needsScreenshot) {
-            recordSkippedImages(1);
             showScreenshotToast(1, { single: true });
             btn.dataset.opened = 'true';
             return;
@@ -2574,7 +2605,6 @@ window.__answerlyQuizSolverLoaded = true;
             return;
           }
           if (needsScreenshot) {
-            recordSkippedImages(1);
             showScreenshotToast(1, { single: true });
             btn.dataset.opened = 'true';
             return;
@@ -2811,8 +2841,7 @@ window.__answerlyQuizSolverLoaded = true;
     // Only the first pass reports skips. The retry re-walks the same questions
     // and would skip them again, popping a second toast ~8s later.
     if (skippedImages > 0) {
-      recordSkippedImages(skippedImages);   // popup keeps it after the toast goes
-      showScreenshotToast(skippedImages);   // dim in stealth, full in normal
+      showScreenshotToast(skippedImages);   // records once, then draws in normal mode
     }
     // Audio is reported separately and NOT recorded as a skipped image: the
     // popup's "use the screenshot tool" nudge is wrong advice for a question
@@ -3173,10 +3202,12 @@ window.__answerlyQuizSolverLoaded = true;
     // the comment above recordSkippedImages has always said this, but the code
     // drew a muted toast anyway. The message is not lost: it is recorded for
     // the popup, so the student reads it in the extension menu instead.
-    if (stealthHidden) {
-      recordSkippedImages(count, opts.audio ? 'audio' : 'image');
-      return;
-    }
+    // ONE recorder for the whole feature. The callers below used to record as
+    // well, so every stealth skip was counted TWICE - 133 of 140 rows in a live
+    // 3-hour window were duplicates - while an AUDIO skip in normal mode was
+    // recorded nowhere at all. The same bug, in opposite directions.
+    recordSkippedImages(count, opts.audio ? 'audio' : 'image');
+    if (stealthHidden) return;
     // Normal mode is deliberately quiet too - this is information, not an
     // alert, and it should not pull the eye off the question being answered.
     const dim = opts.dim !== undefined ? opts.dim : true;

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="robots" content="noindex, nofollow" /><meta charset="utf-8"><title>Keybind on declined questions (Classic)</title>
+<style>body{font-family:system-ui;padding:20px;max-width:1000px}
+.question.display_question{border:1px solid #cbd;margin:14px 0;padding:10px}
+#log{font-family:ui-monospace,monospace;font-size:12px;white-space:pre;background:#111;color:#ddd;padding:12px;border-radius:6px}
+.pass{color:#4ade80}.fail{color:#f87171}</style>
+</head>
+<body>
+<h1 id="quiz_title">Unit 2 Quiz</h1>
+<p>The questions the "?" button DECLINES, driven by the keybind. In quiz stealth
+the notice explaining a decline is deliberately never drawn, so before 1.3.65 a
+press on a figure question billed a skip and put nothing at all on screen - the
+"keybind does not work" report. A figure must now reach the camera; audio must
+still decline, and must be reported exactly once rather than twice.</p>
+<div id="quiz"></div>
+<div id="log">running…</div>
+
+<script>
+// A real 300x200 PNG so imageIsDecorative() cannot write it off as an icon.
+const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAADIAQMAAAD9pwHfAAAABlBMVEX///8AAABVwtN+AAAAMUlEQVR4nO3BAQ0AAADCoPdMbQ8HFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPBtHQAB1kE9/wAAAABJRU5ErkJggg==';
+const BANK = [
+  { id:'txt', q:'Which dependency is inherent in the nature of the work?',
+    opts:['Mandatory','Discretionary','External','Internal'], key:'Mandatory', media:'' },
+  { id:'fig', q:'Using the graph below, which curve shows exponential growth?',
+    opts:['Curve A','Curve B','Curve C'], key:'Curve B',
+    media:'<img src="' + PNG + '" width="300" height="200" alt="graph">' },
+  { id:'aud', q:'Select what is described in the recording.',
+    opts:['A rise','A fall'], key:'A rise', media:'<audio controls></audio>' },
+];
+function render() {
+  document.getElementById('quiz').innerHTML = BANK.map((b, i) =>
+    '<div class="question_holder"><div id="question_' + (300+i) + '" class="question display_question" data-id="' + b.id + '">' +
+      '<div class="question_name">Question ' + (i+1) + '</div>' +
+      '<div class="question_text"><p>' + b.q + '</p>' + b.media + '</div>' +
+      '<div class="answers">' + b.opts.map(o =>
+        '<div class="answer"><label><input type="radio" name="question_' + (300+i) + '">' +
+        '<span class="answer_label">' + o + '</span></label></div>').join('') +
+      '</div></div></div>').join('');
+}
+render();
+
+const sent = [];
+const store = {
+  answerlySession: { code: 'ANS-TEST' },
+  answerlyQuizActive: true,
+  answerlyQuizStealthActive: true,
+  // Deliberately OFF: this is the harder branch, and the common setup. With no
+  // camera button on the page the keybind has to drive the capture itself.
+  answerlyScreenshotActive: false,
+  answerlyScreenshotStealthActive: false,
+  answerlyStealthKeybind: { enabled: true, key: 'q' },
+};
+const changeListeners = [], msgListeners = [];
+function keyFor(question) {
+  const b = BANK.find(x => question && question.includes(x.q.slice(0, 40)));
+  return b ? [b.key] : null;
+}
+window.chrome = {
+  runtime: {
+    lastError: null,
+    onMessage: { addListener(fn) { msgListeners.push(fn); } },
+    getURL: p => p,
+    sendMessage(msg, cb) {
+      sent.push(JSON.parse(JSON.stringify(msg)));
+      if (typeof cb !== 'function') return;
+      setTimeout(() => {
+        if (msg.type === 'SOLVE_QUESTION') {
+          const parts = keyFor(msg.question);
+          if (!parts) return cb({ error: 'no key for that question' });
+          return cb({ solveId: 'sid-' + sent.length, answer: parts.join(', '),
+                      answerParts: parts, hint: 'because the textbook says so' });
+        }
+        // The crop overlay needs a real drag, so stop the capture here. Having
+        // been asked for the tab image at all IS the assertion.
+        if (msg.type === 'CAPTURE_SCREENSHOT') return cb({ error: 'harness stops here' });
+        cb({ solveId: 'sid-' + sent.length, answer: 'ok' });
+      }, 30);
+    },
+  },
+  storage: {
+    local: {
+      get(keys, cb) { const l = Array.isArray(keys) ? keys : [keys]; const o = {};
+        l.forEach(k => { if (k in store && store[k] !== null) o[k] = store[k]; }); cb(o); },
+      set(obj, cb) {
+        const ch = {}; Object.keys(obj).forEach(k => { ch[k] = { oldValue: store[k], newValue: obj[k] }; store[k] = obj[k]; });
+        changeListeners.forEach(fn => fn(ch, 'local')); if (cb) cb();
+      },
+      remove(keys, cb) { (Array.isArray(keys) ? keys : [keys]).forEach(k => delete store[k]); if (cb) cb(); },
+    },
+    onChanged: { addListener(fn) { changeListeners.push(fn); } },
+  },
+};
+const tick = ms => new Promise(r => setTimeout(r, ms));
+</script>
+
+<script src="/extension/content/quizSolver.js"></script>
+
+<script>
+const results = [];
+const LOG = document.getElementById('log');
+function check(name, ok, detail) {
+  results.push({ name: name, ok: ok });
+  LOG.innerHTML += '<span class="' + (ok ? 'pass' : 'fail') + '">' + (ok ? 'PASS  ' : 'FAIL  ') +
+    name + '</span>' + (detail !== undefined ? '\n       ' + detail : '') + '\n';
+}
+const qEl = id => document.querySelector('.question.display_question[data-id="' + id + '"]');
+const count = t => sent.filter(s => s.type === t).length;
+function reset() {
+  document.querySelectorAll('input:checked').forEach(i => { i.checked = false; });
+  document.querySelectorAll('.answerly-btn').forEach(b => {
+    delete b.dataset.done; delete b.dataset.opened; b.dataset.busy = '';
+  });
+  document.getElementById('answerly-shot-toast')?.remove();
+  sent.length = 0;
+}
+async function press(id) {
+  const q = qEl(id);
+  q.scrollIntoView({ block: 'center' });
+  await tick(250);
+  const r = q.getBoundingClientRect();
+  document.dispatchEvent(new MouseEvent('mousemove',
+    { clientX: Math.round(r.left + 20), clientY: Math.round(r.top + 20), bubbles: true }));
+  await tick(120);
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true }));
+  await tick(2500);
+}
+
+(async () => {
+  LOG.innerHTML = '';
+  await tick(2500);
+
+  // ── control: an ordinary text question is untouched by all of this ────────
+  reset();
+  await press('txt');
+  check('stealth, TEXT question: keybind still solves it normally',
+        count('SOLVE_QUESTION') === 1 && !!qEl('txt').querySelector('input:checked'),
+        'SOLVE_QUESTION x' + count('SOLVE_QUESTION'));
+
+  // ── the regression this release exists for ───────────────────────────────
+  reset();
+  await press('fig');
+  check('stealth, FIGURE question: keybind reaches the camera',
+        count('CAPTURE_SCREENSHOT') === 1,
+        'CAPTURE_SCREENSHOT x' + count('CAPTURE_SCREENSHOT') +
+        (count('CAPTURE_SCREENSHOT') === 0 ? '  <-- silent no-op is back' : ''));
+  check('stealth, FIGURE question: not billed as a silent skip any more',
+        count('REPORT_SKIPPED') === 0, 'REPORT_SKIPPED x' + count('REPORT_SKIPPED'));
+  check('stealth, FIGURE question: no blind text solve was attempted',
+        count('SOLVE_QUESTION') === 0, 'SOLVE_QUESTION x' + count('SOLVE_QUESTION'));
+
+  // ── audio still declines, and is counted ONCE ────────────────────────────
+  reset();
+  await press('aud');
+  check('stealth, AUDIO question: still declined, no camera (one cannot hear a picture)',
+        count('CAPTURE_SCREENSHOT') === 0 && count('SOLVE_QUESTION') === 0,
+        'CAPTURE_SCREENSHOT x' + count('CAPTURE_SCREENSHOT') + ', SOLVE_QUESTION x' + count('SOLVE_QUESTION'));
+  check('stealth, AUDIO question: reported ONCE, not twice',
+        count('REPORT_SKIPPED') === 1,
+        'REPORT_SKIPPED x' + count('REPORT_SKIPPED') + (count('REPORT_SKIPPED') > 1 ? '  <-- double-counted' : ''));
+
+  // ── with screenshot stealth ON the keybind must use the real camera button ─
+  chrome.storage.local.set({ answerlyScreenshotActive: true, answerlyScreenshotStealthActive: true });
+  await tick(2500);
+  check('setup: camera button present once screenshot stealth is on',
+        !!qEl('fig').querySelector('.answerly-cam-btn'));
+  reset();
+  await press('fig');
+  check('stealth + screenshot stealth, FIGURE: keybind drives the camera button',
+        count('CAPTURE_SCREENSHOT') === 1, 'CAPTURE_SCREENSHOT x' + count('CAPTURE_SCREENSHOT'));
+
+  // ── normal mode: the student is TOLD, and it is counted once ─────────────
+  chrome.storage.local.set({ answerlyQuizStealthActive: false,
+                             answerlyScreenshotActive: false, answerlyScreenshotStealthActive: false });
+  await tick(2500);
+  reset();
+  const fb = qEl('fig').querySelector('.answerly-btn:not(.answerly-cam-btn)');
+  if (fb) fb.click();
+  await tick(2000);
+  check('normal mode, FIGURE question: the student is told to use the camera',
+        !!document.getElementById('answerly-shot-toast'),
+        document.getElementById('answerly-shot-toast') ? 'toast shown' : 'no toast');
+  check('normal mode, FIGURE question: reported once',
+        count('REPORT_SKIPPED') === 1, 'REPORT_SKIPPED x' + count('REPORT_SKIPPED'));
+
+  reset();
+  const ab = qEl('aud').querySelector('.answerly-btn:not(.answerly-cam-btn)');
+  if (ab) ab.click();
+  await tick(2000);
+  check('normal mode, AUDIO question: reported once (was reported nowhere)',
+        count('REPORT_SKIPPED') === 1, 'REPORT_SKIPPED x' + count('REPORT_SKIPPED'));
+
+  const pass = results.filter(r => r.ok).length;
+  LOG.innerHTML += '\n' + pass + '/' + results.length + ' passed';
+  window.__done = true;
+})();
+</script>
+</body>
+</html>
