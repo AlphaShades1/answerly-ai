@@ -1015,3 +1015,13 @@ body {
 .help-video-btn:hover  { border-color: var(--red);    color: #fff; }
 .help-discord-btn      { margin-top: 8px; }
 .help-discord-btn:hover{ border-color: var(--purple); color: #fff; }
+
+/* The Firefox upload stand-in renders in a tab rather than a 300px panel, so
+   give it air instead of pinning it to the top-left corner. */
+body.answerly-upload-tab { margin: 28px auto; }
+.context-upload-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.85;
+  margin: 0 0 10px;
+}

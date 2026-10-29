@@ -507,7 +507,41 @@ document.getElementById('menu-help').addEventListener('click', () => {
 // ── Pro: context file upload ────────────────────────────────────────────────
 // Uploads a reference file (PDF/image/text); backend extracts its text once and
 // the extension stores it. quizSolver.js sends that text as context per question.
-btnUploadContext.addEventListener('click', () => contextFileInput.click());
+// Firefox dismisses an action popup the moment an OS file picker opens, and
+// destroys this document with it - so the input's `change` event never runs.
+// The picker appears, the menu vanishes, and the file lands nowhere. Chrome
+// keeps the popup alive, so only Firefox needs the detour: open this same
+// page as an ordinary tab, which nothing can dismiss, and pick there.
+// Runtime-detected rather than forked, so both trees stay byte-identical.
+const IS_FIREFOX    = /Firefox\/\d/.test(navigator.userAgent);
+const IN_UPLOAD_TAB = new URLSearchParams(location.search).get('upload') === '1';
+
+btnUploadContext.addEventListener('click', () => {
+  if (IS_FIREFOX && !IN_UPLOAD_TAB) {
+    chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html?upload=1') }, () => {
+      // If the tab could not be opened, picking here is still better than a
+      // button that does nothing - it fails the old way rather than silently.
+      if (chrome.runtime.lastError) { contextFileInput.click(); return; }
+      window.close();
+    });
+    return;
+  }
+  contextFileInput.click();
+});
+
+// A file input only opens from a real user gesture, so the tab cannot pick on
+// the student's behalf when it loads - they press the same button again. Say
+// why, or the second page looks like the menu simply reopened.
+if (IN_UPLOAD_TAB) {
+  document.body.classList.add('answerly-upload-tab');
+  const hint = document.createElement('div');
+  hint.className = 'context-upload-hint';
+  hint.textContent = 'Firefox closes the extension menu when a file picker opens, '
+                   + 'so use this tab instead. Press the button below to choose your '
+                   + 'files, then close the tab once it says Loaded - your files are '
+                   + 'saved and will be used when solving.';
+  btnUploadContext.parentNode.insertBefore(hint, btnUploadContext);
+}
 
 const MAX_CONTEXT_FILES = 3;
 const MAX_CONTEXT_BYTES = 7 * 1024 * 1024;

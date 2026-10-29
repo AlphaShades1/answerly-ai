@@ -156,21 +156,40 @@ async function press(id, key, opts) {
   check('solve keybind: fires again on an already-solved question',
         ms !== null, ms === null ? 'never fired - second press is a no-op' : ms + 'ms');
 
-  // 2b. TWO presses inside the 1200ms double-click window.
-  // shouldIgnoreClick() drops a click within 1200ms of the last one. That is
-  // right for a mouse and wrong for a key: a student whose first press looked
-  // like it did nothing presses again straight away, and that second press was
-  // being swallowed in silence. Deliberately timed to land INSIDE the window,
-  // because a test that waits longer than 1200ms passes either way - which is
-  // how this went unnoticed.
-  reset();
-  await press("mc", "q");
-  await tick(300);
-  document.dispatchEvent(new KeyboardEvent("keydown", { key: "q", bubbles: true }));
-  await tick(4000);
-  const rapid = sent.filter(s => s.type === "SOLVE_QUESTION").length;
-  check("solve keybind: a second press 300ms later is NOT swallowed",
-        rapid === 2, "SOLVE_QUESTION x" + rapid + (rapid < 2 ? "  <-- debounced away" : ""));
+  // 2b. TWO presses, a measured distance apart.
+  // shouldIgnoreClick() drops a click within 1200ms of the last one: right for a
+  // mouse, wrong for a key, because a student whose first press looked like it
+  // did nothing presses again straight away and that one vanished in silence.
+  // 1.3.65 gives a keypress a 400ms guard instead, so a stutter is still
+  // absorbed but a deliberate retry lands.
+  //
+  // Measures the gap between the two KEYDOWNS, never from the end of press():
+  // press() polls until the request appears, which takes ~110ms or ~1000ms
+  // depending on the machine, and timing the gap from there is how the original
+  // version of this test passed and failed on the same code.
+  async function twoPresses(id, gapMs) {
+    const q = qEl(id);
+    reset();
+    q.scrollIntoView({ block: 'center' });
+    await tick(250);
+    const r = q.getBoundingClientRect();
+    document.dispatchEvent(new MouseEvent('mousemove',
+      { clientX: Math.round(r.left + 20), clientY: Math.round(r.top + 20), bubbles: true }));
+    await tick(120);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true }));
+    await tick(gapMs);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true }));
+    await tick(5000);
+    return sent.filter(s => s.type === 'SOLVE_QUESTION').length;
+  }
+
+  const stutter = await twoPresses('mc', 150);
+  check('solve keybind: a 150ms stutter is still absorbed (no double billing)',
+        stutter === 1, 'SOLVE_QUESTION x' + stutter);
+
+  const retry = await twoPresses('mc', 700);
+  check('solve keybind: a deliberate retry 700ms later is NOT swallowed',
+        retry === 2, 'SOLVE_QUESTION x' + retry + (retry < 2 ? '  <-- debounced away' : ''));
 
   // 3. press after Solve All already answered it
   reset();

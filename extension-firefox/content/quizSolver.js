@@ -102,9 +102,16 @@ window.__answerlyQuizSolverLoaded = true;
       // lock to do it, and e.repeat already stops a held key. Leaving
       // lastClick set made the SECOND press a silent no-op - and the second
       // press is exactly what a student does when the first one appeared to do
-      // nothing, so the feature read as completely dead. Mouse clicks keep the
-      // debounce; a deliberate keypress does not.
-      delete trigger.dataset.lastClick;
+      // nothing, so the feature read as completely dead.
+      //
+      // Softened, not removed. Dropping the guard entirely would let a student
+      // who taps the key twice out of habit burn two of their 150 daily solves
+      // where one used to be absorbed. A keypress gets 400ms instead of the
+      // mouse's 1200ms: long enough to swallow a stutter or a bouncing key,
+      // short enough that a deliberate retry lands.
+      const kbLast = +(trigger.dataset.lastClick || 0);
+      if (Date.now() - kbLast < 400) return;
+      trigger.dataset.lastClick = String(Date.now() - 1200);
       qEl.querySelectorAll('.answerly-card').forEach(c => { delete c.dataset.loaded; });
       // A question carrying a figure is DECLINED by the ? button, and in quiz
       // stealth the "use the screenshot tool" notice is deliberately not drawn.
