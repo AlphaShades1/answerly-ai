@@ -507,25 +507,60 @@ document.getElementById('menu-help').addEventListener('click', () => {
 // ── Pro: context file upload ────────────────────────────────────────────────
 // Uploads a reference file (PDF/image/text); backend extracts its text once and
 // the extension stores it. quizSolver.js sends that text as context per question.
-// Firefox dismisses an action popup the moment an OS file picker opens, and
-// destroys this document with it - so the input's `change` event never runs.
-// The picker appears, the menu vanishes, and the file lands nowhere. Chrome
-// keeps the popup alive, so only Firefox needs the detour: open this same
-// page as an ordinary tab, which nothing can dismiss, and pick there.
-// Runtime-detected rather than forked, so both trees stay byte-identical.
+// Some browsers dismiss the action popup the moment an OS file picker opens,
+// and destroy this document with it - so the input's `change` event never
+// runs. The picker appears, the menu vanishes, and the file lands nowhere.
+// Confirmed on Firefox everywhere (Bugzilla 1292701) and reported on Chromium
+// under Linux, where the popup is an overlay the window manager can dismiss;
+// on Windows and macOS Chrome it does not happen. A student on Linux Mint hit
+// it on 2026-11-01.
+//
+// The detour is to open this same page as an ordinary tab, which nothing can
+// dismiss, and pick there. Runtime-detected rather than forked, so the Chrome
+// and Firefox trees stay byte-identical.
 const IS_FIREFOX    = /Firefox\/\d/.test(navigator.userAgent);
+// Desktop Linux only. 'Linux' alone also matches Android, which is a very
+// different platform and not one where this is known to happen.
+const IS_LINUX_DESKTOP = /\bX11\b/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
 const IN_UPLOAD_TAB = new URLSearchParams(location.search).get('upload') === '1';
 
-btnUploadContext.addEventListener('click', () => {
-  if (IS_FIREFOX && !IN_UPLOAD_TAB) {
-    chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html?upload=1') }, () => {
-      // If the tab could not be opened, picking here is still better than a
-      // button that does nothing - it fails the old way rather than silently.
-      if (chrome.runtime.lastError) { contextFileInput.click(); return; }
-      window.close();
-    });
-    return;
+// Which configurations break is not knowable from a user-agent string - it
+// depends on the window manager, and the same report exists for fullscreen
+// mode. So also LEARN it: before opening the picker, leave a probe behind. If
+// this document survives, change or cancel clears it. If the popup is
+// destroyed instead, neither fires, and the next time the popup opens the
+// stale probe is proof that picking here does not work on this machine.
+// Costs an affected student one failed attempt; costs everyone else nothing.
+const PROBE = 'answerlyPickerProbe';
+const KILLS = 'answerlyPickerKillsPopup';
+let pickerKillsPopup = false;
+
+chrome.storage.local.get([PROBE, KILLS], (st) => {
+  pickerKillsPopup = !!st[KILLS];
+  if (st[PROBE]) {
+    // A probe that outlived its own document. Remember it and stop guessing.
+    chrome.storage.local.set({ [KILLS]: true });
+    chrome.storage.local.remove(PROBE);
+    pickerKillsPopup = true;
   }
+});
+const clearProbe = () => { try { chrome.storage.local.remove(PROBE); } catch {} };
+contextFileInput.addEventListener('cancel', clearProbe);
+contextFileInput.addEventListener('change', clearProbe);
+
+function openUploadTab() {
+  chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html?upload=1') }, () => {
+    // If the tab could not be opened, picking here is still better than a
+    // button that does nothing - it fails the old way rather than silently.
+    if (chrome.runtime.lastError) { contextFileInput.click(); return; }
+    window.close();
+  });
+}
+
+btnUploadContext.addEventListener('click', () => {
+  if (IN_UPLOAD_TAB) { contextFileInput.click(); return; }   // already somewhere safe
+  if (IS_FIREFOX || IS_LINUX_DESKTOP || pickerKillsPopup) { openUploadTab(); return; }
+  chrome.storage.local.set({ [PROBE]: Date.now() });
   contextFileInput.click();
 });
 
@@ -536,7 +571,7 @@ if (IN_UPLOAD_TAB) {
   document.body.classList.add('answerly-upload-tab');
   const hint = document.createElement('div');
   hint.className = 'context-upload-hint';
-  hint.textContent = 'Firefox closes the extension menu when a file picker opens, '
+  hint.textContent = 'Your browser closes the extension menu when a file picker opens, '
                    + 'so use this tab instead. Press the button below to choose your '
                    + 'files, then close the tab once it says Loaded - your files are '
                    + 'saved and will be used when solving.';
