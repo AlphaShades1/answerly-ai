@@ -711,14 +711,24 @@ contextFileInput.addEventListener('change', async () => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.token}` },
         body: JSON.stringify({ fileData: base64, mimeType: file.type || 'text/plain', fileName: file.name }),
       });
-      const data = await res.json();
+      // Check the STATUS before parsing. A 413, a Render cold start or a
+      // Cloudflare error page is HTML, not JSON, so res.json() threw right
+      // here and the generic outer catch reported "Could not process these
+      // files" - which reads as "your file is bad" when it really means the
+      // server never answered.
       // Name the file that failed — with three in flight, "Upload failed" alone
       // doesn't say which one to swap out. Keep whatever already succeeded.
       if (!res.ok) {
+        let msg = '';
+        try { msg = JSON.parse(await res.text()).error || ''; } catch {}
+        if (!msg) msg = res.status === 413
+          ? 'that file is too large for the server'
+          : `server error ${res.status}, try again in a moment`;
         if (added.length) await writeContextFiles(existing.concat(added));
-        showContextStatus(`${file.name}: ${data.error || 'upload failed'}`, true);
+        showContextStatus(`${file.name}: ${msg}`, true);
         return;
       }
+      const data = await res.json();
       added.push({ fileName: data.fileName, context: data.context, size: file.size });
     }
     const all = existing.concat(added);
