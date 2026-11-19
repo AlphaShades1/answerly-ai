@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Answerly AI — My Questions</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f12;
+      color: #f0f0f5;
+      font-size: 13px;
+      padding: 24px 16px 48px;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    .header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .header h1 { font-size: 17px; font-weight: 700; }
+    .sub { color: #8888a0; font-size: 12px; margin-bottom: 18px; }
+
+    .bar { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+    .bar input[type="search"] {
+      flex: 1 1 200px; min-width: 0;
+      padding: 8px 11px; border-radius: 8px;
+      border: 1px solid #3a3a5c; background: #16161c; color: #f0f0f5;
+      font-size: 13px; font-family: inherit;
+    }
+    .bar input[type="search"]:focus { outline: none; border-color: #7c5cfc; }
+    .btn {
+      padding: 8px 14px; border-radius: 8px; cursor: pointer;
+      border: 1px solid #3a3a5c; background: #16161c; color: #f0f0f5;
+      font-size: 12.5px; font-family: inherit; white-space: nowrap;
+    }
+    .btn:hover { border-color: #7c5cfc; }
+    .btn.primary { background: #7c5cfc; border-color: #7c5cfc; color: #fff; font-weight: 600; }
+    .btn:disabled { opacity: .4; cursor: default; }
+
+    .quiz { margin-bottom: 22px; }
+    .quiz-head {
+      display: flex; align-items: baseline; gap: 8px;
+      padding-bottom: 7px; margin-bottom: 10px; border-bottom: 1px solid #26263a;
+    }
+    .quiz-title { font-weight: 700; font-size: 13.5px; }
+    .quiz-meta { color: #8888a0; font-size: 11.5px; margin-left: auto; white-space: nowrap; }
+
+    .q { padding: 11px 13px; border-radius: 9px; background: #16161c; margin-bottom: 8px; }
+    .q-text { line-height: 1.45; margin-bottom: 8px; }
+    .q-opts { list-style: none; margin: 0 0 8px; }
+    .q-opts li { color: #b8b8cc; padding: 2px 0 2px 14px; position: relative; line-height: 1.4; }
+    .q-opts li::before { content: '·'; position: absolute; left: 4px; color: #6a6a85; }
+    .q-opts li.pick { color: #f0f0f5; font-weight: 600; }
+    .q-opts li.pick::before { content: '›'; color: #7c5cfc; font-weight: 700; }
+    .q-ans { color: #a090f0; font-weight: 600; line-height: 1.45; }
+    .q-ans .lbl { color: #8888a0; font-weight: 500; }
+    .q-foot { color: #6a6a85; font-size: 11px; margin-top: 7px; }
+    .tag {
+      display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 10px;
+      border: 1px solid #3a3a5c; color: #8888a0; margin-left: 6px; vertical-align: 1px;
+    }
+
+    .note { color: #8888a0; line-height: 1.55; padding: 14px 0; }
+    .note strong { color: #f0f0f5; }
+    .empty { text-align: center; padding: 48px 12px; color: #8888a0; line-height: 1.6; }
+    .empty .big { font-size: 15px; color: #f0f0f5; margin-bottom: 6px; font-weight: 600; }
+    .retention {
+      margin-top: 26px; padding-top: 14px; border-top: 1px solid #26263a;
+      color: #6a6a85; font-size: 11.5px; line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header"><h1>My Questions</h1></div>
+    <div class="sub" id="sub">Loading…</div>
+
+    <div class="bar" id="bar" style="display:none;">
+      <input type="search" id="search" placeholder="Search your questions and answers…" />
+      <button class="btn" id="btn-download">Download</button>
+      <button class="btn primary" id="btn-refresh">Refresh</button>
+    </div>
+
+    <div id="list"></div>
+    <div class="retention" id="retention"></div>
+  </div>
+  <script src="history.js"></script>
+</body>
+</html>

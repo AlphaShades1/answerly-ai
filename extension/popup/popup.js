@@ -968,6 +968,10 @@ document.getElementById('btn-discord').addEventListener('click', () => {
 });
 
 // ── Customize ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-history').addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('popup/history.html') });
+});
+
 document.getElementById('btn-customize').addEventListener('click', () => {
   chrome.tabs.create({ url: chrome.runtime.getURL('popup/customize.html') });
 });
