@@ -192,6 +192,64 @@ window.__answerlyNQSolverLoaded = true;
     }
   }, true);
 
+  // ── Gradual fill (opt-in) ────────────────────────────────────────────────
+  let gradualFillEnabled = false;
+
+  // Typing speed, 1 (slowest) to 10 (fastest), set on the Customize page.
+  // A TABLE rather than a formula so every notch is a speed someone chose,
+  // and index 4 is exactly 1.0 - the fixed speed this shipped with - so a
+  // student who never touches the slider sees no change whatsoever.
+  //
+  // Against the 120-300ms base (avg 210ms a word) those land near:
+  //    1 ~ 40 wpm   real typing, for a short answer read over the shoulder
+  //    5 ~ 285 wpm  the old fixed speed, and still the default
+  //   10 ~ 1430 wpm near instant, for when the edit history is not the point
+  //
+  // Read per tick, not once per fill, so moving the slider mid-essay takes
+  // effect on the very next word instead of after the current answer ends.
+  const GRADUAL_SPEEDS  = [7.0, 4.6, 3.0, 1.9, 1.0, 0.72, 0.52, 0.38, 0.28, 0.20];
+  const GRADUAL_DEFAULT = 5;
+  let gradualFillSpeed  = GRADUAL_DEFAULT;
+  // Anything unset, non-numeric or out of range falls back to the default
+  // rather than to NaN, which would make the delay NaN and stall the fill
+  // forever on a box the student is watching.
+  function gradualSpeedFrom(v) {
+    // typeof first: Number(true) is 1, so a boolean in this key would read
+    // as speed 1 and quietly type seven times slower than asked.
+    if (typeof v !== 'number' && typeof v !== 'string') return GRADUAL_DEFAULT;
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && n >= 1 && n <= 10 ? n : GRADUAL_DEFAULT;
+  }
+  const gradualMult = () => GRADUAL_SPEEDS[gradualFillSpeed - 1];
+
+  chrome.storage.local.get(['answerlyGradualFill', 'answerlyGradualFillSpeed'], (s) => {
+    gradualFillEnabled = !!s.answerlyGradualFill;
+    gradualFillSpeed   = gradualSpeedFrom(s.answerlyGradualFillSpeed);
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area && area !== 'local') return;
+    if (changes.answerlyGradualFill) gradualFillEnabled = !!changes.answerlyGradualFill.newValue;
+    if (changes.answerlyGradualFillSpeed) {
+      gradualFillSpeed = gradualSpeedFrom(changes.answerlyGradualFillSpeed.newValue);
+    }
+  });
+  function gradualFill(el, text, onDone) {
+    const words = text.split(/(\s+)/);
+    let i = 0, soFar = '';
+    const fire = () => ['input', 'change'].forEach(t =>
+      el.dispatchEvent(new Event(t, { bubbles: true })));
+    el.innerText = '';
+    (function next() {
+      if (i >= words.length) { fire(); if (onDone) onDone(); return; }
+      const chunk = Math.min(1 + Math.floor(Math.random() * 2), words.length - i);
+      soFar += words.slice(i, i + chunk).join('');
+      el.innerText = soFar;
+      i += chunk;
+      fire();
+      setTimeout(next, Math.round((120 + Math.floor(Math.random() * 180)) * gradualMult()));
+    })();
+  }
+
   // ── Maths recovery ──────────────────────────────────────────────────────────
   // Equations are rendered as pictures, not text: Canvas emits
   // <img class="equation_image" data-equation-content="\log_2 16 = x">, MathJax
@@ -2546,10 +2604,16 @@ window.__answerlyNQSolverLoaded = true;
                       const doc = richIframes[0].contentDocument || richIframes[0].contentWindow?.document;
                       if (doc?.body) {
                         doc.body.focus();
-                        doc.body.innerText = r2.answer;
-                        ['input', 'change'].forEach(t =>
-                          doc.body.dispatchEvent(new Event(t, { bubbles: true })));
-                        camBtn.dataset.opened = 'true';
+                        if (gradualFillEnabled) {
+                          gradualFill(doc.body, r2.answer, () => {
+                            camBtn.dataset.opened = 'true';
+                          });
+                        } else {
+                          doc.body.innerText = r2.answer;
+                          ['input', 'change'].forEach(t =>
+                            doc.body.dispatchEvent(new Event(t, { bubbles: true })));
+                          camBtn.dataset.opened = 'true';
+                        }
                       }
                     } catch { /* cross-origin iframe */ }
                   }
@@ -2631,8 +2695,12 @@ window.__answerlyNQSolverLoaded = true;
             const essay = textParts[0].replace(/\*\*/g, '').trim();
             const writeInto = (el) => {
               el.focus();
-              el.innerText = essay;
-              ['input', 'change'].forEach(t => el.dispatchEvent(new Event(t, { bubbles: true })));
+              if (gradualFillEnabled) {
+                gradualFill(el, essay);
+              } else {
+                el.innerText = essay;
+                ['input', 'change'].forEach(t => el.dispatchEvent(new Event(t, { bubbles: true })));
+              }
             };
             // Two passes, strict then loose. An editor's body really is
             // editable, so preferring that avoids writing an essay into some

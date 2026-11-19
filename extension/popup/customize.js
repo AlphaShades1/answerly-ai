@@ -64,6 +64,10 @@ const opacityVal   = document.getElementById('opacity-val');
 const savedMsg     = document.getElementById('saved-msg');
 const keybindEnabled = document.getElementById('keybind-enabled');
 const keybindCapture = document.getElementById('keybind-capture');
+const gradualFillToggle = document.getElementById('gradual-fill-enabled');
+const gradualSpeedSlider = document.getElementById('gradual-fill-speed');
+const gradualSpeedVal    = document.getElementById('gradual-fill-speed-val');
+const gradualSpeedRow    = document.getElementById('gradual-fill-speed-row');
 const colorSelection = document.getElementById('color-selection');
 const hexSelection   = document.getElementById('hex-selection');
 const colorCrosshair = document.getElementById('color-crosshair');
@@ -194,6 +198,42 @@ document.addEventListener('mousedown', (e) => {
     ssKeybindCapture.textContent = prettyKey(ssKeybind.key);
   }
 });
+
+// ── Gradual Fill ──────────────────────────────────────────────────────────────
+// Must match GRADUAL_SPEEDS in quizSolver.js and newQuizSolver.js. Kept here
+// only to turn a notch into the words-per-minute the label quotes, so the
+// figure on screen is the speed the content script will actually type at.
+const GRADUAL_SPEEDS = [7.0, 4.6, 3.0, 1.9, 1.0, 0.72, 0.52, 0.38, 0.28, 0.20];
+const GRADUAL_DEFAULT = 5;
+function gradualSpeedFrom(v) {
+  // typeof first: Number(true) is 1, so a boolean in this key would read
+  // as speed 1 and quietly type seven times slower than asked.
+  if (typeof v !== 'number' && typeof v !== 'string') return GRADUAL_DEFAULT;
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 1 && n <= 10 ? n : GRADUAL_DEFAULT;
+}
+// 210ms is the midpoint of the solver's 120-300ms per-word delay.
+function gradualWpm(speed) {
+  const ms = 210 * GRADUAL_SPEEDS[gradualSpeedFrom(speed) - 1];
+  return Math.round(60000 / ms / 5) * 5;
+}
+function renderGradualSpeed() {
+  gradualSpeedVal.textContent = '~' + gradualWpm(gradualSpeedSlider.value) + ' words/min';
+  // The slider means nothing while the feature is off, so say so visually
+  // rather than letting someone drag it and expect an effect.
+  const on = gradualFillToggle.checked;
+  gradualSpeedRow.style.opacity = on ? '1' : '0.45';
+  gradualSpeedSlider.disabled = !on;
+}
+let gradualFillReady = false;
+chrome.storage.local.get(['answerlyGradualFill', 'answerlyGradualFillSpeed'], (s) => {
+  gradualFillReady = true;
+  gradualFillToggle.checked = !!s.answerlyGradualFill;
+  gradualSpeedSlider.value = gradualSpeedFrom(s.answerlyGradualFillSpeed);
+  renderGradualSpeed();
+});
+gradualSpeedSlider.addEventListener('input', renderGradualSpeed);
+gradualFillToggle.addEventListener('change', renderGradualSpeed);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 // keepPreset: the drag box is not part of any preset, so changing it should not
@@ -417,6 +457,9 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   updatePreview();
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('[data-preset="default"]').classList.add('active');
+  gradualFillToggle.checked = false;
+  gradualSpeedSlider.value = GRADUAL_DEFAULT;
+  renderGradualSpeed();
 });
 
 // ── Save ──────────────────────────────────────────────────────────────────────
@@ -428,6 +471,10 @@ document.getElementById('btn-save').addEventListener('click', () => {
   if (themeReady)   payload[themeKey] = theme;
   if (keybindReady) payload.answerlyStealthKeybind = keybind;
   if (ssKeybindReady) payload.answerlyScreenshotKeybind = ssKeybind;
+  if (gradualFillReady) {
+    payload.answerlyGradualFill = gradualFillToggle.checked;
+    payload.answerlyGradualFillSpeed = gradualSpeedFrom(gradualSpeedSlider.value);
+  }
   chrome.storage.local.set(payload, () => {
     savedMsg.style.display = 'block';
     setTimeout(() => { savedMsg.style.display = 'none'; }, 3000);

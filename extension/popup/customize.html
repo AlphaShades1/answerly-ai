@@ -461,6 +461,30 @@
     </div>
   </div>
 
+  <!-- Gradual Fill -->
+  <div class="section">
+    <h3>Essay Fill Mode <span class="scope-pill scope-canvas">Canvas quiz pages only</span></h3>
+    <div class="toggle-row" style="border-bottom:none;padding-bottom:0;">
+      <div class="toggle-info">
+        <div class="toggle-label">Gradual Fill</div>
+        <div class="toggle-desc">When Answerly writes an answer into a text box, type it word by word instead of pasting it all at once. This makes the edit history look like normal typing. Only affects essay and short-answer text boxes on Canvas quizzes.</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="gradual-fill-enabled" />
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+    <div class="slider-row" style="padding-top:14px;" id="gradual-fill-speed-row">
+      <span class="color-label">Typing speed</span>
+      <input type="range" id="gradual-fill-speed" min="1" max="10" step="1" value="5" />
+      <div class="slider-labels">
+        <span>Slower</span>
+        <span class="opacity-val" id="gradual-fill-speed-val">~285 words/min</span>
+        <span>Faster</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Preview -->
   <div class="section">
     <h3>Preview</h3>
