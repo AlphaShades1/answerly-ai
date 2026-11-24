@@ -2342,6 +2342,40 @@ window.__answerlyNQSolverLoaded = true;
          + '. Use these exact words, one per dropdown, top to bottom.';
   }
 
+
+  // ── How far down this question's content really goes ────────────────────
+  // Canvas lays questions out in sequence, so everything between this question
+  // and the next one belongs to this question - including the tall figures and
+  // option blocks some quizzes render OUTSIDE the question container. Keying
+  // the overflow capture on qEl's own box alone made those invisible: a
+  // question whose choices sat below a spacer image was captured as the stem
+  // only, and the model was asked to pick from options it had never been shown.
+  //
+  // Only ever EXTENDS the region, never shrinks it, so an ordinary question
+  // whose container already covers its choices is captured exactly as before.
+  function nqQuestionBottom(qEl) {
+    let bottom;
+    try { bottom = qEl.getBoundingClientRect().bottom; } catch { return null; }
+    try {
+      const all  = Array.from(findNQQuestions() || []);
+      const idx  = all.indexOf(qEl);
+      const next = idx >= 0 && idx + 1 < all.length ? all[idx + 1] : null;
+      if (next) {
+        // Stop short of the next question so its stem never bleeds into this
+        // slice and gets read as a second question.
+        const top = next.getBoundingClientRect().top - 12;
+        if (top > bottom) bottom = top;
+      }
+      // Deliberately nothing for the LAST question on a page. Extending it to
+      // its parent container was tried and reverted: the container is the page
+      // wrapper, which runs past the fold almost always, so the gate below
+      // would fire on every one-question-per-page quiz and spend three vision
+      // calls where one was correct. Fixing that case needs a real example of
+      // the markup, not a guess at it.
+    } catch { /* keep the element's own box */ }
+    return bottom;
+  }
+
   // Mirrors quizSolver.js: grab the part of the question below the fold so
   // rows that did not fit on screen still reach the model. Top frame only —
   // inside the legacy quiz-lti iframe the scroll that matters belongs to the
@@ -2357,9 +2391,9 @@ window.__answerlyNQSolverLoaded = true;
       let i = 0;
       const step = () => {
         if (i++ >= maxExtra) return finish();
-        let r;
-        try { r = qEl.getBoundingClientRect(); } catch { return finish(); }
-        if (r.bottom <= window.innerHeight + 2) return finish();
+        const far = nqQuestionBottom(qEl);
+        if (far == null) return finish();
+        if (far <= window.innerHeight + 2) return finish();
         window.scrollBy(0, Math.max(1, window.innerHeight - 90));
         setTimeout(() => {
           sendSolve({ type: 'CAPTURE_SCREENSHOT' }, (shot) => {
@@ -2369,7 +2403,10 @@ window.__answerlyNQSolverLoaded = true;
             const x = Math.max(0, b.left);
             const y = Math.max(0, b.top);
             const w = Math.min(b.right, window.innerWidth) - x;
-            const h = Math.min(b.bottom, window.innerHeight) - y;
+            // Same extended bottom as the gate above, so the slice carries the
+            // figures and choices that sit outside qEl's own box.
+            const deep = nqQuestionBottom(qEl);
+            const h = Math.min(deep == null ? b.bottom : deep, window.innerHeight) - y;
             if (w < 10 || h < 10) return finish();
             cropNQStealthImage(shot.dataUrl, x, y, w, h, window.innerWidth, window.innerHeight)
               .then((crop) => { if (crop) slices.push(crop); step(); })

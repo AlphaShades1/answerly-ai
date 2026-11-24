@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="robots" content="noindex, nofollow" /><meta charset="utf-8">
+  <title>Stealth overflow capture - New Quizzes</title>
+<style>
+  body{font-family:system-ui;margin:0;padding:20px;max-width:1000px}
+  [data-automation="sdk-item-wrapper"]{border:1px solid #cbd;margin:14px 0;padding:10px;background:#fff}
+  .figure{background:linear-gradient(#dde,#bcd);border:1px solid #99a;margin:12px 0}
+  #log{position:fixed;right:8px;top:8px;width:440px;max-height:94vh;overflow:auto;
+       font-family:ui-monospace,monospace;font-size:11px;white-space:pre-wrap;
+       background:#111;color:#ddd;padding:10px;border-radius:6px;z-index:2147483646}
+  .pass{color:#4ade80}.fail{color:#f87171}
+</style>
+</head>
+<body>
+<h1 id="quiz_title">NQ overflow capture</h1>
+
+<!-- A. CONTROL: short question. -->
+<div data-automation="sdk-item-wrapper" data-id="q1">
+  <div data-automation="sdk-position-box-text">Question 1</div>
+  <div data-automation="sdk-interaction-type-name-div">Multiple Choice</div>
+  <div tabindex="-1"><div class="user_content enhanced"><p>What is the capital of France?</p></div></div>
+  <div role="radiogroup">
+    <label style="display:block"><input type="radio" name="q1"><span class="user_content enhanced">Paris</span></label>
+    <label style="display:block"><input type="radio" name="q1"><span class="user_content enhanced">Rome</span></label>
+  </div>
+</div>
+
+<!-- B. REGRESSION: tall question, figure INSIDE the wrapper. -->
+<div data-automation="sdk-item-wrapper" data-id="q2">
+  <div data-automation="sdk-position-box-text">Question 2</div>
+  <div data-automation="sdk-interaction-type-name-div">Multiple Choice</div>
+  <div tabindex="-1"><div class="user_content enhanced"><p>Study the figure and choose the correct reading.</p></div></div>
+  <div class="figure" style="height:1400px"></div>
+  <div role="radiogroup">
+    <label style="display:block"><input type="radio" name="q2"><span class="user_content enhanced">Rising</span></label>
+    <label style="display:block"><input type="radio" name="q2"><span class="user_content enhanced">Falling</span></label>
+  </div>
+</div>
+
+<!-- C. THE NEW CASE: wrapper holds only the stem; figure and choices sit after
+     it, before the next wrapper. -->
+<div data-automation="sdk-item-wrapper" data-id="q3">
+  <div data-automation="sdk-position-box-text">Question 3</div>
+  <div data-automation="sdk-interaction-type-name-div">Multiple Choice</div>
+  <div tabindex="-1"><div class="user_content enhanced"><p>Which policy does the graph below support?</p></div></div>
+</div>
+<div class="figure" style="height:1300px"></div>
+<div role="radiogroup" style="background:#fff;border:1px solid #cbd;padding:10px">
+  <label style="display:block"><input type="radio" name="q3"><span class="user_content enhanced">Expansionary</span></label>
+  <label style="display:block"><input type="radio" name="q3"><span class="user_content enhanced">Contractionary</span></label>
+</div>
+
+<!-- Trailing question so #3 is never last. -->
+<div data-automation="sdk-item-wrapper" data-id="q4">
+  <div data-automation="sdk-position-box-text">Question 4</div>
+  <div data-automation="sdk-interaction-type-name-div">Multiple Choice</div>
+  <div tabindex="-1"><div class="user_content enhanced"><p>Unrelated closing question.</p></div></div>
+  <div role="radiogroup">
+    <label style="display:block"><input type="radio" name="q4"><span class="user_content enhanced">Yes</span></label>
+  </div>
+</div>
+
+<div id="log">running…</div>
+
+<script>
+function fakeShot() {
+  const c = document.createElement('canvas');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#333'; g.font = '20px monospace';
+  g.fillText('scrollY=' + Math.round(window.scrollY), 20, 40);
+  return c.toDataURL('image/png');
+}
+
+const captures = [];
+const solves   = [];
+const store = {
+  answerlySession: { code: 'ANS-TEST', token: 't' },
+  answerlyQuizActive: true,
+  answerlyQuizStealthActive: false,
+  answerlyScreenshotActive: true,
+  answerlyScreenshotStealthActive: true,
+};
+const changeListeners = [], msgListeners = [];
+window.chrome = {
+  runtime: {
+    lastError: null,
+    onMessage: { addListener(fn) { msgListeners.push(fn); } },
+    getURL: p => p,
+    sendMessage(msg, cb) {
+      if (msg.type === 'CAPTURE_SCREENSHOT') {
+        captures.push({ scrollY: Math.round(window.scrollY) });
+        if (cb) setTimeout(() => cb({ dataUrl: fakeShot() }), 5);
+        return;
+      }
+      if (msg.type === 'SOLVE_SCREENSHOT_STEALTH') {
+        solves.push({ hasImage: !!msg.image, n: Array.isArray(msg.images) ? msg.images.length : 1 });
+        if (cb) setTimeout(() => cb({ answer: 'A', answerText: 'Expansionary' }), 5);
+        return;
+      }
+      if (cb) setTimeout(() => cb({ ok: true }), 5);
+    },
+  },
+  storage: {
+    local: {
+      get(keys, cb) { const l = Array.isArray(keys) ? keys : [keys]; const o = {};
+        l.forEach(k => { if (k in store && store[k] !== null) o[k] = store[k]; }); cb(o); },
+      set(obj, cb) { const ch = {};
+        Object.keys(obj).forEach(k => { ch[k] = { oldValue: store[k], newValue: obj[k] }; store[k] = obj[k]; });
+        changeListeners.forEach(fn => fn(ch, 'local')); if (cb) cb(); },
+      remove(keys, cb) { (Array.isArray(keys) ? keys : [keys]).forEach(k => delete store[k]); if (cb) cb(); },
+    },
+    onChanged: { addListener(fn) { changeListeners.push(fn); } },
+  },
+};
+const tick = ms => new Promise(r => setTimeout(r, ms));
+</script>
+
+<script>document.write('<scr'+'ipt src="/extension/content/newQuizSolver.js?t='+Date.now()+'"><\/scr'+'ipt>')</script>
+
+<script>
+const results = [];
+const check = (n, ok, d) => results.push({ n, ok: !!ok, d: d === undefined ? '' : String(d) });
+const qEl = id => document.querySelector('[data-id="' + id + '"]');
+
+function dragOn(overlay, x1, y1, x2, y2) {
+  const fire = (t, x, y) => overlay.dispatchEvent(
+    new MouseEvent(t, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+  fire('mousedown', x1, y1); fire('mousemove', x2, y2); fire('mouseup', x2, y2);
+}
+
+async function capture(id) {
+  captures.length = 0; solves.length = 0;
+  const q = qEl(id);
+  q.scrollIntoView({ block: 'start' });
+  await tick(300);
+  const scrollBefore = Math.round(window.scrollY);
+
+  const cam = q.querySelector('.answerly-nq-cam-btn');
+  if (!cam) return { error: 'no camera button on ' + id };
+  cam.click();
+
+  let overlay = null;
+  for (let i = 0; i < 40 && !overlay; i++) { await tick(100); overlay = document.getElementById('answerly-nq-stealth-overlay'); }
+  if (!overlay) return { error: 'overlay never appeared for ' + id };
+  dragOn(overlay, 60, 80, 520, 420);
+
+  for (let i = 0; i < 60 && !solves.length; i++) await tick(100);
+  await tick(300);
+  return { captures: captures.length, solve: solves[0] || null,
+           scrollYs: captures.map(c => c.scrollY),
+           scrollBefore, scrollAfter: Math.round(window.scrollY) };
+}
+
+(async () => {
+  await tick(3500);
+  const camCount = document.querySelectorAll('.answerly-nq-cam-btn').length;
+  check('NQ: camera buttons injected on every question', camCount >= 4, 'found ' + camCount);
+
+  const a = await capture('q1');
+  check('A short question: ONE capture (no extra cost, no regression)',
+        !a.error && a.captures === 1, a.error || ('captures=' + a.captures));
+  check('A short question: single image, no images[] array',
+        !a.error && a.solve && a.solve.n === 1, a.error || JSON.stringify(a.solve));
+
+  const b = await capture('q2');
+  check('B tall question (figure INSIDE wrapper): still captures 3 frames',
+        !b.error && b.captures === 3, b.error || ('captures=' + b.captures));
+  check('B tall question: sends 3 images as ONE question',
+        !b.error && b.solve && b.solve.n === 3, b.error || JSON.stringify(b.solve));
+  check('B tall question: actually scrolled between frames',
+        !b.error && new Set(b.scrollYs).size === 3, b.error || JSON.stringify(b.scrollYs));
+
+  const c = await capture('q3');
+  check('C stem-only wrapper (THE FIX): captures 3 frames',
+        !c.error && c.captures === 3, c.error || ('captures=' + c.captures));
+  check('C stem-only wrapper: sends 3 images as ONE question',
+        !c.error && c.solve && c.solve.n === 3, c.error || JSON.stringify(c.solve));
+  check('C stem-only wrapper: scrolled to reach the choices',
+        !c.error && new Set(c.scrollYs).size === 3, c.error || JSON.stringify(c.scrollYs));
+
+  check('D scroll position restored after a 3-frame capture',
+        !c.error && Math.abs(c.scrollAfter - c.scrollBefore) <= 2,
+        c.error || ('before=' + c.scrollBefore + ' after=' + c.scrollAfter));
+  check('D scroll restored after a 1-frame capture',
+        !a.error && Math.abs(a.scrollAfter - a.scrollBefore) <= 2,
+        a.error || ('before=' + a.scrollBefore + ' after=' + a.scrollAfter));
+
+  check('E no overlay left in the DOM', !document.getElementById('answerly-nq-stealth-overlay'));
+
+  document.getElementById('log').innerHTML = results.map(r =>
+    `<span class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</span>  ${r.n}\n       ${r.d}`
+  ).join('\n') + `\n\n${results.filter(r => r.ok).length}/${results.length} passed`;
+  window.__results = results; window.__done = true;
+})();
+</script>
+</body>
+</html>
